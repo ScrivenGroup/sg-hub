@@ -224,15 +224,13 @@ export const seedDependencies: DependencyRecord[] = [
     notes: "Point domain at App Service after Phase 2.",
   },
   {
-    id: "dep-demo-secret",
-    name: "Example: rotating API secret (demo)",
+    id: "dep-entra-secret",
+    name: "Entra app client secret (scrivengroup-hub)",
     type: "secret",
-    expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10),
-    externalUrl: "https://portal.azure.com",
+    expiresAt: "2027-08-13",
+    externalUrl: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
     notes:
-      "Demo amber RAG — expiry within 3 months. Replace with real deps in Phase 2.",
+      "Client secret created Phase 2 — 365-day expiry. Rotate before this date; update Azure App Settings.",
   },
 ];
 
