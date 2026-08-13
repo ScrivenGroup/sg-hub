@@ -37,6 +37,10 @@ yarn-error.log*
 # local JSON store
 /data
 
+# Azure deploy package
+/.azure-deploy
+/*.deploy.zip
+
 # vercel
 .vercel
 

@@ -1,10 +1,12 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { auth, signIn } from "@/auth";
+import { auth, authFlags, signIn } from "@/auth";
 
 export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/home");
+
+  const { entraConfigured, devAuth } = authFlags;
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--page)] px-4">
@@ -25,33 +27,59 @@ export default async function LoginPage() {
             Plain. Professional. Consistent.
           </p>
         </div>
-        <form
-          className="space-y-4"
-          action={async (formData) => {
-            "use server";
-            await signIn("dev-login", {
-              name: String(formData.get("name") || "Scriven Owner"),
-              redirectTo: "/home",
-            });
-          }}
-        >
-          <label className="block text-sm font-medium text-[var(--ink)]">
-            Display name
-            <input
-              className="sg-input mt-1"
-              name="name"
-              type="text"
-              defaultValue="Scriven Owner"
-              autoComplete="name"
-            />
-          </label>
-          <button type="submit" className="sg-btn-primary w-full">
-            Dev Login
-          </button>
-          <p className="text-center text-xs text-[var(--muted)]">
-            Phase 1 local demo. Microsoft Entra replaces this in Phase 3.
-          </p>
-        </form>
+
+        <div className="space-y-4">
+          {entraConfigured ? (
+            <form
+              action={async () => {
+                "use server";
+                await signIn("microsoft-entra-id", { redirectTo: "/home" });
+              }}
+            >
+              <button type="submit" className="sg-btn-primary w-full">
+                Sign in with Microsoft
+              </button>
+            </form>
+          ) : null}
+
+          {devAuth ? (
+            <form
+              className="space-y-3"
+              action={async (formData) => {
+                "use server";
+                await signIn("dev-login", {
+                  name: String(formData.get("name") || "Scriven Owner"),
+                  redirectTo: "/home",
+                });
+              }}
+            >
+              {entraConfigured ? (
+                <p className="text-center text-xs text-[var(--muted)]">
+                  Or use Dev Login (local only)
+                </p>
+              ) : null}
+              <label className="block text-sm font-medium text-[var(--ink)]">
+                Display name
+                <input
+                  className="sg-input mt-1"
+                  name="name"
+                  type="text"
+                  defaultValue="Scriven Owner"
+                  autoComplete="name"
+                />
+              </label>
+              <button type="submit" className="sg-btn-secondary w-full">
+                Dev Login
+              </button>
+            </form>
+          ) : null}
+
+          {!entraConfigured && !devAuth ? (
+            <p className="text-sm text-[var(--muted)]">
+              No login providers configured. Set Entra env vars or DEV_AUTH=true.
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

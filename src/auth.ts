@@ -1,12 +1,27 @@
 import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
-/**
- * Phase 1: Dev Login (credentials).
- * Phase 3: add Microsoft Entra provider; keep Dev Login behind DEV_AUTH=true only.
- */
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
+const providers: Provider[] = [];
+
+const entraConfigured =
+  !!process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+  !!process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+  !!process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER;
+
+if (entraConfigured) {
+  providers.push(
+    MicrosoftEntraID({
+      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+    }),
+  );
+}
+
+if (process.env.DEV_AUTH === "true") {
+  providers.push(
     Credentials({
       id: "dev-login",
       name: "Dev Login",
@@ -14,9 +29,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         name: { label: "Display name", type: "text" },
       },
       async authorize(credentials) {
-        if (process.env.DEV_AUTH !== "true") {
-          return null;
-        }
         const name =
           typeof credentials?.name === "string" && credentials.name.trim()
             ? credentials.name.trim()
@@ -28,7 +40,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
-  ],
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers,
   pages: {
     signIn: "/login",
   },
@@ -44,3 +60,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   secret: process.env.AUTH_SECRET,
 });
+
+export const authFlags = {
+  entraConfigured,
+  devAuth: process.env.DEV_AUTH === "true",
+};
