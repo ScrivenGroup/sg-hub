@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import path from "path";
 
 const root = process.cwd();
@@ -18,5 +18,15 @@ cpSync(path.join(root, ".next", "static"), path.join(out, ".next", "static"), {
 });
 cpSync(path.join(root, "public"), path.join(out, "public"), { recursive: true });
 
+// Azure Deployments Preview runs `npm run build` — standalone has no src/app.
+// Make build a no-op and start the standalone server.
+const pkgPath = path.join(out, "package.json");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+pkg.scripts = {
+  build: "node -e \"console.log('prebuilt standalone — skip build')\"",
+  start: "node server.js",
+};
+writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+
 console.log("Prepared", out);
-console.log("Deploy with: az webapp deploy -g rg-scrivengroup -n app-scrivengroup --src-path .azure-deploy --type zip");
+console.log("Also set App Setting SCM_DO_BUILD_DURING_DEPLOYMENT=false if Azure still rebuilds.");

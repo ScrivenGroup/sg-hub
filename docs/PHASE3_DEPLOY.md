@@ -7,11 +7,15 @@ Phase 2 App Settings must already include Entra + `AUTH_URL` + `AUTH_SECRET` + `
 
 ## One-time App Service settings (Portal)
 
-1. **app-scrivengroup** → **Configuration** / **Environment variables** (already done for secrets).  
-2. **Configuration** → **General settings** (or Startup Command):  
+1. **Environment variables** — add if missing:  
+   - `SCM_DO_BUILD_DURING_DEPLOYMENT` = `false`  
+   - `ENABLE_ORYX_BUILD` = `false`  
+   (Stops Azure re-running `next build` on a prebuilt zip.)  
+2. **Configuration → Stack settings**  
    - **Startup Command:** `node server.js`  
-3. **Stack:** Node 20 if shown.  
-4. Save / Restart.
+3. Save / Restart.
+
+**Why the first deploy failed:** Deployments Preview ran `npm run build` inside the zip. Our zip is already built (standalone) and has no `src/app`, so Next failed. New zip makes `build` a no-op; disable Oryx as above.
 
 ## Deploy the zip (no Azure CLI required)
 
