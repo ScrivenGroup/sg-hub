@@ -49,6 +49,18 @@ az webapp config set -g rg-scrivengroup -n app-scrivengroup --startup-file "node
 
 If login fails: check redirect URI, App Settings names, and that `DEV_AUTH` is `false` (Microsoft button still shows when Entra env vars are set).
 
+## Agent-assisted deploy (no Kudu typing)
+
+If you cannot use Kudu SSH:
+
+1. Portal → **app-scrivengroup** → **Download publish profile** (top bar).  
+2. Save the file into the project folder, e.g.  
+   `C:\1D\Anyliki\Scriven Group - Documents\Cursor\scrivengroup\app-scrivengroup.PublishSettings`  
+3. Tell the agent: `publish profile saved`  
+4. Agent runs `scripts/deploy-with-publish-profile.ps1` (cleans disk + zip deploy).  
+
+Do **not** commit or paste the publish profile (it contains passwords).
+
 ## Disk full on Free F1 (`No space left on device`)
 
 Free tier has little disk. Failed deploys leave junk.

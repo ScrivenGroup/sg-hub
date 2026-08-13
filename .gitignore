@@ -39,7 +39,10 @@ yarn-error.log*
 
 # Azure deploy package
 /.azure-deploy
-/*.deploy.zip
+/scrivengroup-deploy.zip
+*.deploy.zip
+*.PublishSettings
+*.publishsettings
 
 # vercel
 .vercel
