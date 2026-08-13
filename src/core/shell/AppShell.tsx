@@ -1,0 +1,92 @@
+import Image from "next/image";
+import Link from "next/link";
+import { auth, signOut } from "@/auth";
+import { getHubs, getChildren } from "@/core/registry";
+import { SiteNetwork } from "@/core/shell/SiteNetwork";
+
+export async function AppShell({
+  children,
+  currentHref,
+}: {
+  children: React.ReactNode;
+  currentHref: string;
+}) {
+  const session = await auth();
+  const hubs = getHubs();
+  const childrenByHub = Object.fromEntries(
+    hubs.map((h) => [h.id, getChildren(h.id)]),
+  );
+  const initials =
+    session?.user?.name
+      ?.split(/\s+/)
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ?? "?";
+
+  return (
+    <div className="min-h-dvh bg-[var(--page)] text-[var(--ink)]">
+      <a href="#main" className="sg-skip">
+        Skip to content
+      </a>
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <Link
+            href="/home"
+            className="flex items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
+          >
+            <Image
+              src="/logo.png"
+              alt="Scriven Group"
+              width={36}
+              height={36}
+              className="rounded-md"
+              priority
+            />
+            <span className="hidden text-sm font-semibold sm:inline">
+              Scriven Group
+            </span>
+          </Link>
+          <nav className="ml-auto flex items-center gap-2" aria-label="App">
+            <Link href="/home" className="sg-btn-ghost">
+              Home
+            </Link>
+            <SiteNetwork
+              hubs={hubs}
+              childrenByHub={childrenByHub}
+              currentHref={currentHref}
+            />
+            <details className="relative">
+              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold text-[var(--surface)]">
+                <span className="sr-only">Profile menu</span>
+                {initials}
+              </summary>
+              <div className="absolute right-0 mt-2 w-56 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-lg">
+                <p className="truncate text-sm font-medium">
+                  {session?.user?.name}
+                </p>
+                <p className="truncate text-xs text-[var(--muted)]">
+                  {session?.user?.email}
+                </p>
+                <form
+                  className="mt-3"
+                  action={async () => {
+                    "use server";
+                    await signOut({ redirectTo: "/login" });
+                  }}
+                >
+                  <button type="submit" className="sg-btn-secondary w-full">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            </details>
+          </nav>
+        </div>
+      </header>
+      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
+        {children}
+      </main>
+    </div>
+  );
+}
