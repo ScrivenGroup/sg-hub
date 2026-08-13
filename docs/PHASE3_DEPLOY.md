@@ -49,6 +49,20 @@ az webapp config set -g rg-scrivengroup -n app-scrivengroup --startup-file "node
 
 If login fails: check redirect URI, App Settings names, and that `DEV_AUTH` is `false` (Microsoft button still shows when Entra env vars are set).
 
+## Disk full on Free F1 (`No space left on device`)
+
+Free tier has little disk. Failed deploys leave junk.
+
+1. Kudu → **SSH** → Application (or Bash)  
+2. Run:
+   ```bash
+   rm -rf /home/site/wwwroot/* /home/site/wwwroot/.[!.]* /tmp/* 2>/dev/null; df -h /home
+   ```
+3. Confirm App Settings: `SCM_DO_BUILD_DURING_DEPLOYMENT=false`, `ENABLE_ORYX_BUILD=false`  
+4. Upload a fresh `scrivengroup-deploy.zip` again  
+
+If it still fails after a clean slate: scale the App Service plan from **Free F1 → Basic B1** (~low tens of AUD/month, not $80). Next.js + `node_modules` often needs B1.
+
 ## Not live yet until
 
 Zip is uploaded **and** smoke test passes. Until then only localhost is the working demo.

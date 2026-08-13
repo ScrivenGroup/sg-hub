@@ -9,10 +9,7 @@
     "lint": "eslint",
     "deploy:prepare": "node scripts/prepare-azure-standalone.mjs"
   },
-
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.2",
     "next": "15.5.23",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.1.0",
@@ -22,11 +19,9 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
     "tailwindcss": "^4",
