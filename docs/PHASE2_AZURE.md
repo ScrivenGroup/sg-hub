@@ -1,86 +1,62 @@
-# Phase 2 — Azure / Entra / DNS (revised: existing resources)
+# Phase 2 — Azure (hobby / low-cost path)
 
-You already have Azure website / server / database work from another session (Claude Code). **Do not assume a greenfield create.** Prefer **discover → reuse → fill gaps**.
+**Constraint:** hobby use — avoid ~$80/mo database compute.
 
-## Does an existing `rg-scrivengroup` matter?
+## Resource group (done)
 
-**Yes — in a good way.**
+- Name: `rg-scrivengroup`
+- Region: **Australia East**
 
-| Fact | What it means |
-| ---- | ------------- |
-| Resource group names are unique **per subscription** | You cannot create a second `rg-scrivengroup` in the same subscription. |
-| If it already exists | **Reuse it.** Open it and inventory what’s inside. |
-| If that RG already holds the site/DB you want | Wire **this** ScrivenGroup Hub app to those resources (or decide to share vs separate). |
-| If the name is taken by something unrelated | Either use that RG anyway (add resources beside them) **or** use a new name e.g. `rg-scrivengroup-hub` for this project only. |
+## Database — do **not** take paid Flexible Server Burstable at ~$80/mo
 
-Nothing is “wrong” with the name existing. The mistake would be trying to Create → same name again and fighting the portal error, or spinning a duplicate Postgres/App Service you don’t need.
+Cancel / don’t create that SKU.
 
-## Goal of Phase 2 (revised)
+### Option A (preferred for hobby): Free Postgres outside Azure compute
 
-1. **Inventory** what you already have (RG, App Service, DB, Entra, domain).  
-2. **Decide** reuse vs isolate (same DB vs new DB; same web app vs new web app).  
-3. **Collect** connection values for this repo’s env / App Settings.  
-4. **Fill gaps** only (e.g. Entra app, DNS, missing firewall rule).  
-5. Hand off to Phase 3 deploy of **this** codebase.
+Use a **free Postgres** provider; App Service on Azure still hosts the app.
 
-## Step 0 — Inventory (do this first)
+| Provider | Notes |
+| -------- | ----- |
+| [Neon](https://neon.tech) | Free tier, Postgres, easy `DATABASE_URL` |
+| [Supabase](https://supabase.com) | Free tier, Postgres |
 
-In [Azure Portal](https://portal.azure.com):
+Same Drizzle/Postgres story later; only the host of the DB changes. Azure still holds the **website**.
 
-1. Open **Resource groups**.  
-2. Find **`rg-scrivengroup`** (or note the actual RG name if different).  
-3. Open it and list resources. Reply using this template:
+### Option B: Stay Azure-only if a free DB offer appears
 
-```text
-Phase 2 inventory:
-- Subscription: (name or "default")
-- Resource group: 
-- Region: 
-- App Service / web app name(s): 
-- App Service default URL (*.azurewebsites.net): 
-- Database type (Azure Database for PostgreSQL / SQL / other): 
-- Database / server name: 
-- Entra / app registration already? (yes/no / unknown)
-- Domain already pointed? (scriven.group or other / none)
-- Anything else in the RG: 
-```
+On **Create Azure Database for PostgreSQL Flexible server**, look for a **Free** tier / trial (availability varies by subscription and region). If Australia East shows only paid compute ~$80 → **skip** and use Option A.
 
-Optional CLI (if you use Azure CLI locally):
+### Option C: No managed Postgres yet
 
-```bash
-az group show -n rg-scrivengroup -o table
-az resource list -g rg-scrivengroup -o table
-```
+Keep the Phase 1 **JSON file store** (or SQLite) on a single App Service instance until you outgrow it. Cheapest; least “production DB”. Fine for early v1 hobby.
 
-## Decision after inventory
+**Locked default for this project (hobby):** **Option A — Neon free Postgres** + Azure App Service for the web app.
 
-| Situation | Recommendation |
-| --------- | -------------- |
-| One App Service + one Postgres already for “the” Scriven site | **Reuse** for this Hub if that *is* this product; or create a **second** App Service in the same RG if the old site must stay untouched. |
-| DB already has important data from the other project | Prefer a **new database name** on the same server (or new server) for Hub v1 unless you intend to merge schemas. |
-| Entra app already exists for the old site | Reuse if redirect URIs can include this app’s URLs; else new app registration `scrivengroup-hub`. |
-| Domain already on the old App Service | Keep it there until cutover; Hub can go live first on `*.azurewebsites.net`. |
+## App Service (next step) — keep cheap
 
-## Env vars still needed (for Phase 3)
+| Field | Hobby value |
+| ----- | ----------- |
+| Resource group | `rg-scrivengroup` |
+| Name | `app-scrivengroup` (must be globally unique) |
+| Runtime | **Node 20 LTS** |
+| OS | Linux |
+| Plan | **Free F1** if available; else **Basic B1** (shared) — avoid Premium |
 
-Whether reused or new:
+Free F1 limits: cold starts, no custom domain SSL on some SKUs, limited CPU — OK for hobby demo. Custom domain `scriven.group` may need **B1** later for TLS; can stay on `*.azurewebsites.net` until then.
 
-- `DATABASE_URL`
-- `AUTH_SECRET`
-- Entra: client id, secret, issuer/tenant (when ready)
-- `AUTH_URL` (azurewebsites URL first, then `https://scriven.group`)
-- Production: `DEV_AUTH=false`
+## Rest of Phase 2 (unchanged order, cheaper DB)
 
-## Steps (only after inventory)
+1. ~~Paid Postgres~~ → **Neon (or Supabase) free** → copy `DATABASE_URL`  
+2. **App Service Free F1** in `rg-scrivengroup`  
+3. Entra app registration  
+4. App Settings env vars  
+5. DNS when ready (may wait until not on Free tier)  
+6. Phase 3 deploy  
 
-1. ~~Blind-create RG~~ → **Inventory RG** (Step 0)  
-2. Confirm / create Postgres (reuse server if possible)  
-3. Confirm / create App Service for **this** Next.js app  
-4. Entra app registration + redirect URIs  
-5. App Settings (env vars)  
-6. DNS when ready to cut over `scriven.group`  
-7. Phase 3 deploy this repo  
+## Env vars (still)
 
-## What to say next
-
-Paste the **Phase 2 inventory** block (even partial). We’ll map each line to reuse vs create — no duplicate `rg-scrivengroup` create attempt.
+- `DATABASE_URL` — from Neon/Supabase (Option A)  
+- `AUTH_SECRET`  
+- Entra ids when ready  
+- `AUTH_URL` — `https://<app>.azurewebsites.net` first  
+- `DEV_AUTH=false` on Azure  
