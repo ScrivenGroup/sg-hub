@@ -32,6 +32,16 @@ Keep the Phase 1 **JSON file store** (or SQLite) on a single App Service instanc
 
 **Locked default for this project (hobby):** **Option A — Neon free Postgres** + Azure App Service for the web app.
 
+### Portability (not locked into Neon)
+
+| Layer | What it is | Moving later |
+| ----- | ---------- | ------------ |
+| **App code** | Next.js + Drizzle talking **Postgres SQL** | Stays the same if the new host is Postgres |
+| **Neon** | A **host** for Postgres (like renting a DB) | Point `DATABASE_URL` at Azure Postgres / Supabase / etc.; migrate with dump/restore |
+| **Files (future)** | **Not** stored in Neon/Postgres | Use **Azure Blob Storage** (or similar); DB only stores URLs/metadata |
+
+So: starting on Neon does **not** mean rewriting the Hub to leave. Files are a separate service when you need them — that is normal, not a Neon limitation.
+
 ## App Service (next step) — keep cheap
 
 | Field | Hobby value |
