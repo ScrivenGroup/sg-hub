@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
+import { PageNav } from "@/core/shell/PageNav";
 import { getNodeByHref, getNodeById } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
@@ -26,15 +26,7 @@ export function SubHubShell({
 
   return (
     <AppShell currentHref={href}>
-      <div className="mb-2 text-sm text-[var(--muted)]">
-        {parent ? (
-          <Link href={parent.href} className="hover:underline">
-            {parent.title}
-          </Link>
-        ) : null}
-        <span aria-hidden> / </span>
-        <span>{node.title}</span>
-      </div>
+      <PageNav href={href} />
       <header className="mb-8">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">{node.title}</h1>
@@ -44,6 +36,7 @@ export function SubHubShell({
         <p className="max-w-2xl text-[var(--muted)]">{node.description}</p>
         <p className="mt-2 text-xs text-[var(--muted)]">
           Access: {node.accessMode.replace("_", " ")} · Path {node.href}
+          {parent ? ` · Under ${parent.title}` : null}
         </p>
       </header>
 

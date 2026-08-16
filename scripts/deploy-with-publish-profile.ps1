@@ -10,6 +10,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 if (-not (Test-Path $PublishProfilePath)) {
   throw "Publish profile not found: $PublishProfilePath"
@@ -60,6 +61,20 @@ Write-Host "Uploading zip synchronously (can take several minutes)..."
 $zipFull = (Resolve-Path $ZipPath).Path
 # isAsync=false so Kudu finishes extracting node_modules before returning
 $deployUri = "https://$hostName/api/zipdeploy?isAsync=false"
-Invoke-RestMethod -Method POST -Uri $deployUri -Headers $headers -InFile $zipFull -ContentType "application/octet-stream" -TimeoutSec 1200
+try {
+  Invoke-RestMethod -Method POST -Uri $deployUri -Headers $headers -InFile $zipFull -ContentType "application/octet-stream" -TimeoutSec 1200
+}
+catch {
+  $status = $null
+  try { $status = [int]$_.Exception.Response.StatusCode } catch {}
+  if ($status -eq 401) {
+    throw @"
+Kudu returned 401 Unauthorized. SCM Basic Auth is probably Off.
+Portal → app-scrivengroup → Configuration → General settings →
+SCM Basic Auth Publishing Credentials → On → Apply, then re-run this script.
+"@
+  }
+  throw
+}
 Write-Host "Zip deploy finished."
 Write-Host "Site: https://app-scrivengroup-ebcdarc2cwbtcjaa.australiaeast-01.azurewebsites.net"

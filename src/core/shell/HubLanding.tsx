@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
+import { PageNav } from "@/core/shell/PageNav";
 import { getChildren, getNodeById } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
@@ -25,6 +26,7 @@ export function HubLanding({
 
   return (
     <AppShell currentHref={hub.href}>
+      <PageNav href={hub.href} />
       <header className="mb-8">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">{hub.title}</h1>

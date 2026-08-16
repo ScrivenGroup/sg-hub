@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { getHubs, getChildren } from "@/core/registry";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
+import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
 
 export async function AppShell({
   children,
@@ -56,6 +57,7 @@ export async function AppShell({
               childrenByHub={childrenByHub}
               currentHref={currentHref}
             />
+            <FeedbackCapture />
             <details className="relative">
               <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold text-[var(--surface)]">
                 <span className="sr-only">Profile menu</span>
@@ -84,7 +86,7 @@ export async function AppShell({
           </nav>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
+      <main id="main" className="mx-auto max-w-5xl px-4 pb-24 pt-8 sm:pb-8">
         {children}
       </main>
     </div>

@@ -1,4 +1,5 @@
 import { AppShell } from "@/core/shell/AppShell";
+import { PageNav } from "@/core/shell/PageNav";
 
 const tokens = [
   { name: "--ink", value: "#3C3C3B", note: "Logo charcoal — text & primary" },
@@ -13,6 +14,7 @@ const tokens = [
 export default function AppearancePage() {
   return (
     <AppShell currentHref="/s/appearance">
+      <PageNav href="/s/appearance" />
       <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Appearance</h1>
         <p className="mt-2 max-w-xl text-[var(--muted)]">

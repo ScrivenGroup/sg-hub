@@ -1,0 +1,15 @@
+---
+description: Read site feedback before housekeeping or bug-fix work
+alwaysApply: true
+---
+
+# Feedback register
+
+When the user asks for housekeeping, bug fixes, polish, or “what’s broken,” first read:
+
+1. `docs/feedback-inbox.md`
+2. `data/feedback.json` (if present)
+
+Prefer open `bug` and `housekeeping` items. The in-app register is Internal → Feedback (`/i/feedback`). Capture UI is global (header / mobile FAB).
+
+Do not invent feedback items; only act on what’s logged unless the user adds more in chat.

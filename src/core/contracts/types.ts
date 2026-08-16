@@ -53,3 +53,17 @@ export type NoteRecord = {
   body: string;
   updatedAt: string;
 };
+
+export type FeedbackKind = "bug" | "idea" | "housekeeping" | "other";
+export type FeedbackStatus = "open" | "triaged" | "done";
+
+export type FeedbackRecord = {
+  id: string;
+  createdAt: string;
+  kind: FeedbackKind;
+  status: FeedbackStatus;
+  pageHref: string;
+  pageTitle: string;
+  message: string;
+  submittedBy: string;
+};

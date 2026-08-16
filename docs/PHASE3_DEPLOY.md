@@ -17,29 +17,24 @@ Phase 2 App Settings must already include Entra + `AUTH_URL` + `AUTH_SECRET` + `
 
 **Why the first deploy failed:** Deployments Preview ran `npm run build` inside the zip. Our zip is already built (standalone) and has no `src/app`, so Next failed. New zip makes `build` a no-op; disable Oryx as above.
 
-## Deploy the zip (no Azure CLI required)
+## Default deploy — Azure CLI (no SCM Basic Auth)
 
-Agent prepares `scrivengroup-deploy.zip` in the project folder after `npm run build` + `npm run deploy:prepare`.
+Requires [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) once, then `az login` (browser) when the session expires.
 
-### Option A — Portal zip deploy
-
-1. Portal → **app-scrivengroup** → **Advanced Tools (Kudu)** → **Go**  
-2. In Kudu: **Tools** → **Zip Push Deploy** (or Drag/drop zip onto the page if available)  
-3. Upload `scrivengroup-deploy.zip` from:  
-   `C:\1D\Anyliki\Scriven Group - Documents\Cursor\scrivengroup\scrivengroup-deploy.zip`  
-4. Wait for deploy to finish → Restart the web app if needed.
-
-### Option B — VS Code
-
-Azure App Service extension → right-click `app-scrivengroup` → Deploy → select `.azure-deploy` folder (or the zip).
-
-### Option C — Install Azure CLI later
-
-```bash
-az login
-az webapp deploy -g rg-scrivengroup -n app-scrivengroup --src-path .azure-deploy --type zip
-az webapp config set -g rg-scrivengroup -n app-scrivengroup --startup-file "node server.js"
+```powershell
+npm run build
+npm run deploy:prepare
+npm run deploy:zip
+npm run deploy:azure
 ```
+
+Or directly:
+
+```powershell
+.\scripts\deploy-with-az.ps1
+```
+
+Uses Entra via `az` → `app-scrivengroup` / `rg-scrivengroup`. **SCM Basic Auth Publishing Credentials can stay Off.**
 
 ## Smoke test (live)
 
@@ -49,31 +44,25 @@ az webapp config set -g rg-scrivengroup -n app-scrivengroup --startup-file "node
 
 If login fails: check redirect URI, App Settings names, and that `DEV_AUTH` is `false` (Microsoft button still shows when Entra env vars are set).
 
-## Agent-assisted deploy (no Kudu typing)
+## Legacy fallback — publish profile (needs SCM Basic Auth On)
 
-If you cannot use Kudu SSH:
+Only if `az` is unavailable:
 
-1. Portal → **app-scrivengroup** → **Download publish profile** (top bar).  
-2. Save the file into the project folder, e.g.  
-   `C:\1D\Anyliki\Scriven Group - Documents\Cursor\scrivengroup\app-scrivengroup.PublishSettings`  
-3. Tell the agent: `publish profile saved`  
-4. Agent runs `scripts/deploy-with-publish-profile.ps1` (cleans disk + zip deploy).  
+1. Portal → turn **SCM Basic Auth Publishing Credentials** On  
+2. Download publish profile → `app-scrivengroup.PublishSettings` (gitignored)  
+3. `.\scripts\deploy-with-publish-profile.ps1 -PublishProfilePath ".\app-scrivengroup.PublishSettings"`  
 
-Do **not** commit or paste the publish profile (it contains passwords).
+Prefer fixing Azure CLI login over using this path.
 
-## Disk full on Free F1 (`No space left on device`)
+## Disk full (`No space left on device`)
 
-Free tier has little disk. Failed deploys leave junk.
+Failed deploys can leave junk under `/home`. With Azure CLI you can still use Kudu SSH (portal Advanced Tools) if needed:
 
-1. Kudu → **SSH** → Application (or Bash)  
-2. Run:
-   ```bash
-   rm -rf /home/site/wwwroot/* /home/site/wwwroot/.[!.]* /tmp/* 2>/dev/null; df -h /home
-   ```
-3. Confirm App Settings: `SCM_DO_BUILD_DURING_DEPLOYMENT=false`, `ENABLE_ORYX_BUILD=false`  
-4. Upload a fresh `scrivengroup-deploy.zip` again  
+```bash
+rm -rf /home/site/wwwroot/* /home/site/wwwroot/.[!.]* /tmp/* 2>/dev/null; df -h /home
+```
 
-If it still fails after a clean slate: scale the App Service plan from **Free F1 → Basic B1** (~low tens of AUD/month, not $80). Next.js + `node_modules` often needs B1.
+Confirm App Settings: `SCM_DO_BUILD_DURING_DEPLOYMENT=false`, `ENABLE_ORYX_BUILD=false`, then redeploy with `npm run deploy:azure`.
 
 ## Not live yet until
 

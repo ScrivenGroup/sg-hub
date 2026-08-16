@@ -36,15 +36,16 @@ export function SiteNetwork({ hubs, childrenByHub, currentHref }: Props) {
       </button>
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-3 sm:p-4"
           role="presentation"
           onClick={() => setOpen(false)}
         >
+          <div className="flex min-h-full items-start justify-center sm:items-center">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
+            className="max-h-[min(90dvh,calc(100dvh-1.5rem))] w-full max-w-lg overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -97,6 +98,7 @@ export function SiteNetwork({ hubs, childrenByHub, currentHref }: Props) {
                 </li>
               ))}
             </ul>
+          </div>
           </div>
         </div>
       ) : null}

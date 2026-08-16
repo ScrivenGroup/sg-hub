@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
+import { PageNav } from "@/core/shell/PageNav";
 import { getHubs, getChildren } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { RagDot } from "@/core/ui/RagDot";
@@ -13,6 +14,7 @@ export default async function DefinitionPage() {
 
   return (
     <AppShell currentHref="/s/definition">
+      <PageNav href="/s/definition" />
       <header className="mb-8">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">Definition</h1>
