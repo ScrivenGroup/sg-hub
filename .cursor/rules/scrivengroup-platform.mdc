@@ -1,0 +1,21 @@
+---
+description: ScrivenGroup is one hub app — extend registry routes, do not fork stacks
+alwaysApply: true
+---
+
+# ScrivenGroup platform
+
+This workspace is **one** Next.js hub (`scrivengroup`), not a folder of separate apps.
+
+Before building or framing a product module, read [`docs/PLATFORM.md`](docs/PLATFORM.md). Also use [`docs/MODULES.md`](docs/MODULES.md), [`docs/STANDARDS.md`](docs/STANDARDS.md), [`docs/intent/`](docs/intent/), [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md), and [`src/core/checklist.md`](src/core/checklist.md).
+
+## Hard constraints
+
+1. **Extend this app only** — routes under `src/app/{w|p|i|s}/...` + `RegistryNode` in `src/core/registry/seed.ts`. No new Vite/CRA/Next repo or parallel design system.
+2. **Keep chrome** — `AppShell`, Site network, Feedback, Profile, `PageNav`. Do not invent one-off global layout.
+3. **Theme** — SG tokens from Appearance; opaque hex codes colour the **badge only** unless an explicit ThemeContract for that sub-hub.
+4. **Data** — use existing JSON store patterns (and Neon when graduating persistence). Demo/dummy data must match types/store so it can become production without a rewrite.
+5. **Deploy** — `npm run build` → `deploy:prepare` → `deploy:zip` → `deploy:azure`. Do not ask the user to toggle SCM Basic Auth for routine releases.
+6. **Framing** — mobile/sketch = featureless `SubHubShell` + changelog plan; no fake features while `sketched`.
+
+Live: https://app-scrivengroup-ebcdarc2cwbtcjaa.australiaeast-01.azurewebsites.net
