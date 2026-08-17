@@ -5,11 +5,13 @@ alwaysApply: true
 
 # Sunwater Milestone Resourcing Tracker — ownership
 
-- **In hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`) — AppShell + tab chrome; status `building`.
-- **This session** implements the layered rebuild at that route. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md) — same Next.js app, registry, AppShell, deploy via `npm run deploy:azure`.
+- **In hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`).
+- **This session** implements the layered rebuild at that route. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md).
 
-Until requirements are locked:
+Locked v1:
 
-1. Do **not** port the offline Gantt, Inputs tables, or leveling.
-2. Keep the framed shell (tabs/headings + empty json-store payload).
-3. Next coding pass is Step 5 layers after the user locks Steps 2–4.
+1. Regulator cycles (dam × requirement type), not named engagement milestones.
+2. Staff apply a seeded 24×11 catalog and may add/rename.
+3. Plan hours on Defaults (roles) and occurrence popup (people); seed-once merge.
+4. Overrun heatmap (blank / yellow / red). No leveling algorithm.
+5. Out of v1: Followups, Assumptions, non-resource/intangibles costing.

@@ -7,7 +7,7 @@ import {
   getChangelogsForNode,
   getSunwaterMrtStore,
 } from "@/core/store/json-store";
-import { MrtTabs } from "@/modules/sunwater-mrt/MrtTabs";
+import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
 
 const HREF = "/w/sunwater-mrt";
 
@@ -43,12 +43,12 @@ export default async function SunwaterMrtPage() {
           Store v{store.version}
           {store.updatedAt
             ? ` · Updated ${new Date(store.updatedAt).toLocaleString()}`
-            : " · empty payload"}
+            : " · seeded catalog"}
         </p>
       </header>
 
       <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 px-4">
-        <MrtTabs />
+        <MrtWorkspace initialStore={store} />
       </div>
 
       {changelogs.length > 0 ? (

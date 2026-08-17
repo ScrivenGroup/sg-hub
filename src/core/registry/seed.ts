@@ -87,7 +87,7 @@ export const seedNodes: RegistryNode[] = [
     status: "building",
     hasNetworkMap: false,
     description:
-      "Sunwater client — milestone resourcing tracker. Framed for rebuild (tabs and headings only).",
+      "Sunwater client — dam-safety obligation cycles (dams × requirement types) with occurrence assignment.",
     order: 1,
   },
   {
@@ -231,35 +231,26 @@ export const seedChangelogs: ChangelogEntry[] = [
     id: "cl-sunwater-mrt-1",
     nodeId: "w-sunwater-mrt",
     createdAt: new Date().toISOString(),
-    title: "Development plan (mobile framing)",
+    title: "Development plan (locked)",
     body: `## Sunwater — Milestone Resourcing Tracker
 
 **Client context:** Sunwater (Work hub — org only, no client logins).
 **Badge:** #4E8C6B only (global SG theme until any ThemeContract).
 
-**Goal:** Plan and track people/roles against project milestones so resourcing gaps and over-allocation are visible early.
+**Model:** Dam-safety **regulator cycles**, not named engagement milestones. Occurrence identity is a procedural due date (dam × requirement type × cycle), not a free-named project milestone.
 
-### Milestones
-- Named milestones with target dates / windows
-- Status (planned / in progress / done) and ordering within the engagement
+**Users:** Scriven Group staff via Entra. Shared Work hub.
 
-### Resource / role pool
-- People and/or roles available to the engagement
-- Capacity notes (FTE, availability windows) as needed
+**v1 job:** See upcoming obligations on the cyclical Gantt, mark a plan (due / lead-in + who / hours) via the occurrence popup. Defaults templates seed an occurrence once; later Defaults edits do not overwrite a saved occurrence.
 
-### Allocation
-- Assign resources to milestones over time
-- Surface conflicts (same person double-booked) and shortfalls (uncovered milestone demand)
+**Catalog:** Seed the offline 24 dams × 11 regulator lanes; staff can add/rename. Staff tick which obligations apply and set lead times (general + per-dam).
 
-### Views / reporting
-- Milestone-centric and resource-centric views
-- Simple export or snapshot for client conversation (desktop build)
+**People:** Roles, named people, weekly available hours, overrun threshold (default 125%). Assignment heatmap: blank under capacity, yellow above 100%, red above overrun. No portfolio leveling algorithm.
 
-### Access
-- shared — Scriven Group Entra users; client-context Work product
+**Surfaces:** Gantt | Obligations (apply / types / dams / lead times / ownership) | People | Defaults. Occurrence is a modal. Followups, Assumptions, and non-resource/intangibles costing are out of v1.
 
 ### Status
-- sketched / featureless shell — build on desktop
+- building
 `,
   },
   {
@@ -275,6 +266,21 @@ Feature tables and Gantts wait on a requirements lock. Do not treat this page as
 
 ### Status
 - building / framed shell
+`,
+  },
+  {
+    id: "cl-sunwater-mrt-3",
+    nodeId: "w-sunwater-mrt",
+    createdAt: new Date().toISOString(),
+    title: "v1 tables and Gantts",
+    body: `## Layered rebuild — first feature drop
+
+- Obligations: apply-grid, types, dams (add/rename), lead times, ownership
+- People: roles, named people, weekly hours, 125% overrun threshold
+- Defaults: role-type assignment template (Week 1…N)
+- Gantt: cyclical calendar with lead-in tails; occurrence modal seeds from Defaults (people + week-ending dates)
+- Heatmap on assignment: blank / yellow / red vs capacity and overrun
+- Resource leveling deferred
 `,
   },
 ];

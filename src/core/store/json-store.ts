@@ -56,16 +56,20 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
   const byId = new Map(existing.map((c) => [c.id, c]));
   let changed = false;
   for (const seeded of seedChangelogs) {
-    if (!byId.has(seeded.id)) {
+    const current = byId.get(seeded.id);
+    if (!current) {
       byId.set(seeded.id, seeded);
+      changed = true;
+    } else if (current.title !== seeded.title || current.body !== seeded.body) {
+      byId.set(seeded.id, { ...current, title: seeded.title, body: seeded.body });
       changed = true;
     }
   }
-  const merged = Array.from(byId.values());
+  const out = Array.from(byId.values());
   if (changed) {
-    await writeJson("changelogs.json", merged);
+    await writeJson("changelogs.json", out);
   }
-  return merged;
+  return out;
 }
 
 export async function getChangelogsForNode(
@@ -88,14 +92,12 @@ export async function getFeedback(): Promise<FeedbackRecord[]> {
 }
 
 export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
-  const raw = await readJson("sunwater-mrt.json", emptyScheduleStore());
+  const fallback = emptyScheduleStore();
+  const raw = await readJson("sunwater-mrt.json", fallback);
   const parsed = scheduleStoreSchema.safeParse(raw);
-  if (!parsed.success) {
-    const fallback = emptyScheduleStore();
-    await writeJson("sunwater-mrt.json", fallback);
-    return fallback;
-  }
-  return parsed.data;
+  if (parsed.success) return parsed.data;
+  await writeJson("sunwater-mrt.json", fallback);
+  return fallback;
 }
 
 export async function saveSunwaterMrtStore(
