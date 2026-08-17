@@ -1,15 +1,15 @@
 ---
-description: Sunwater MRT — framed shell here; feature build may live in another session
+description: Sunwater MRT — this session owns the layered rebuild inside the hub
 alwaysApply: true
 ---
 
 # Sunwater Milestone Resourcing Tracker — ownership
 
-- **Framed in hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`) — shell + changelog plan.
-- **Feature build:** Another Cursor session (or any session the user assigns) may implement MRT **inside this platform** at `/w/sunwater-mrt`. That work must follow [`docs/PLATFORM.md`](docs/PLATFORM.md) — same Next.js app, registry, AppShell, deploy via `npm run deploy:azure`.
+- **In hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`) — AppShell + tab chrome; status `building`.
+- **This session** implements the layered rebuild at that route. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md) — same Next.js app, registry, AppShell, deploy via `npm run deploy:azure`.
 
-When working in **this** chat unless the user explicitly hands MRT over:
+Until requirements are locked:
 
-1. Do **not** implement MRT feature UI/data or redeploy that sub-hub.
-2. Prefer housekeeping, hub/shell, other modules, or questions.
-3. Assume the other session may have newer MRT product commits than this chat.
+1. Do **not** port the offline Gantt, Inputs tables, or leveling.
+2. Keep the framed shell (tabs/headings + empty json-store payload).
+3. Next coding pass is Step 5 layers after the user locks Steps 2–4.

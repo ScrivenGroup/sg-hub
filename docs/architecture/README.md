@@ -9,7 +9,7 @@ Update this file when hub topology changes in a way agents should read offline.
 ## Site map (v1)
 
 - Home
-  - Work (`/w`) → Sunwater - Milestone Resourcing Tracker (`/w/sunwater-mrt`, sketched)
+  - Work (`/w`) → Sunwater - Milestone Resourcing Tracker (`/w/sunwater-mrt`, building)
   - Projects (`/p`) → Fuel Tracker (`/p/fueltracker`, sketched)
   - Internal (`/i`) → Ideas, Notes, Feedback, Testing
   - System (`/s`) → Definition, Appearance

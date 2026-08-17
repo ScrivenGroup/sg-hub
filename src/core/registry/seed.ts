@@ -84,10 +84,10 @@ export const seedNodes: RegistryNode[] = [
     parentId: "hub-work",
     href: "/w/sunwater-mrt",
     accessMode: "shared",
-    status: "sketched",
+    status: "building",
     hasNetworkMap: false,
     description:
-      "Sunwater client — milestone resourcing tracker (featureless shell — build on desktop).",
+      "Sunwater client — milestone resourcing tracker. Framed for rebuild (tabs and headings only).",
     order: 1,
   },
   {
@@ -260,6 +260,21 @@ export const seedChangelogs: ChangelogEntry[] = [
 
 ### Status
 - sketched / featureless shell — build on desktop
+`,
+  },
+  {
+    id: "cl-sunwater-mrt-2",
+    nodeId: "w-sunwater-mrt",
+    createdAt: new Date().toISOString(),
+    title: "Framed for rebuild",
+    body: `## Sunwater MRT — framed for rebuild
+
+Live drop is hub chrome plus tab placeholders (Gantt, Obligations, Inputs, Definitions, Defaults). Empty JSON store (\`data/sunwater-mrt.json\`) via json-store + Zod.
+
+Feature tables and Gantts wait on a requirements lock. Do not treat this page as the offline Gantt port yet.
+
+### Status
+- building / framed shell
 `,
   },
 ];

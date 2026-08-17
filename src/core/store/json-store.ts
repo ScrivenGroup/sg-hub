@@ -13,6 +13,11 @@ import type {
   IdeaRecord,
   NoteRecord,
 } from "@/core/contracts/types";
+import {
+  emptyScheduleStore,
+  scheduleStoreSchema,
+  type ScheduleStore,
+} from "@/modules/sunwater-mrt/schema";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -80,6 +85,24 @@ export async function getNotes(): Promise<NoteRecord[]> {
 
 export async function getFeedback(): Promise<FeedbackRecord[]> {
   return readJson("feedback.json", [] as FeedbackRecord[]);
+}
+
+export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
+  const raw = await readJson("sunwater-mrt.json", emptyScheduleStore());
+  const parsed = scheduleStoreSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fallback = emptyScheduleStore();
+    await writeJson("sunwater-mrt.json", fallback);
+    return fallback;
+  }
+  return parsed.data;
+}
+
+export async function saveSunwaterMrtStore(
+  store: ScheduleStore,
+): Promise<void> {
+  const parsed = scheduleStoreSchema.parse(store);
+  await writeJson("sunwater-mrt.json", parsed);
 }
 
 export async function addFeedback(
