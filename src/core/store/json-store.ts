@@ -47,7 +47,20 @@ export async function getDependencies(): Promise<DependencyRecord[]> {
 }
 
 export async function getChangelogs(): Promise<ChangelogEntry[]> {
-  return readJson("changelogs.json", seedChangelogs);
+  const existing = await readJson("changelogs.json", seedChangelogs);
+  const byId = new Map(existing.map((c) => [c.id, c]));
+  let changed = false;
+  for (const seeded of seedChangelogs) {
+    if (!byId.has(seeded.id)) {
+      byId.set(seeded.id, seeded);
+      changed = true;
+    }
+  }
+  const merged = Array.from(byId.values());
+  if (changed) {
+    await writeJson("changelogs.json", merged);
+  }
+  return merged;
 }
 
 export async function getChangelogsForNode(

@@ -75,6 +75,22 @@ export const seedNodes: RegistryNode[] = [
     order: 4,
   },
   {
+    id: "w-sunwater-mrt",
+    hubPrefix: "w",
+    slug: "sunwater-mrt",
+    title: "Sunwater - Milestone Resourcing Tracker",
+    code: "4E8C6B",
+    kind: "subhub",
+    parentId: "hub-work",
+    href: "/w/sunwater-mrt",
+    accessMode: "shared",
+    status: "sketched",
+    hasNetworkMap: false,
+    description:
+      "Sunwater client — milestone resourcing tracker (featureless shell — build on desktop).",
+    order: 1,
+  },
+  {
     id: "p-fueltracker",
     hubPrefix: "p",
     slug: "fueltracker",
@@ -206,6 +222,41 @@ export const seedChangelogs: ChangelogEntry[] = [
 
 ### Access
 - per_user — each user sees only their own data
+
+### Status
+- sketched / featureless shell — build on desktop
+`,
+  },
+  {
+    id: "cl-sunwater-mrt-1",
+    nodeId: "w-sunwater-mrt",
+    createdAt: new Date().toISOString(),
+    title: "Development plan (mobile framing)",
+    body: `## Sunwater — Milestone Resourcing Tracker
+
+**Client context:** Sunwater (Work hub — org only, no client logins).
+**Badge:** #4E8C6B only (global SG theme until any ThemeContract).
+
+**Goal:** Plan and track people/roles against project milestones so resourcing gaps and over-allocation are visible early.
+
+### Milestones
+- Named milestones with target dates / windows
+- Status (planned / in progress / done) and ordering within the engagement
+
+### Resource / role pool
+- People and/or roles available to the engagement
+- Capacity notes (FTE, availability windows) as needed
+
+### Allocation
+- Assign resources to milestones over time
+- Surface conflicts (same person double-booked) and shortfalls (uncovered milestone demand)
+
+### Views / reporting
+- Milestone-centric and resource-centric views
+- Simple export or snapshot for client conversation (desktop build)
+
+### Access
+- shared — Scriven Group Entra users; client-context Work product
 
 ### Status
 - sketched / featureless shell — build on desktop
