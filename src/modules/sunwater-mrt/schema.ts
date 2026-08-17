@@ -7,23 +7,13 @@ import {
   DEFAULT_RESOURCE_ROLES,
   DEFAULT_WEEKLY_CAPACITY_HOURS,
 } from "./catalog/roster";
-import { defaultLaneApplies } from "./logic/applicability";
 
-const laneKindSchema = z.enum([
-  "cyclic-sr",
-  "cyclic-ci",
-  "annual-ai",
-  "annual-fixed",
-  "once",
-  "paradise",
-]);
+export const frequencyUnitSchema = z.enum(["year", "month", "week"]);
 
 export const damSchema = z.object({
   id: z.string(),
   name: z.string(),
-  ciYears: z.array(z.number()),
-  srYears: z.array(z.number()),
-  ai: z.boolean(),
+  region: z.string(),
   custom: z.boolean().optional(),
 });
 
@@ -31,12 +21,10 @@ export const laneSchema = z.object({
   code: z.string(),
   label: z.string(),
   color: z.string(),
+  frequencyCount: z.number(),
+  frequencyUnit: frequencyUnitSchema,
+  dueMonth: z.number(),
   defLead: z.number(),
-  assumed: z.boolean(),
-  kind: laneKindSchema,
-  month: z.number().optional(),
-  once: z.object({ y: z.number(), m: z.number() }).optional(),
-  source: z.string(),
   custom: z.boolean().optional(),
 });
 
@@ -111,6 +99,7 @@ export type AssignmentPlan = z.infer<typeof assignmentPlanSchema>;
 export type PlanTask = z.infer<typeof planTaskSchema>;
 export type ScheduledDetail = z.infer<typeof scheduledDetailSchema>;
 export type ScheduleStore = z.infer<typeof scheduleStoreSchema>;
+export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>;
 
 function personIdFromName(name: string, i: number) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -128,7 +117,7 @@ export function emptyScheduleStore(): ScheduleStore {
   for (const dam of dams) {
     laneApplicability[dam.id] = {};
     for (const lane of lanes) {
-      laneApplicability[dam.id][lane.code] = defaultLaneApplies(dam, lane);
+      laneApplicability[dam.id][lane.code] = true;
     }
   }
   const leadGeneral: Record<string, number> = {};
@@ -150,6 +139,10 @@ export function emptyScheduleStore(): ScheduleStore {
     if (!roleEligibility[person.role]) roleEligibility[person.role] = {};
     roleEligibility[person.role][person.id] = true;
   }
+  const damMeta: ScheduleStore["damMeta"] = {};
+  for (const dam of dams) {
+    damMeta[dam.id] = { region: dam.region };
+  }
   return {
     version: 1,
     updatedAt: null,
@@ -162,7 +155,7 @@ export function emptyScheduleStore(): ScheduleStore {
     resourceRoles: [...DEFAULT_RESOURCE_ROLES],
     people,
     roleEligibility,
-    damMeta: {},
+    damMeta,
     damOwnership: {},
     damOwnershipColumns: ["Lead", "Engineer", "Support"],
     defaultPlansByLane: {},

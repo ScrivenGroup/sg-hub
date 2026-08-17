@@ -206,7 +206,8 @@ export function getEffectiveDamOwnership(
 ) {
   const byRole = store.damOwnership[role] || {};
   if (byRole[`dam:${damId}`]) return byRole[`dam:${damId}`];
-  const region = store.damMeta[damId]?.region || "Unassigned";
+  const dam = store.dams.find((d) => d.id === damId);
+  const region = dam?.region || store.damMeta[damId]?.region || "Unassigned";
   if (byRole[`region:${region}`]) return byRole[`region:${region}`];
   return byRole.ALL || "";
 }

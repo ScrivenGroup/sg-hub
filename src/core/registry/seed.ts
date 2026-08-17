@@ -87,7 +87,7 @@ export const seedNodes: RegistryNode[] = [
     status: "building",
     hasNetworkMap: false,
     description:
-      "Sunwater client — dam-safety obligation cycles (dams × requirement types) with occurrence assignment.",
+      "Sunwater client — dam-safety obligation cycles with frequency-based predicted milestones.",
     order: 1,
   },
   {

@@ -28,7 +28,13 @@ function buildTrail(href: string): Crumb[] {
   return trail;
 }
 
-export function PageNav({ href }: { href: string }) {
+export function PageNav({
+  href,
+  compact = false,
+}: {
+  href: string;
+  compact?: boolean;
+}) {
   const trail = buildTrail(href);
   const back =
     href === "/home"
@@ -38,11 +44,17 @@ export function PageNav({ href }: { href: string }) {
         : { href: "/home", label: "Home" };
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+    <div
+      className={`flex flex-wrap items-center gap-2 text-sm ${
+        compact ? "mb-2" : "mb-4 gap-3"
+      }`}
+    >
       {back ? (
         <Link
           href={back.href}
-          className="sg-btn-ghost shrink-0 px-2 py-1 text-sm"
+          className={`sg-btn-ghost shrink-0 px-2 text-sm ${
+            compact ? "min-h-8 py-0.5" : "py-1"
+          }`}
         >
           ← Back
         </Link>

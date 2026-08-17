@@ -2,13 +2,13 @@ import type { Dam, Lane, ScheduleStore } from "../schema";
 import { laneApplies } from "./applicability";
 import { planStatusKind } from "./status";
 import {
-  WINDOW_END,
-  WINDOW_START,
-  defaultDueDayForIdx,
-  idxToYm,
+  addMonths,
+  frequencyToMonths,
   monthIndex,
+  planningWindow,
   todayIdx,
   todayYm,
+  ymOnOrAfter,
 } from "./dates";
 
 export function schedKey(damId: string, laneCode: string, dueIdx: number) {
@@ -54,39 +54,40 @@ export function effectiveLead(
   return getLead(store, lane.code, dam.id);
 }
 
-export function occurrences(
-  dam: Dam,
-  lane: Lane,
-  windowStart = WINDOW_START,
-  windowEnd = WINDOW_END,
-): [number, number][] {
+export function occurrences(lane: Lane, today = todayYm()): [number, number][] {
+  const step = frequencyToMonths(lane.frequencyCount, lane.frequencyUnit);
+  const dueMonth =
+    lane.frequencyUnit === "year" ? Math.min(12, Math.max(1, lane.dueMonth || 6)) : today.m;
+  let first = { y: today.y, m: dueMonth };
+  if (lane.frequencyUnit !== "year") {
+    first = { y: today.y, m: today.m };
+  }
+  if (!ymOnOrAfter(first.y, first.m, today)) {
+    first = addMonths(first.y, first.m, step);
+  }
+  const horizon = addMonths(today.y, today.m, 25 * 12);
   const out: [number, number][] = [];
-  if (lane.kind === "cyclic-sr") {
-    for (const y of dam.srYears || []) out.push([y, 6]);
-  } else if (lane.kind === "cyclic-ci") {
-    for (const y of dam.ciYears) out.push([y, 6]);
-  } else if (lane.kind === "annual-ai") {
-    if (dam.ai) {
-      for (let y = windowStart.y; y <= windowEnd.y; y++) out.push([y, 6]);
-    }
-  } else if (lane.kind === "annual-fixed") {
-    const month = lane.month ?? 6;
-    for (let y = windowStart.y; y <= windowEnd.y; y++) out.push([y, month]);
-  } else if (lane.kind === "once" && lane.once) {
-    out.push([lane.once.y, lane.once.m]);
-  } else if (lane.kind === "paradise") {
-    if (dam.name === "Paradise Dam") out.push([2020, 12]);
+  let cur = first;
+  let i = 0;
+  while (
+    cur.y < horizon.y ||
+    (cur.y === horizon.y && cur.m <= horizon.m)
+  ) {
+    out.push([cur.y, cur.m]);
+    cur = addMonths(cur.y, cur.m, step);
+    i += 1;
+    if (i > 400) break;
   }
   return out;
 }
 
 export function nextDueInfo(store: ScheduleStore, dam: Dam, lane: Lane) {
-  const occs = occurrences(dam, lane)
-    .map(([y, m]) => monthIndex(y, m))
+  const start = planningWindow().start;
+  const occs = occurrences(lane)
+    .map(([y, m]) => monthIndex(y, m, start))
     .sort((a, b) => a - b);
   if (occs.length === 0) return null;
-  if (lane.kind === "paradise") return { dueIdx: occs[0], overdue: true };
-  const tIdx = todayIdx(todayYm());
+  const tIdx = todayIdx();
   for (const d of occs) {
     const dr = Math.round(d);
     if (d >= tIdx && !isCompleted(store, dam, lane, dr)) {
@@ -117,7 +118,7 @@ export function occurrenceStatus(
   const lead = effectiveLead(store, dam, lane, dueIdxRounded);
   const displayDueIdx = effectiveDueIdx(store, dam, lane, dueIdxRounded);
   const displayLeadStart = displayDueIdx - lead;
-  const tIdx = todayIdx(todayYm());
+  const tIdx = todayIdx();
   const leadStart = dueIdxRounded - lead;
   const status =
     displayDueIdx < tIdx
@@ -126,19 +127,6 @@ export function occurrenceStatus(
         ? "ongoing"
         : "upcoming";
   return { status, dueIdx: dueIdxRounded, leadStart, displayDueIdx, displayLeadStart };
-}
-
-export function effectiveDueDate(
-  store: ScheduleStore,
-  dam: Dam,
-  lane: Lane,
-  procDueIdx: number,
-) {
-  const dueIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
-  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
-  const day = sd?.dueDayOverride ?? defaultDueDayForIdx(dueIdx);
-  const { y, m0 } = idxToYm(dueIdx);
-  return { y, m1: m0 + 1, d: day, dueIdx };
 }
 
 export function appliedLanes(store: ScheduleStore, dam: Dam) {
@@ -161,11 +149,13 @@ export type GanttMarker = {
 };
 
 export function ganttMarkers(store: ScheduleStore): GanttMarker[] {
+  const start = planningWindow().start;
   const out: GanttMarker[] = [];
   for (const dam of store.dams) {
     for (const lane of appliedLanes(store, dam)) {
-      for (const [y, m] of occurrences(dam, lane)) {
-        const procDueIdx = monthIndex(y, m);
+      for (const [y, m] of occurrences(lane)) {
+        const procDueIdx = monthIndex(y, m, start);
+        if (procDueIdx < 0) continue;
         const st = occurrenceStatus(store, dam, lane, Math.round(procDueIdx));
         out.push({
           damId: dam.id,

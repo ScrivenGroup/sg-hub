@@ -11,6 +11,7 @@ import {
   idxToLabel,
   idxToYm,
   monthIndex,
+  planningWindow,
 } from "../logic/dates";
 import {
   effectiveDueIdx,
@@ -94,7 +95,7 @@ export function OccurrenceModal({
               value={`${y}-${String(m0 + 1).padStart(2, "0")}`}
               onChange={(e) => {
                 const [yy, mm] = e.target.value.split("-").map(Number);
-                patchDetail({ dueIdxOverride: monthIndex(yy, mm) });
+                patchDetail({ dueIdxOverride: monthIndex(yy, mm, planningWindow().start) });
               }}
             />
           </label>

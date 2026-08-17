@@ -8,9 +8,11 @@ import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
 export async function AppShell({
   children,
   currentHref,
+  mainClassName,
 }: {
   children: React.ReactNode;
   currentHref: string;
+  mainClassName?: string;
 }) {
   const session = await auth();
   const hubs = getHubs();
@@ -86,7 +88,12 @@ export async function AppShell({
           </nav>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-5xl px-4 pb-24 pt-8 sm:pb-8">
+      <main
+        id="main"
+        className={
+          mainClassName ?? "mx-auto max-w-5xl px-4 pb-24 pt-8 sm:pb-8"
+        }
+      >
         {children}
       </main>
     </div>
