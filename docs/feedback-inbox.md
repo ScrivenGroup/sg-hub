@@ -15,3 +15,4 @@ Resolved 2026-08-15 — PageNav on hubs, sub-hubs, Definition, Appearance, Feedb
 
 ## DONE — fb-mss1j2tf (popup overflow)
 Resolved 2026-08-15 — Feedback + Site network dialogs use scrollable overlays.
+Follow-up 2026-08-19 — overlays were still sized to the sticky header (`backdrop-blur` containing block). Dialogs now portal to `document.body`.
