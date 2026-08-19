@@ -18,6 +18,7 @@ import {
   scheduleStoreSchema,
   type ScheduleStore,
 } from "@/modules/sunwater-mrt/schema";
+import { normalizeScheduleStore } from "@/modules/sunwater-mrt/logic/normalize-store";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -60,8 +61,32 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
     if (!current) {
       byId.set(seeded.id, seeded);
       changed = true;
-    } else if (current.title !== seeded.title || current.body !== seeded.body) {
-      byId.set(seeded.id, { ...current, title: seeded.title, body: seeded.body });
+      continue;
+    }
+    if (seeded.kind === "release") {
+      if (current.kind !== "release" || current.version !== seeded.version) {
+        byId.set(seeded.id, {
+          ...current,
+          kind: "release",
+          version: seeded.version ?? current.version,
+        });
+        changed = true;
+      }
+      continue;
+    }
+    if (
+      current.title !== seeded.title ||
+      current.body !== seeded.body ||
+      current.kind !== seeded.kind ||
+      current.version !== seeded.version
+    ) {
+      byId.set(seeded.id, {
+        ...current,
+        title: seeded.title,
+        body: seeded.body,
+        kind: seeded.kind,
+        version: seeded.version,
+      });
       changed = true;
     }
   }
@@ -95,14 +120,29 @@ export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
   const fallback = emptyScheduleStore();
   const raw = await readJson("sunwater-mrt.json", fallback);
   const parsed = scheduleStoreSchema.safeParse(raw);
-  if (parsed.success) return parsed.data;
-  const merged = scheduleStoreSchema.safeParse({
-    ...fallback,
-    ...(raw && typeof raw === "object" ? raw : {}),
-  });
-  if (merged.success) return merged.data;
-  await writeJson("sunwater-mrt.json", fallback);
-  return fallback;
+  let store: ScheduleStore;
+  if (parsed.success) {
+    store = parsed.data;
+  } else {
+    const merged = scheduleStoreSchema.safeParse({
+      ...fallback,
+      ...(raw && typeof raw === "object" ? raw : {}),
+    });
+    if (merged.success) store = merged.data;
+    else {
+      await writeJson("sunwater-mrt.json", fallback);
+      store = fallback;
+    }
+  }
+  const normalized = normalizeScheduleStore(store);
+  if (normalized.changed) {
+    const checked = scheduleStoreSchema.safeParse(normalized.store);
+    if (checked.success) {
+      await writeJson("sunwater-mrt.json", checked.data);
+      return checked.data;
+    }
+  }
+  return normalized.store;
 }
 
 export async function saveSunwaterMrtStore(

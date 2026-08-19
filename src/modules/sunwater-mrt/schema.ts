@@ -60,6 +60,7 @@ export const scheduledDetailSchema = z.object({
   completed: z.boolean().optional(),
   notRequired: z.boolean().optional(),
   notRequiredReason: z.string().optional(),
+  skippedPredicted: z.boolean().optional(),
   plan: assignmentPlanSchema.optional(),
   history: z
     .array(
@@ -158,6 +159,12 @@ export const scheduleStoreSchema = z.object({
       d: z.number(),
     })
     .default({ y: 2026, m: 7, d: 1 }),
+  indexEpoch: z
+    .object({
+      y: z.number(),
+      m: z.number(),
+    })
+    .optional(),
   effortDemo: effortDemoSchema.default({
     weekCount: 8,
     stick: "unstick",
@@ -168,6 +175,7 @@ export const scheduleStoreSchema = z.object({
     },
     tasks: [],
   }),
+  openNotes: z.string().default(""),
 });
 
 export type Dam = z.infer<typeof damSchema>;
@@ -275,5 +283,6 @@ export function emptyScheduleStore(): ScheduleStore {
     laneCycleAnchors: {},
     baselineDate: { y: 2026, m: 7, d: 1 },
     effortDemo: emptyEffortDemo(),
+    openNotes: "",
   };
 }

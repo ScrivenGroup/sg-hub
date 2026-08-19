@@ -13,6 +13,26 @@
   cursor: pointer;
 }
 
+.mrt-btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--rag-red) 40%, var(--border));
+  background: color-mix(in srgb, var(--rag-red) 22%, var(--surface));
+  color: var(--rag-red);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.mrt-btn-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rag-red) 32%, var(--surface));
+  border-color: var(--rag-red);
+}
+
 .mrt-input,
 .mrt-select {
   min-height: 32px;
@@ -233,9 +253,34 @@
 }
 
 .mrt-chip-not-required {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.mrt-chip-scheduled {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.mrt-chip-predicted {
   color: var(--muted);
   background: transparent;
   border: 1px dashed var(--border);
+}
+
+.effort-gantt-baseline-bar {
+  pointer-events: none;
+  opacity: 0.28;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  z-index: 0;
+}
+
+.effort-gantt-baseline-diamond {
+  pointer-events: none;
+  opacity: 0.28;
+  border: 1px solid var(--ink);
+  background: var(--surface);
+  z-index: 0;
 }
 
 .mrt-kind-mark {

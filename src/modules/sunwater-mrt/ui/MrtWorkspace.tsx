@@ -24,12 +24,14 @@ export function MrtWorkspace({
   initialStore,
   changelogs,
   showDevelopment,
+  readOnly = false,
 }: {
   initialStore: ScheduleStore;
   changelogs: ChangelogEntry[];
   showDevelopment: boolean;
+  readOnly?: boolean;
 }) {
-  const tabs = showDevelopment
+  const tabs = showDevelopment && !readOnly
     ? ([...BASE_TABS, "Development"] as const)
     : BASE_TABS;
   const [tab, setTab] = useState<string>("Gantt");
@@ -41,6 +43,7 @@ export function MrtWorkspace({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function persist(next: ScheduleStore) {
+    if (readOnly) return;
     setStore(next);
     setSaveState("saving");
     if (timer.current) clearTimeout(timer.current);
@@ -97,7 +100,9 @@ export function MrtWorkspace({
         </p>
       </div>
 
-      {tab === "Gantt" ? <GanttTab store={store} onChange={persist} /> : null}
+      {tab === "Gantt" ? (
+        <GanttTab store={store} onChange={persist} readOnly={readOnly} />
+      ) : null}
       {tab === "Obligations" ? (
         <ObligationsTab store={store} onChange={persist} />
       ) : null}

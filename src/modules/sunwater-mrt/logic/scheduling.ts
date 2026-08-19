@@ -138,6 +138,16 @@ export function isUserNotRequired(
   return !!(sd && sd.notRequired && !sd.completed);
 }
 
+export function isSkippedPredicted(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  dueIdx: number,
+) {
+  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, dueIdx)];
+  return !!(sd && sd.skippedPredicted && !detailIsActualised(sd));
+}
+
 export function occurrences(
   store: ScheduleStore,
   dam: Dam,
@@ -216,6 +226,7 @@ function skipsNextDue(
 ) {
   if (isCompleted(store, dam, lane, procDueIdx)) return true;
   if (isUserNotRequired(store, dam, lane, procDueIdx)) return true;
+  if (isSkippedPredicted(store, dam, lane, procDueIdx)) return true;
   if (isScheduled(store, dam, lane, procDueIdx)) return false;
   const display = effectiveDueIdx(store, dam, lane, procDueIdx);
   return derivedNotRequired(store, dam, lane, display);
@@ -396,6 +407,7 @@ export function ganttMarkers(store: ScheduleStore): GanttMarker[] {
       for (const [y, m] of occurrences(store, dam, lane)) {
         const procDueIdx = monthIndex(y, m, start);
         if (procDueIdx < 0) continue;
+        if (isSkippedPredicted(store, dam, lane, procDueIdx)) continue;
         const key = schedKey(dam.id, lane.code, procDueIdx);
         seen.add(key);
         out.push(toMarker(store, dam, lane, procDueIdx, false));
@@ -466,6 +478,8 @@ export function recalculateRow(
 
   const prefix = `${damId}|${laneCode}|`;
   const oldKey = schedKey(damId, laneCode, known.procDueIdx);
+  const newProc = monthIndex(y, originM, start);
+  const newKey = schedKey(damId, laneCode, newProc);
   const keep = next.scheduledDetails[oldKey] || {};
 
   for (const key of Object.keys(next.scheduledDetails)) {
@@ -474,22 +488,30 @@ export function recalculateRow(
     delete next.scheduledDetails[key];
   }
 
-  if (known.kind === "predicted") {
-    const newProc = monthIndex(y, originM, start);
-    const newKey = schedKey(damId, laneCode, newProc);
-    next.scheduledDetails[newKey] = {
-      history: [
-        ...(keep.history || []),
+  if (
+    known.kind !== "predicted" &&
+    oldKey !== newKey &&
+    detailIsActualised(keep)
+  ) {
+    const existing = next.scheduledDetails[newKey];
+    if (!existing || !detailIsActualised(existing)) {
+      const moved = { ...keep };
+      if (
+        moved.dueIdxOverride === newProc ||
+        moved.dueIdxOverride === known.displayDueIdx
+      ) {
+        delete moved.dueIdxOverride;
+      }
+      moved.history = [
+        ...(moved.history || []),
         {
           at: new Date().toISOString(),
-          note: "Recalculate this row: future cycle from known due",
+          note: "Recalculate this row: rekeyed to cycle origin",
         },
-      ],
-      actualised: true,
-      dueDayOverride: known.dueDay,
-      leadInOverrideMonths: keep.leadInOverrideMonths,
-      plan: keep.plan,
-    };
+      ];
+      next.scheduledDetails[newKey] = moved;
+      delete next.scheduledDetails[oldKey];
+    }
   }
 
   return next;

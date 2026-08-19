@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { Dam, FrequencyUnit, Lane, Person, ScheduleStore } from "../schema";
 import { joinPersonName, samePersonName, splitPersonName } from "../schema";
 import { DEFAULT_WEEKLY_CAPACITY_HOURS } from "../catalog/roster";
-import { newAssignmentId } from "../logic/assignment";
+import { newAssignmentId, weekCountFromLeadMonths } from "../logic/assignment";
+import { prepareInspectReportPlan } from "../logic/default-plan";
 import { removeDam, removeLane, removePerson, removeRole } from "../logic/cascade";
 import { SubTabs } from "./SubTabs";
 
@@ -277,6 +278,9 @@ function TypesTable({
             n.lanes.push(lane);
             n.leadGeneral[code] = 2;
             n.leadOverrides[code] = {};
+            n.defaultPlansByLane[code] = prepareInspectReportPlan(
+              weekCountFromLeadMonths(2),
+            );
             for (const dam of n.dams) {
               if (!n.laneApplicability[dam.id]) n.laneApplicability[dam.id] = {};
               n.laneApplicability[dam.id][code] = true;

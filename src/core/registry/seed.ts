@@ -202,7 +202,8 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-fuel-1",
     nodeId: "p-fueltracker",
-    createdAt: new Date().toISOString(),
+    kind: "plan",
+    createdAt: "2026-08-01T00:00:00.000Z",
     title: "Development plan (mobile framing)",
     body: `## Fuel Tracker — development plan
 
@@ -230,8 +231,9 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-1",
     nodeId: "w-sunwater-mrt",
-    createdAt: new Date().toISOString(),
-    title: "Development plan (locked)",
+    kind: "plan",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    title: "Product plan (locked)",
     body: `## Sunwater — Milestone Resourcing Tracker
 
 **Client context:** Sunwater (Work hub — org only, no client logins).
@@ -254,34 +256,51 @@ export const seedChangelogs: ChangelogEntry[] = [
 `,
   },
   {
-    id: "cl-sunwater-mrt-2",
+    id: "cl-sunwater-mrt-0.4",
     nodeId: "w-sunwater-mrt",
-    createdAt: new Date().toISOString(),
-    title: "Framed for rebuild",
-    body: `## Sunwater MRT — framed for rebuild
-
-Live drop is hub chrome plus tab placeholders (Gantt, Obligations, Inputs, Definitions, Defaults). Empty JSON store (\`data/sunwater-mrt.json\`) via json-store + Zod.
-
-Feature tables and Gantts wait on a requirements lock. Do not treat this page as the offline Gantt port yet.
-
-### Status
-- building / framed shell
-`,
+    kind: "release",
+    version: "0.4",
+    createdAt: "2026-08-18T00:00:00.000Z",
+    title: "Effort Gantt demo on Development",
+    body: `- Shipped the Task/Role Effort Gantt as a Development sandbox (not wired to occurrences).
+- Pan, trim, stick/unstick, tail handles, and hour bars on \`effortDemo\`.
+- Defaults and occurrence popup still used the older assignment table.`,
   },
   {
-    id: "cl-sunwater-mrt-3",
+    id: "cl-sunwater-mrt-0.5",
     nodeId: "w-sunwater-mrt",
-    createdAt: new Date().toISOString(),
-    title: "v1 tables and Gantts",
-    body: `## Layered rebuild — first feature drop
-
-- Obligations: apply-grid, types, dams (add/rename), lead times, ownership
-- People: roles, named people, weekly hours, 125% overrun threshold
-- Defaults: role-type assignment template (Week 1…N)
-- Gantt: cyclical calendar with lead-in tails; occurrence modal seeds from Defaults (people + week-ending dates)
-- Heatmap on assignment: blank / yellow / red vs capacity and overrun
-- Resource leveling deferred
-`,
+    kind: "release",
+    version: "0.5",
+    createdAt: "2026-08-19T00:00:00.000Z",
+    title: "Defaults template and occurrence Effort Gantt",
+    body: `- Seeded Prepare / Inspect / Report obligation defaults (roles × hours).
+- Wired Effort Gantt into Defaults and the occurrence popup using live assignment plans.
+- AI lane colour is steel blue; green is reserved for completed milestones.
+- Completed markers open the popup (no drag). Open notes sit under Development → Effort Gantt.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.6",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "0.6",
+    createdAt: "2026-08-19T06:00:00.000Z",
+    title: "Occurrence popup polish and recalc fix",
+    body: `- Recalculate this row no longer duplicates a scheduled first occurrence.
+- Remove this milestone from the occurrence popup (returns to predicted).
+- Larger popup, status badge, Completed in the footer, default-plan ghost bars.
+- Show/hide Start-Finish-Duration-Hours. Tab in Defaults no longer stretches the chart.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.7",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "0.7",
+    createdAt: "2026-08-19T08:00:00.000Z",
+    title: "FY Gantt window and predicted remove",
+    body: `- Gantt window starts at 1 Jul of the current financial year.
+- Timescale shows year, quarter, and month letters with weighted grid lines.
+- Remove this milestone hides a predicted occurrence until Recalculate this row.
+- Remove button uses a pink destructive style.`,
   },
 ];
 

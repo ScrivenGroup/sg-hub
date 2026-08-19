@@ -55,8 +55,8 @@ const BASE_MONTH_PX = 14;
 const BASE_LANE_H = 20;
 const BASE_HEADING_H = 24;
 const GROUP_GAP = 6;
-const HEADER_H = 36;
-const CORNER_H = 36;
+const HEADER_H = 52;
+const CORNER_H = 52;
 const DUE_COL_W = 108;
 
 type PendingScroll =
@@ -84,12 +84,22 @@ function todayShort() {
   return `${String(now.getDate()).padStart(2, "0")}-${MONTH_NAMES[now.getMonth()]}-${String(now.getFullYear()).slice(2)}`;
 }
 
+function monthScaleEdge(m0: number) {
+  if (m0 === 0) return "var(--border)";
+  if (m0 === 3 || m0 === 6 || m0 === 9) {
+    return "color-mix(in srgb, var(--border) 50%, transparent)";
+  }
+  return "color-mix(in srgb, var(--border) 22%, transparent)";
+}
+
 export function GanttTab({
   store,
   onChange,
+  readOnly = false,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
 }) {
   const [open, setOpen] = useState<GanttMarker | null>(null);
   const [damFilter, setDamFilter] = useState<string[]>([]);
@@ -143,6 +153,7 @@ export function GanttTab({
     marker: GanttMarker;
     startX: number;
     dragging: boolean;
+    canDrag: boolean;
     baseIdx: number;
     baseDay: number;
     candidateIdx: number | null;
@@ -323,6 +334,7 @@ export function GanttTab({
     function onMove(e: PointerEvent) {
       const md = markerDragRef.current;
       if (md) {
+        if (!md.canDrag) return;
         const deltaX = e.clientX - md.startX;
         if (!md.dragging) {
           if (Math.abs(deltaX) < 4) return;
@@ -375,6 +387,7 @@ export function GanttTab({
       if (md) {
         document.body.style.cursor = "";
         if (
+          md.canDrag &&
           md.dragging &&
           md.candidateIdx !== null &&
           md.candidateDay !== null
@@ -553,7 +566,7 @@ export function GanttTab({
   function confirmRecalcRow(damId: string, laneCode: string, damName: string, laneLabel: string) {
     if (
       !confirm(
-        `Recalculate future inspections for ${damName} · ${laneLabel}?\n\nUses this row’s next known due as the cycle origin. Scheduled, completed, and not-required records stay. Predicted futures are replaced.`,
+        `Recalculate future inspections for ${damName} · ${laneLabel}?\n\nUses this row’s next known due as the cycle origin. Scheduled, completed, and not-required records stay. Hidden predicted occurrences return. Predicted futures are replaced.`,
       )
     ) {
       return;
@@ -614,12 +627,17 @@ export function GanttTab({
           left: dueX - 4,
           opacity: m.inputOff || notReq ? 0.45 : 1,
           transform: `translate(${preview}px, -50%)`,
-          cursor: done ? "default" : "pointer",
+          cursor: "pointer",
         }}
         title={`${m.damName} ${m.laneCode} · ${planStatusLabel(m.kind)} · ${full}${
           m.inputOff ? " · input off — not deleted" : ""
         }`}
         onPointerDown={(e) => startMarkerPointer(e, m)}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(m);
+        }}
         onClick={(e) => {
           if (markerDragRef.current?.dragging) {
             e.preventDefault();
@@ -660,7 +678,6 @@ export function GanttTab({
     m: GanttMarker,
   ) {
     if (e.button !== 0) return;
-    if (m.kind === "completed") return;
     e.preventDefault();
     e.stopPropagation();
     const day = m.dueDay ?? defaultDueDayForIdx(m.displayDueIdx, win.start);
@@ -668,6 +685,7 @@ export function GanttTab({
       marker: m,
       startX: e.clientX,
       dragging: false,
+      canDrag: m.kind !== "completed" && !readOnly,
       baseIdx: m.displayDueIdx,
       baseDay: day,
       candidateIdx: null,
@@ -1125,13 +1143,30 @@ export function GanttTab({
                 return (
                   <div
                     key={i}
-                    className="shrink-0 border-r border-[var(--border)]/40 pl-0.5"
+                    className="shrink-0 pl-0.5"
                     style={{
                       width: monthPx,
-                      borderLeftWidth: m0 === 0 ? 1 : 0,
+                      borderLeft: `1px solid ${monthScaleEdge(m0)}`,
                     }}
                   >
                     {monthPx >= 10 ? q : ""}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex text-[8px] leading-4 text-[var(--muted)]">
+              {Array.from({ length: months }, (_, i) => {
+                const { m0 } = idxToYm(i, win.start);
+                return (
+                  <div
+                    key={i}
+                    className="shrink-0 pl-0.5"
+                    style={{
+                      width: monthPx,
+                      borderLeft: `1px solid ${monthScaleEdge(m0)}`,
+                    }}
+                  >
+                    {MONTH_NAMES[m0][0]}
                   </div>
                 );
               })}
@@ -1249,8 +1284,6 @@ export function GanttTab({
           <div className="relative" style={{ width, height: Math.max(totalHeight, 1) }}>
             {Array.from({ length: months }, (_, i) => {
               const { m0 } = idxToYm(i, win.start);
-              const strong = m0 === 0;
-              const q = m0 === 0 || m0 === 3 || m0 === 6 || m0 === 9;
               return (
                 <div
                   key={i}
@@ -1258,12 +1291,7 @@ export function GanttTab({
                   style={{
                     left: i * monthPx,
                     width: 1,
-                    background: strong
-                      ? "var(--border)"
-                      : q
-                        ? "var(--border)"
-                        : "transparent",
-                    opacity: strong ? 1 : 0.45,
+                    background: monthScaleEdge(m0),
                   }}
                 />
               );
@@ -1342,6 +1370,7 @@ export function GanttTab({
           marker={open}
           onClose={() => setOpen(null)}
           onChange={onChange}
+          readOnly={readOnly}
         />
       ) : null}
       {baselineOpen ? (

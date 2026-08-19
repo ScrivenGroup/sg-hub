@@ -9,7 +9,7 @@ import {
 } from "react";
 import { DEFAULT_WEEKLY_CAPACITY_HOURS } from "../catalog/roster";
 import type { EffortDemo, EffortStick, ScheduleStore } from "../schema";
-import { emptyEffortDemo, joinPersonName, personIdFromName, samePersonName } from "../schema";
+import { joinPersonName, personIdFromName, samePersonName } from "../schema";
 import {
   addResource,
   addTask,
@@ -53,6 +53,7 @@ import {
   trimAroundGantt,
   UNASSIGNED_LABEL,
   VIEW_EXTEND_WEEKS,
+  windowHours,
   type EffortGroupMode,
   type EffortLayoutRow,
   type HourSpan,
@@ -101,22 +102,60 @@ function diamondX(dueCol: number) {
   return dueCol * WEEK_PX + WEEK_PX / 2;
 }
 
+function baselineHoursForRow(
+  baseline: EffortDemo | undefined,
+  row: EffortLayoutRow,
+) {
+  if (!baseline || row.type !== "l2") return undefined;
+  const task =
+    baseline.tasks.find((t) => t.id === row.taskId) ||
+    baseline.tasks.find((t) => t.name === row.taskName);
+  if (!task) return undefined;
+  const role =
+    row.resourceName && !row.resourceName.startsWith("--")
+      ? row.resourceName
+      : "";
+  const res =
+    task.resources.find((r) => (r.role || "") === role) ||
+    (row.personId
+      ? task.resources.find((r) => r.personId === row.personId)
+      : undefined);
+  if (!res) return undefined;
+  return windowHours(baseline, res.hours);
+}
+
 export function EffortGantt({
   store,
   onChange,
+  demo: demoProp,
+  onDemoChange,
+  applyDemoToStore,
+  lockedPlace,
+  readOnly = false,
+  toolbarNote,
+  baselineDemo,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  demo: EffortDemo;
+  onDemoChange: (demo: EffortDemo) => void;
+  applyDemoToStore?: (store: ScheduleStore, demo: EffortDemo) => void;
+  lockedPlace?: ChartPlace;
+  readOnly?: boolean;
+  toolbarNote?: string | null;
+  baselineDemo?: EffortDemo;
 }) {
-  const demo = ensureEffortDemo(store.effortDemo || emptyEffortDemo());
+  const demo = ensureEffortDemo(demoProp);
   const demoRef = useRef(demo);
   demoRef.current = demo;
-  const [place, setPlace] = useState<ChartPlace>("milestone");
+  const [placeState, setPlace] = useState<ChartPlace>(lockedPlace || "milestone");
+  const place = lockedPlace || placeState;
   const [mode, setMode] = useState<EffortGroupMode>("task-res");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
   const [dropSlot, setDropSlot] = useState<DropSlot | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [showMeta, setShowMeta] = useState(true);
   const [namePick, setNamePick] = useState<{
     taskId: string;
     resourceId: string;
@@ -191,7 +230,8 @@ export function EffortGantt({
   const personCol = place === "milestone";
   const nameCols = mode === "flat" ? (personCol ? 3 : 2) : personCol ? 2 : 1;
   const nameW = nameCols * FLAT_COL_W + 24;
-  const labelW = nameW + META_W * 3 + HOURS_W;
+  const metaW = showMeta ? META_W * 3 + HOURS_W : 0;
+  const labelW = nameW + metaW;
   const chartW = n * WEEK_PX;
   const dueCol = dueColumnIndex(demo);
   const tailStartCol = tailStartColumnIndex(demo);
@@ -199,17 +239,26 @@ export function EffortGantt({
   const showToday = place === "milestone" && todayCol >= 0 && todayCol < n;
 
   function persist(mut: (next: ScheduleStore) => void) {
+    if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
+    const beforeDemo = next.effortDemo;
     mut(next);
-    next.effortDemo = ensureEffortDemo(next.effortDemo || emptyEffortDemo());
-    demoRef.current = next.effortDemo;
+    const chartTouched = next.effortDemo !== beforeDemo;
+    const chartDemo = ensureEffortDemo(chartTouched ? next.effortDemo : demo);
+    next.effortDemo = beforeDemo;
+    demoRef.current = chartDemo;
+    if (chartTouched) {
+      applyDemoToStore?.(next, chartDemo);
+      onDemoChange(chartDemo);
+    }
     onChange(next);
   }
 
   function commit(nextDemo: EffortDemo) {
-    persist((s) => {
-      s.effortDemo = nextDemo;
-    });
+    if (readOnly) return;
+    const d = ensureEffortDemo(nextDemo);
+    demoRef.current = d;
+    onDemoChange(d);
   }
 
   useLayoutEffect(() => {
@@ -226,6 +275,7 @@ export function EffortGantt({
     pan?: NonNullable<typeof panRef.current>;
     wantLeft?: number;
   }) {
+    if (place === "defaults") return;
     const el = scrollerRef.current;
     if (!el || extendingRef.current) return;
     const extra = VIEW_EXTEND_WEEKS;
@@ -418,6 +468,7 @@ export function EffortGantt({
     kind: BarKind,
     meta: { taskId?: string; resourceId?: string; groupKey?: string },
   ) {
+    if (readOnly) return;
     barDrag.current = {
       kind,
       ...meta,
@@ -649,6 +700,7 @@ export function EffortGantt({
   }
 
   function createRole(current?: { taskId: string; resourceId: string }) {
+    if (readOnly) return;
     const assigned = current
       ? demo.tasks.find((t) => t.id === current.taskId)?.resources.find((r) => r.id === current.resourceId)
       : undefined;
@@ -662,7 +714,7 @@ export function EffortGantt({
         if (!s.roleEligibility[role]) s.roleEligibility[role] = {};
       }
       if (current) {
-        let next = ensureEffortDemo(s.effortDemo);
+        let next = ensureEffortDemo(demo);
         if (assigned?.personId) {
           next = setResourcePerson(next, current.taskId, current.resourceId, undefined);
         }
@@ -682,7 +734,7 @@ export function EffortGantt({
   }
 
   function applyBrandNewName() {
-    if (!namePick) return;
+    if (readOnly || !namePick) return;
     const first = newFirst.trim();
     const last = newLast.trim();
     if (!first || !last) {
@@ -708,9 +760,9 @@ export function EffortGantt({
         weeklyCapacityHours: DEFAULT_WEEKLY_CAPACITY_HOURS,
       });
       s.effortDemo = namePick.groupKey
-        ? setGroupPerson(ensureEffortDemo(s.effortDemo), namePick.groupKey, id)
+        ? setGroupPerson(ensureEffortDemo(demo), namePick.groupKey, id)
         : setResourcePerson(
-            ensureEffortDemo(s.effortDemo),
+            ensureEffortDemo(demo),
             namePick.taskId,
             namePick.resourceId,
             id,
@@ -735,6 +787,7 @@ export function EffortGantt({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-end gap-2">
+        {lockedPlace ? null : (
         <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
           {(
             [
@@ -757,6 +810,7 @@ export function EffortGantt({
             </button>
           ))}
         </div>
+        )}
         <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
           {(
             [
@@ -834,15 +888,25 @@ export function EffortGantt({
           >
             {allCollapsed ? "Expand" : "Collapse"}
           </button>
+          <button
+            type="button"
+            className="mrt-gantt-tool"
+            title="Show or hide Start, Finish, Duration, and Hours"
+            onClick={() => setShowMeta((v) => !v)}
+          >
+            {showMeta ? "Hide columns" : "Show columns"}
+          </button>
         </div>
+        {toolbarNote === null || toolbarNote === "" ? null : (
         <span className="text-xs text-[var(--muted)]">
-          {n} weeks · demo only (not wired to occurrences). Defaults stays W1…n until live wiring.
+          {toolbarNote ?? `${n} weeks`}
         </span>
+        )}
       </div>
 
       <div
         ref={scrollerRef}
-        className={`effort-gantt overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)]${panning ? " is-panning" : ""}`}
+        className={`effort-gantt overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] pb-6${panning ? " is-panning" : ""}`}
         onPointerDown={startPan}
         onScroll={() => {
           const el = scrollerRef.current;
@@ -850,6 +914,16 @@ export function EffortGantt({
           const dx = el.scrollLeft - lastScrollLeft.current;
           lastScrollLeft.current = el.scrollLeft;
           if (!dx) return;
+          const ae = document.activeElement;
+          if (
+            ae &&
+            el.contains(ae) &&
+            (ae.tagName === "INPUT" ||
+              ae.tagName === "SELECT" ||
+              ae.tagName === "TEXTAREA")
+          ) {
+            return;
+          }
           extendNearEdges();
         }}
       >
@@ -892,27 +966,29 @@ export function EffortGantt({
                     : "Task / Resource role"}
               </span>
             )}
-            {metaHeaders.map(([key, label]) =>
-              mode === "flat" ? (
-                <button
-                  key={key}
-                  type="button"
-                  className={`effort-gantt-sort effort-gantt-meta px-1${key === "hours" ? " effort-gantt-hours" : ""}`}
-                  style={{ width: key === "hours" ? HOURS_W : META_W }}
-                  onClick={() => toggleSort(key)}
-                >
-                  {label}{sortMark(key)}
-                </button>
-              ) : (
-                <span
-                  key={key}
-                  className={`effort-gantt-meta px-1${key === "hours" ? " effort-gantt-hours" : ""}`}
-                  style={{ width: key === "hours" ? HOURS_W : META_W }}
-                >
-                  {label}
-                </span>
-              ),
-            )}
+            {showMeta
+              ? metaHeaders.map(([key, label]) =>
+                  mode === "flat" ? (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`effort-gantt-sort effort-gantt-meta px-1${key === "hours" ? " effort-gantt-hours" : ""}`}
+                      style={{ width: key === "hours" ? HOURS_W : META_W }}
+                      onClick={() => toggleSort(key)}
+                    >
+                      {label}{sortMark(key)}
+                    </button>
+                  ) : (
+                    <span
+                      key={key}
+                      className={`effort-gantt-meta px-1${key === "hours" ? " effort-gantt-hours" : ""}`}
+                      style={{ width: key === "hours" ? HOURS_W : META_W }}
+                    >
+                      {label}
+                    </span>
+                  ),
+                )
+              : null}
           </div>
           <div
             className="effort-gantt-head effort-gantt-weekhead relative flex border-b border-[var(--border)] text-[10px]"
@@ -942,12 +1018,14 @@ export function EffortGantt({
                   demo={demo}
                   weeks={weeks}
                   nameW={nameW}
+                  showMeta={showMeta}
                   onDue={(due) => commit(setMilestoneDue(demo, due))}
                   onTail={(weeksCount) => commit(setTailWeeks(demo, weeksCount))}
                 />
               </div>
               <MilestoneLane
                 demo={demo}
+                baseline={baselineDemo}
                 stick={demo.stick}
                 todayCol={showToday ? todayCol : null}
                 onDueDrag={startDueDrag}
@@ -966,6 +1044,8 @@ export function EffortGantt({
                 mode={mode}
                 place={place}
                 nameW={nameW}
+                showMeta={showMeta}
+                baselineHours={baselineHoursForRow(baselineDemo, row)}
                 n={n}
                 stick={demo.stick}
                 dueCol={dueCol}
@@ -1025,7 +1105,7 @@ export function EffortGantt({
                   if (row.personId) {
                     if (!window.confirm("Changing role will reset the name.")) return;
                     persist((s) => {
-                      let next = ensureEffortDemo(s.effortDemo);
+                      let next = ensureEffortDemo(demo);
                       next = setResourcePerson(next, row.taskId, row.resourceId, undefined);
                       s.effortDemo = setResourceRole(next, row.taskId, row.resourceId, value);
                     });
@@ -1289,6 +1369,8 @@ function RowTriple({
   mode,
   place,
   nameW,
+  showMeta,
+  baselineHours,
   n,
   stick,
   dueCol,
@@ -1314,6 +1396,8 @@ function RowTriple({
   mode: EffortGroupMode;
   place: ChartPlace;
   nameW: number;
+  showMeta: boolean;
+  baselineHours?: number[];
   n: number;
   stick: EffortStick;
   dueCol: number;
@@ -1380,6 +1464,7 @@ function RowTriple({
           mode={mode}
           place={place}
           nameW={nameW}
+          showMeta={showMeta}
           store={store}
           collapsed={collapsed}
           onToggleCollapse={onToggleCollapse}
@@ -1398,6 +1483,7 @@ function RowTriple({
           dueCol={dueCol}
           tailStartCol={tailStartCol}
           todayCol={todayCol}
+          baselineHours={baselineHours}
           onHour={onHour}
           onBarDown={onBarDown}
           onRunResize={onRunResize}
@@ -1411,12 +1497,14 @@ function MilestoneLabel({
   demo,
   weeks,
   nameW,
+  showMeta,
   onDue,
   onTail,
 }: {
   demo: EffortDemo;
   weeks: { label: string }[];
   nameW: number;
+  showMeta: boolean;
   onDue: (due: { y: number; m: number; d: number }) => void;
   onTail: (weeks: number) => void;
 }) {
@@ -1431,37 +1519,41 @@ function MilestoneLabel({
       <span className="truncate px-2" style={{ width: nameW }}>
         {demo.milestone.label}
       </span>
-      <span className="effort-gantt-meta" style={{ width: META_W }}>
-        {weeks[startIdx]?.label ?? "—"}
-      </span>
-      <span className="flex items-center justify-end px-1" style={{ width: META_W }}>
-        <input
-          type="date"
-          tabIndex={-1}
-          className="effort-gantt-input effort-gantt-cell text-right"
-          style={{ width: "100%", fontSize: 9 }}
-          value={isoDue(demo.milestone.due)}
-          onChange={(e) => {
-            const [y, m, d] = e.target.value.split("-").map(Number);
-            if (!y || !m || !d) return;
-            onDue({ y, m, d });
-          }}
-        />
-      </span>
-      <span className="flex items-center justify-end px-0.5" style={{ width: META_W }}>
-        <input
-          type="number"
-          min={1}
-          tabIndex={-1}
-          className="effort-gantt-input effort-gantt-cell text-right"
-          style={{ width: 40 }}
-          value={demo.milestone.tailWeeks}
-          onChange={(e) => onTail(Number(e.target.value) || 1)}
-        />
-      </span>
-      <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
-        —
-      </span>
+      {showMeta ? (
+        <>
+          <span className="effort-gantt-meta" style={{ width: META_W }}>
+            {weeks[startIdx]?.label ?? "—"}
+          </span>
+          <span className="flex items-center justify-end px-1" style={{ width: META_W }}>
+            <input
+              type="date"
+              tabIndex={-1}
+              className="effort-gantt-input effort-gantt-cell text-right"
+              style={{ width: "100%", fontSize: 9 }}
+              value={isoDue(demo.milestone.due)}
+              onChange={(e) => {
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                if (!y || !m || !d) return;
+                onDue({ y, m, d });
+              }}
+            />
+          </span>
+          <span className="flex items-center justify-end px-0.5" style={{ width: META_W }}>
+            <input
+              type="number"
+              min={1}
+              tabIndex={-1}
+              className="effort-gantt-input effort-gantt-cell text-right"
+              style={{ width: 40 }}
+              value={demo.milestone.tailWeeks}
+              onChange={(e) => onTail(Number(e.target.value) || 1)}
+            />
+          </span>
+          <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
+            —
+          </span>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1533,6 +1625,7 @@ function RowLabel({
   mode,
   place,
   nameW,
+  showMeta,
   store,
   collapsed,
   onToggleCollapse,
@@ -1546,6 +1639,7 @@ function RowLabel({
   mode: EffortGroupMode;
   place: ChartPlace;
   nameW: number;
+  showMeta: boolean;
   store: ScheduleStore;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -1675,30 +1769,36 @@ function RowLabel({
           </>
         )}
       </div>
-      <span className="effort-gantt-meta" style={{ width: META_W }}>
-        {spanLabel(row.span, weeks, "start")}
-      </span>
-      <span className="effort-gantt-meta" style={{ width: META_W }}>
-        {spanLabel(row.span, weeks, "finish")}
-      </span>
-      <span className="effort-gantt-meta" style={{ width: META_W }}>
-        {row.span.dur || "—"}
-      </span>
-      <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: HOURS_W }}>
-        {row.span.total || "—"}
-      </span>
+      {showMeta ? (
+        <>
+          <span className="effort-gantt-meta" style={{ width: META_W }}>
+            {spanLabel(row.span, weeks, "start")}
+          </span>
+          <span className="effort-gantt-meta" style={{ width: META_W }}>
+            {spanLabel(row.span, weeks, "finish")}
+          </span>
+          <span className="effort-gantt-meta" style={{ width: META_W }}>
+            {row.span.dur || "—"}
+          </span>
+          <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: HOURS_W }}>
+            {row.span.total || "—"}
+          </span>
+        </>
+      ) : null}
     </div>
   );
 }
 
 function MilestoneLane({
   demo,
+  baseline,
   stick,
   todayCol,
   onDueDrag,
   onTailDrag,
 }: {
   demo: EffortDemo;
+  baseline?: EffortDemo;
   stick: EffortStick;
   todayCol: number | null;
   onDueDrag: (e: ReactPointerEvent) => void;
@@ -1710,8 +1810,33 @@ function MilestoneLane({
   const left = startCol * WEEK_PX;
   const dueX = diamondX(dueCol);
   const tailCapX = stick === "tail-start" ? left : dueX;
+  const baseDueCol = baseline ? dueColumnIndex(ensureEffortDemo(baseline)) : null;
+  const baseTail = baseline
+    ? Math.max(1, ensureEffortDemo(baseline).milestone.tailWeeks)
+    : 0;
+  const baseStartCol =
+    baseDueCol !== null ? baseDueCol - baseTail + 1 : 0;
+  const baseLeft = baseStartCol * WEEK_PX;
+  const baseDueX = baseDueCol !== null ? diamondX(baseDueCol) : 0;
   return (
     <div className="relative border-b border-[var(--border)]" style={{ height: MS_H, zIndex: 1 }}>
+      {baseline && baseDueCol !== null ? (
+        <>
+          <div
+            className="effort-gantt-baseline-bar absolute top-1/2 h-2 -translate-y-1/2 rounded-sm"
+            style={{
+              left: baseLeft + 4,
+              width: Math.max(8, baseDueX - baseLeft - 4),
+            }}
+            title="Default milestone and tail"
+          />
+          <div
+            className="effort-gantt-baseline-diamond absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45"
+            style={{ left: baseDueX }}
+            title="Default due"
+          />
+        </>
+      ) : null}
       <div
         className="absolute top-1/2 h-2 -translate-y-1/2 rounded-sm"
         style={{
@@ -1752,6 +1877,7 @@ function TimelineRow({
   dueCol,
   tailStartCol,
   todayCol,
+  baselineHours,
   onHour,
   onBarDown,
   onRunResize,
@@ -1762,6 +1888,7 @@ function TimelineRow({
   dueCol: number;
   tailStartCol: number;
   todayCol: number | null;
+  baselineHours?: number[];
   onHour: (week: number, hours: number) => void;
   onBarDown: (e: ReactPointerEvent) => void;
   onRunResize: (
@@ -1805,6 +1932,25 @@ function TimelineRow({
       {todayCol !== null ? (
         <div className="effort-gantt-today" style={{ left: todayCol * WEEK_PX + WEEK_PX / 2 }} />
       ) : null}
+      {row.type === "l2" && baselineHours
+        ? hourRuns(baselineHours).map((run) => {
+            const left = run.start * WEEK_PX + 2;
+            const width = Math.max(8, (run.end - run.start + 1) * WEEK_PX - 4);
+            return (
+              <div
+                key={`base-${run.start}-${run.end}`}
+                className="effort-gantt-baseline-bar absolute rounded-sm"
+                style={{
+                  left,
+                  top: 9,
+                  width,
+                  height: 14,
+                }}
+                title="Default hours"
+              />
+            );
+          })
+        : null}
       {isSummary && span.start !== null && span.finish !== null ? (
         <>
           <button

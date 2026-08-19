@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import type { ScheduleStore } from "../schema";
+import { useEffect, useState } from "react";
+import type { EffortDemo, ScheduleStore } from "../schema";
+import { laneTemplateWeekWindow } from "../logic/assignment";
+import { prepareInspectReportPlan } from "../logic/default-plan";
+import {
+  assignmentPlanToEffortDemo,
+  effortDemoToAssignmentPlan,
+} from "../logic/plan-effort-bridge";
+import { EffortGantt } from "./EffortGantt";
 import { SubTabs } from "./SubTabs";
 
 const SUBS = ["Lead-in time per dam", "Task+Resource Effort"] as const;
@@ -27,14 +34,98 @@ export function DefaultsTab({
       {sub === "Lead-in time per dam" ? (
         <LeadMatrix store={store} update={update} />
       ) : (
-        <div className="sg-card max-w-xl border-dashed">
-          <h2 className="font-medium">Task+Resource Effort (hrs) per Obligation</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Follow-on plan. Assignment templates (roles × Week 1…N) will live
-            here; not in this drop.
-          </p>
-        </div>
+        <DefaultsEffort store={store} onChange={onChange} />
       )}
+    </div>
+  );
+}
+
+function planForLane(store: ScheduleStore, laneCode: string) {
+  const existing = store.defaultPlansByLane[laneCode];
+  if (existing?.tasks?.length) return existing;
+  const weeks = laneTemplateWeekWindow(store, laneCode);
+  return prepareInspectReportPlan(weeks.length);
+}
+
+function DefaultsEffort({
+  store,
+  onChange,
+}: {
+  store: ScheduleStore;
+  onChange: (store: ScheduleStore) => void;
+}) {
+  const lanes = store.lanes;
+  const [laneCode, setLaneCode] = useState(lanes[0]?.code || "");
+  const lane = lanes.find((l) => l.code === laneCode) || lanes[0];
+  const [demo, setDemo] = useState<EffortDemo>(() =>
+    assignmentPlanToEffortDemo(planForLane(store, lane?.code || ""), {
+      tailWeeks: laneTemplateWeekWindow(store, lane?.code || "").length,
+    }),
+  );
+
+  useEffect(() => {
+    if (!lane) return;
+    setDemo(
+      assignmentPlanToEffortDemo(planForLane(store, lane.code), {
+        tailWeeks: laneTemplateWeekWindow(store, lane.code).length,
+      }),
+    );
+    // Re-load when the selected obligation type changes, not on every store tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laneCode]);
+
+  function writeDemo(nextDemo: EffortDemo) {
+    if (!lane) return;
+    setDemo(nextDemo);
+    const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
+    next.defaultPlansByLane[lane.code] = effortDemoToAssignmentPlan(nextDemo, {
+      assignMode: "roles",
+    });
+    onChange(next);
+  }
+
+  if (!lane) {
+    return (
+      <p className="text-sm text-[var(--muted)]">No obligation types yet.</p>
+    );
+  }
+
+  const weeks = laneTemplateWeekWindow(store, lane.code);
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          Obligation type
+          <select
+            className="mrt-select mt-1"
+            value={lane.code}
+            onChange={(e) => setLaneCode(e.target.value)}
+          >
+            {lanes.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.code} · {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-xs text-[var(--muted)]">
+          Role hours on Week 1…{weeks.length}. Seeds each occurrence once.
+        </p>
+      </div>
+      <EffortGantt
+        store={store}
+        onChange={onChange}
+        demo={demo}
+        onDemoChange={writeDemo}
+        applyDemoToStore={(s, d) => {
+          s.defaultPlansByLane[lane.code] = effortDemoToAssignmentPlan(d, {
+            assignMode: "roles",
+          });
+        }}
+        lockedPlace="defaults"
+        toolbarNote={`${weeks.length} weeks · template (W1…n)`}
+      />
     </div>
   );
 }

@@ -14,12 +14,26 @@ export function clampHorizonYears(n: number | undefined) {
   return Math.min(40, Math.max(5, v));
 }
 
+/** 1 Jul of the Australian FY that contains `now`. */
+export function fyStartYm(now = new Date()) {
+  const today = todayYm(now);
+  if (today.m >= 7) return { y: today.y, m: 7 };
+  return { y: today.y - 1, m: 7 };
+}
+
+/** 30 Jun of the Australian FY that contains y/m. */
+export function fyEndYmContaining(y: number, m: number) {
+  if (m >= 7) return { y: y + 1, m: 6 };
+  return { y, m: 6 };
+}
+
 export function planningWindow(now = new Date(), horizonYears = HORIZON_YEARS) {
   const today = todayYm(now);
   const years = clampHorizonYears(horizonYears);
+  const horizon = addMonths(today.y, today.m, years * 12);
   return {
-    start: { y: today.y, m: today.m },
-    end: { y: today.y + years, m: today.m },
+    start: fyStartYm(now),
+    end: fyEndYmContaining(horizon.y, horizon.m),
   };
 }
 

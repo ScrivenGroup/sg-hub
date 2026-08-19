@@ -20,12 +20,17 @@ export type RegistryNode = {
   order: number;
 };
 
+export type ChangelogKind = "plan" | "release";
+
 export type ChangelogEntry = {
   id: string;
   nodeId: string;
   createdAt: string;
   title: string;
   body: string;
+  /** plan = pinned product framing; release = dated version log. */
+  kind?: ChangelogKind;
+  version?: string;
 };
 
 export type DependencyRecord = {

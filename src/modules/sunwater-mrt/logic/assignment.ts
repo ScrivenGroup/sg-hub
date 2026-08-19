@@ -130,6 +130,19 @@ export function weekCountFromLeadMonths(leadMonths: number) {
   return weeksCoveringLeadIn(2026, 6, 30, leadMonths).length;
 }
 
+export function leadMonthsFromTailWeeks(
+  dueY: number,
+  dueM1: number,
+  dueD: number,
+  tailWeeks: number,
+) {
+  const target = Math.max(1, Math.round(tailWeeks) || 1);
+  for (let m = 0; m <= 36; m++) {
+    if (weeksCoveringLeadIn(dueY, dueM1, dueD, m).length >= target) return m;
+  }
+  return 36;
+}
+
 export function relativeWeekWindow(weekCount: number) {
   const n = Math.max(1, weekCount || 1);
   return Array.from({ length: n }, (_, i) => ({
