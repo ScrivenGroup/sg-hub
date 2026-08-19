@@ -8,10 +8,29 @@ import { ensureEffortDemo } from "../logic/effort-gantt";
 import { EffortGantt } from "./EffortGantt";
 import { SubTabs } from "./SubTabs";
 
-const SUBS = ["Changelog", "Effort Gantt", "Future Planning"] as const;
+const SUBS = ["Changelog", "Effort Gantt"] as const;
 
 function releaseSort(a: ChangelogEntry, b: ChangelogEntry) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
+function ChangelogCard({ entry }: { entry: ChangelogEntry }) {
+  return (
+    <article className="sg-card">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-medium">
+          {entry.version ? (
+            <span className="mr-2 font-semibold">{entry.version}</span>
+          ) : null}
+          {entry.title}
+        </h3>
+        <time className="text-xs text-[var(--muted)]">
+          {new Date(entry.createdAt).toLocaleDateString()}
+        </time>
+      </div>
+      <div className="sg-prose text-[var(--ink)]">{entry.body}</div>
+    </article>
+  );
 }
 
 export function DevelopmentTab({
@@ -24,8 +43,12 @@ export function DevelopmentTab({
   onChange: (store: ScheduleStore) => void;
 }) {
   const [sub, setSub] = useState<(typeof SUBS)[number]>("Effort Gantt");
-  const plans = changelogs.filter((c) => c.kind === "plan");
-  const releases = changelogs.filter((c) => c.kind === "release").sort(releaseSort);
+  const wip = changelogs
+    .filter((c) => c.kind === "plan" && c.version)
+    .sort(releaseSort);
+  const releases = changelogs
+    .filter((c) => c.kind === "release")
+    .sort(releaseSort);
   const demo = ensureEffortDemo(store.effortDemo || emptyEffortDemo());
 
   return (
@@ -33,18 +56,13 @@ export function DevelopmentTab({
       <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
       {sub === "Changelog" ? (
         <section className="max-w-3xl space-y-6">
-          {plans.length > 0 ? (
+          {wip.length > 0 ? (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Product plan
+                WIP
               </h2>
-              {plans.map((entry) => (
-                <article key={entry.id} className="sg-card">
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="font-medium">{entry.title}</h3>
-                  </div>
-                  <div className="sg-prose text-[var(--ink)]">{entry.body}</div>
-                </article>
+              {wip.map((entry) => (
+                <ChangelogCard key={entry.id} entry={entry} />
               ))}
             </div>
           ) : null}
@@ -56,20 +74,7 @@ export function DevelopmentTab({
               <p className="text-sm text-[var(--muted)]">No release notes yet.</p>
             ) : (
               releases.map((entry) => (
-                <article key={entry.id} className="sg-card">
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="font-medium">
-                      {entry.version ? (
-                        <span className="mr-2 font-semibold">{entry.version}</span>
-                      ) : null}
-                      {entry.title}
-                    </h3>
-                    <time className="text-xs text-[var(--muted)]">
-                      {new Date(entry.createdAt).toLocaleDateString()}
-                    </time>
-                  </div>
-                  <div className="sg-prose text-[var(--ink)]">{entry.body}</div>
-                </article>
+                <ChangelogCard key={entry.id} entry={entry} />
               ))
             )}
           </div>
@@ -104,16 +109,6 @@ export function DevelopmentTab({
               }}
             />
           </label>
-        </div>
-      ) : null}
-      {sub === "Future Planning" ? (
-        <div className="sg-card max-w-xl border-dashed">
-          <h2 className="font-medium">Future planning</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Parking lot while this product is building. Hidden when the hub
-            status is Live. Use Open notes under Effort Gantt for working
-            scratch.
-          </p>
         </div>
       ) : null}
     </div>

@@ -126,6 +126,26 @@ export function windowHours(demo: EffortDemo, hours: number[] | undefined) {
   });
 }
 
+/** Map another demo's hours onto this chart's live week columns. */
+export function hoursOnLiveWindow(
+  live: EffortDemo,
+  source: EffortDemo,
+  hours: number[] | undefined,
+) {
+  const liveWin = calendarWindow(live);
+  const srcOrigin = calendarWindow(source).origin;
+  const src = nums(hours);
+  return Array.from({ length: liveWin.n }, (_, i) => {
+    const we = addWeeksWe(liveWin.start, i);
+    const j = weeksBetweenWe(srcOrigin, we);
+    return j < 0 || j >= src.length ? 0 : src[j] || 0;
+  });
+}
+
+export function dueColumnOnLive(live: EffortDemo, source: EffortDemo) {
+  return weeksBetweenWe(calendarWindow(live).start, dueWeek(source));
+}
+
 function forEachResource(
   demo: EffortDemo,
   fn: (res: EffortResource, task: EffortTask) => void,

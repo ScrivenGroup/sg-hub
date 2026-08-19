@@ -18,10 +18,12 @@ import {
   buildEffortLayout,
   demoWeeks,
   dueColumnIndex,
+  dueColumnOnLive,
   ensureEffortDemo,
   extendViewport,
   groupHasHours,
   hourRuns,
+  hoursOnLiveWindow,
   isSyntheticResourceId,
   moveResource,
   parseResourceGroupKey,
@@ -53,7 +55,6 @@ import {
   trimAroundGantt,
   UNASSIGNED_LABEL,
   VIEW_EXTEND_WEEKS,
-  windowHours,
   type EffortGroupMode,
   type EffortLayoutRow,
   type HourSpan,
@@ -76,6 +77,19 @@ type ChartPlace = "defaults" | "milestone";
 type BarKind = "l0" | "l1-task" | "l1-group" | "l2";
 type SortKey = "task" | "resource" | "person" | "start" | "finish" | "dur" | "hours";
 type DropSlot = { key: string; edge: "before" | "after" };
+type MetaCols = {
+  start: boolean;
+  finish: boolean;
+  duration: boolean;
+  hours: boolean;
+};
+
+const ALL_META: MetaCols = {
+  start: true,
+  finish: true,
+  duration: true,
+  hours: true,
+};
 
 function isoDue(due: { y: number; m: number; d: number }) {
   return `${due.y}-${String(due.m).padStart(2, "0")}-${String(due.d).padStart(2, "0")}`;
@@ -103,6 +117,7 @@ function diamondX(dueCol: number) {
 }
 
 function baselineHoursForRow(
+  live: EffortDemo,
   baseline: EffortDemo | undefined,
   row: EffortLayoutRow,
 ) {
@@ -121,7 +136,7 @@ function baselineHoursForRow(
       ? task.resources.find((r) => r.personId === row.personId)
       : undefined);
   if (!res) return undefined;
-  return windowHours(baseline, res.hours);
+  return hoursOnLiveWindow(live, baseline, res.hours);
 }
 
 export function EffortGantt({
@@ -155,7 +170,8 @@ export function EffortGantt({
   const [dropSlot, setDropSlot] = useState<DropSlot | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState(false);
-  const [showMeta, setShowMeta] = useState(true);
+  const [metaCols, setMetaCols] = useState<MetaCols>(ALL_META);
+  const [colsOpen, setColsOpen] = useState(false);
   const [namePick, setNamePick] = useState<{
     taskId: string;
     resourceId: string;
@@ -230,7 +246,11 @@ export function EffortGantt({
   const personCol = place === "milestone";
   const nameCols = mode === "flat" ? (personCol ? 3 : 2) : personCol ? 2 : 1;
   const nameW = nameCols * FLAT_COL_W + 24;
-  const metaW = showMeta ? META_W * 3 + HOURS_W : 0;
+  const metaW =
+    (metaCols.start ? META_W : 0) +
+    (metaCols.finish ? META_W : 0) +
+    (metaCols.duration ? META_W : 0) +
+    (metaCols.hours ? HOURS_W : 0);
   const labelW = nameW + metaW;
   const chartW = n * WEEK_PX;
   const dueCol = dueColumnIndex(demo);
@@ -777,12 +797,14 @@ export function EffortGantt({
   const sortMark = (key: SortKey) =>
     sort?.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "";
 
-  const metaHeaders = [
-    ["start", "Start"],
-    ["finish", "Finish"],
-    ["dur", "Duration"],
-    ["hours", "Hours"],
-  ] as const;
+  const metaHeaders = (
+    [
+      ["start", "Start", "start"],
+      ["finish", "Finish", "finish"],
+      ["dur", "Duration", "duration"],
+      ["hours", "Hours", "hours"],
+    ] as const
+  ).filter(([, , col]) => metaCols[col]);
 
   return (
     <div>
@@ -888,14 +910,39 @@ export function EffortGantt({
           >
             {allCollapsed ? "Expand" : "Collapse"}
           </button>
-          <button
-            type="button"
-            className="mrt-gantt-tool"
-            title="Show or hide Start, Finish, Duration, and Hours"
-            onClick={() => setShowMeta((v) => !v)}
-          >
-            {showMeta ? "Hide columns" : "Show columns"}
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              className={`mrt-gantt-tool${colsOpen ? " on" : ""}`}
+              title="Choose Start, Finish, Duration, and Hours columns"
+              onClick={() => setColsOpen((v) => !v)}
+            >
+              Columns
+            </button>
+            {colsOpen ? (
+              <div className="mrt-cols-pop">
+                {(
+                  [
+                    ["start", "Start"],
+                    ["finish", "Finish"],
+                    ["duration", "Duration"],
+                    ["hours", "Hours"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <label key={id} className="flex items-center gap-2 text-[11px]">
+                    <input
+                      type="checkbox"
+                      checked={metaCols[id]}
+                      onChange={() =>
+                        setMetaCols((cur) => ({ ...cur, [id]: !cur[id] }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
         {toolbarNote === null || toolbarNote === "" ? null : (
         <span className="text-xs text-[var(--muted)]">
@@ -966,8 +1013,7 @@ export function EffortGantt({
                     : "Task / Resource role"}
               </span>
             )}
-            {showMeta
-              ? metaHeaders.map(([key, label]) =>
+            {metaHeaders.map(([key, label]) =>
                   mode === "flat" ? (
                     <button
                       key={key}
@@ -987,8 +1033,7 @@ export function EffortGantt({
                       {label}
                     </span>
                   ),
-                )
-              : null}
+                )}
           </div>
           <div
             className="effort-gantt-head effort-gantt-weekhead relative flex border-b border-[var(--border)] text-[10px]"
@@ -1018,7 +1063,7 @@ export function EffortGantt({
                   demo={demo}
                   weeks={weeks}
                   nameW={nameW}
-                  showMeta={showMeta}
+                  metaCols={metaCols}
                   onDue={(due) => commit(setMilestoneDue(demo, due))}
                   onTail={(weeksCount) => commit(setTailWeeks(demo, weeksCount))}
                 />
@@ -1044,8 +1089,8 @@ export function EffortGantt({
                 mode={mode}
                 place={place}
                 nameW={nameW}
-                showMeta={showMeta}
-                baselineHours={baselineHoursForRow(baselineDemo, row)}
+                metaCols={metaCols}
+                baselineHours={baselineHoursForRow(demo, baselineDemo, row)}
                 n={n}
                 stick={demo.stick}
                 dueCol={dueCol}
@@ -1369,7 +1414,7 @@ function RowTriple({
   mode,
   place,
   nameW,
-  showMeta,
+  metaCols,
   baselineHours,
   n,
   stick,
@@ -1396,7 +1441,7 @@ function RowTriple({
   mode: EffortGroupMode;
   place: ChartPlace;
   nameW: number;
-  showMeta: boolean;
+  metaCols: MetaCols;
   baselineHours?: number[];
   n: number;
   stick: EffortStick;
@@ -1464,7 +1509,7 @@ function RowTriple({
           mode={mode}
           place={place}
           nameW={nameW}
-          showMeta={showMeta}
+          metaCols={metaCols}
           store={store}
           collapsed={collapsed}
           onToggleCollapse={onToggleCollapse}
@@ -1497,14 +1542,14 @@ function MilestoneLabel({
   demo,
   weeks,
   nameW,
-  showMeta,
+  metaCols,
   onDue,
   onTail,
 }: {
   demo: EffortDemo;
   weeks: { label: string }[];
   nameW: number;
-  showMeta: boolean;
+  metaCols: MetaCols;
   onDue: (due: { y: number; m: number; d: number }) => void;
   onTail: (weeks: number) => void;
 }) {
@@ -1519,40 +1564,44 @@ function MilestoneLabel({
       <span className="truncate px-2" style={{ width: nameW }}>
         {demo.milestone.label}
       </span>
-      {showMeta ? (
-        <>
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            {weeks[startIdx]?.label ?? "—"}
-          </span>
-          <span className="flex items-center justify-end px-1" style={{ width: META_W }}>
-            <input
-              type="date"
-              tabIndex={-1}
-              className="effort-gantt-input effort-gantt-cell text-right"
-              style={{ width: "100%", fontSize: 9 }}
-              value={isoDue(demo.milestone.due)}
-              onChange={(e) => {
-                const [y, m, d] = e.target.value.split("-").map(Number);
-                if (!y || !m || !d) return;
-                onDue({ y, m, d });
-              }}
-            />
-          </span>
-          <span className="flex items-center justify-end px-0.5" style={{ width: META_W }}>
-            <input
-              type="number"
-              min={1}
-              tabIndex={-1}
-              className="effort-gantt-input effort-gantt-cell text-right"
-              style={{ width: 40 }}
-              value={demo.milestone.tailWeeks}
-              onChange={(e) => onTail(Number(e.target.value) || 1)}
-            />
-          </span>
-          <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
-            —
-          </span>
-        </>
+      {metaCols.start ? (
+        <span className="effort-gantt-meta" style={{ width: META_W }}>
+          {weeks[startIdx]?.label ?? "—"}
+        </span>
+      ) : null}
+      {metaCols.finish ? (
+        <span className="flex items-center justify-end px-1" style={{ width: META_W }}>
+          <input
+            type="date"
+            tabIndex={-1}
+            className="effort-gantt-input effort-gantt-cell text-right"
+            style={{ width: "100%", fontSize: 9 }}
+            value={isoDue(demo.milestone.due)}
+            onChange={(e) => {
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              if (!y || !m || !d) return;
+              onDue({ y, m, d });
+            }}
+          />
+        </span>
+      ) : null}
+      {metaCols.duration ? (
+        <span className="flex items-center justify-end px-0.5" style={{ width: META_W }}>
+          <input
+            type="number"
+            min={1}
+            tabIndex={-1}
+            className="effort-gantt-input effort-gantt-cell text-right"
+            style={{ width: 40 }}
+            value={demo.milestone.tailWeeks}
+            onChange={(e) => onTail(Number(e.target.value) || 1)}
+          />
+        </span>
+      ) : null}
+      {metaCols.hours ? (
+        <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
+          —
+        </span>
       ) : null}
     </div>
   );
@@ -1625,7 +1674,7 @@ function RowLabel({
   mode,
   place,
   nameW,
-  showMeta,
+  metaCols,
   store,
   collapsed,
   onToggleCollapse,
@@ -1639,7 +1688,7 @@ function RowLabel({
   mode: EffortGroupMode;
   place: ChartPlace;
   nameW: number;
-  showMeta: boolean;
+  metaCols: MetaCols;
   store: ScheduleStore;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -1769,21 +1818,25 @@ function RowLabel({
           </>
         )}
       </div>
-      {showMeta ? (
-        <>
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            {spanLabel(row.span, weeks, "start")}
-          </span>
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            {spanLabel(row.span, weeks, "finish")}
-          </span>
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            {row.span.dur || "—"}
-          </span>
-          <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: HOURS_W }}>
-            {row.span.total || "—"}
-          </span>
-        </>
+      {metaCols.start ? (
+        <span className="effort-gantt-meta" style={{ width: META_W }}>
+          {spanLabel(row.span, weeks, "start")}
+        </span>
+      ) : null}
+      {metaCols.finish ? (
+        <span className="effort-gantt-meta" style={{ width: META_W }}>
+          {spanLabel(row.span, weeks, "finish")}
+        </span>
+      ) : null}
+      {metaCols.duration ? (
+        <span className="effort-gantt-meta" style={{ width: META_W }}>
+          {row.span.dur || "—"}
+        </span>
+      ) : null}
+      {metaCols.hours ? (
+        <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: HOURS_W }}>
+          {row.span.total || "—"}
+        </span>
       ) : null}
     </div>
   );
@@ -1810,10 +1863,9 @@ function MilestoneLane({
   const left = startCol * WEEK_PX;
   const dueX = diamondX(dueCol);
   const tailCapX = stick === "tail-start" ? left : dueX;
-  const baseDueCol = baseline ? dueColumnIndex(ensureEffortDemo(baseline)) : null;
-  const baseTail = baseline
-    ? Math.max(1, ensureEffortDemo(baseline).milestone.tailWeeks)
-    : 0;
+  const base = baseline ? ensureEffortDemo(baseline) : null;
+  const baseDueCol = base ? dueColumnOnLive(demo, base) : null;
+  const baseTail = base ? Math.max(1, base.milestone.tailWeeks) : 0;
   const baseStartCol =
     baseDueCol !== null ? baseDueCol - baseTail + 1 : 0;
   const baseLeft = baseStartCol * WEEK_PX;

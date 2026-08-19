@@ -302,6 +302,30 @@ export const seedChangelogs: ChangelogEntry[] = [
 - Remove this milestone hides a predicted occurrence until Recalculate this row.
 - Remove button uses a pink destructive style.`,
   },
+  {
+    id: "cl-sunwater-mrt-0.8",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "0.8",
+    createdAt: "2026-08-19T09:00:00.000Z",
+    title: "Recalc, columns, and Gantt sort",
+    body: `- Baseline ghosts stay pinned to calendar dates when panning the Effort Gantt.
+- Recalculate this row skips not-required as origin; those slots move with the cycle and may become required.
+- Recalculate fills yellow when a saved due is off the cycle origin.
+- Columns popover toggles Start, Finish, Duration, and Hours individually.
+- Obligation Gantt sorts Dam, Obligation, and Next due (within groups when grouped).
+- Development drops Product plan and Future Planning; WIP lives in 0.9.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.9",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.9",
+    createdAt: "2026-08-19T09:05:00.000Z",
+    title: "WIP",
+    body: `- Gantt split-view: people hours vs weekly capacity on the same timescale as the MS Gantt; click an overage to open contributing occurrences (heatmap only, no leveling).
+- Public hub share: read-only URL, optional password, no Entra account (feedback \`fb-public-hub-share\`).`,
+  },
 ];
 
 export const seedDependencies: DependencyRecord[] = [

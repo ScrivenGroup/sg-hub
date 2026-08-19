@@ -225,6 +225,22 @@
   cursor: default;
 }
 
+.mrt-cols-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
 .mrt-gantt-recalc {
   display: inline-flex;
   align-items: center;
@@ -245,6 +261,12 @@
 .mrt-gantt-recalc:hover {
   color: var(--ink);
   border-color: var(--ink);
+}
+
+.mrt-gantt-recalc.is-stale {
+  background: color-mix(in srgb, var(--rag-amber) 45%, var(--surface));
+  border-color: var(--rag-amber);
+  color: var(--ink);
 }
 
 .mrt-chip-complete {

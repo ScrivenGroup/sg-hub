@@ -11,6 +11,8 @@ import {
 } from "./scheduling";
 
 export type GroupMode = "dam-obl" | "obl-dam" | "flat";
+export type GanttSortKey = "dam" | "obligation" | "due";
+export type GanttSort = { key: GanttSortKey; dir: 1 | -1 };
 
 export type GanttLayoutItem =
   | {
@@ -97,6 +99,29 @@ export function visiblePairs(
   return out;
 }
 
+function cmpStr(a: string, b: string, dir: 1 | -1) {
+  return a.localeCompare(b) * dir;
+}
+
+function cmpDue(a: NextDueChip | null, b: NextDueChip | null, dir: 1 | -1) {
+  const av = a?.dueIdx ?? 99999;
+  const bv = b?.dueIdx ?? 99999;
+  return (av - bv) * dir;
+}
+
+function sortPairs(pairs: LeafPair[], sort: GanttSort) {
+  return [...pairs].sort((a, b) => {
+    if (sort.key === "dam") return cmpStr(a.dam.name, b.dam.name, sort.dir);
+    if (sort.key === "obligation") {
+      return (
+        cmpStr(a.lane.label, b.lane.label, sort.dir) ||
+        cmpStr(a.lane.code, b.lane.code, sort.dir)
+      );
+    }
+    return cmpDue(a.chip, b.chip, sort.dir);
+  });
+}
+
 export function buildGanttLayout(
   pairs: LeafPair[],
   mode: GroupMode,
@@ -104,12 +129,14 @@ export function buildGanttLayout(
   headingH: number,
   laneH: number,
   gap: number,
+  sort: GanttSort | null = null,
 ): { items: GanttLayoutItem[]; totalHeight: number } {
   const items: GanttLayoutItem[] = [];
   let y = 0;
 
   if (mode === "flat") {
-    pairs.forEach((pair) => {
+    const ordered = sort ? sortPairs(pairs, sort) : pairs;
+    ordered.forEach((pair) => {
       items.push({
         type: "row",
         key: `${pair.dam.id}-${pair.lane.code}`,
@@ -144,11 +171,42 @@ export function buildGanttLayout(
     }
   }
 
-  for (const [key, group] of groups) {
-    const isCollapsed = !!collapsed[key];
+  let groupList = [...groups.entries()].map(([key, group]) => ({
+    key,
+    text: group.text,
+    children: sort ? sortPairs(group.children, sort) : group.children,
+  }));
+  if (sort) {
+    groupList = [...groupList].sort((a, b) => {
+      const aChip = earliestNextDue(
+        a.children.map((c) => c.chip).filter((c): c is NextDueChip => !!c),
+      );
+      const bChip = earliestNextDue(
+        b.children.map((c) => c.chip).filter((c): c is NextDueChip => !!c),
+      );
+      if (sort.key === "due") return cmpDue(aChip, bChip, sort.dir);
+      if (sort.key === "dam") {
+        if (mode === "dam-obl") return cmpStr(a.text, b.text, sort.dir);
+        return cmpStr(
+          a.children[0]?.dam.name || a.text,
+          b.children[0]?.dam.name || b.text,
+          sort.dir,
+        );
+      }
+      if (mode === "obl-dam") return cmpStr(a.text, b.text, sort.dir);
+      return cmpStr(
+        a.children[0]?.lane.label || a.text,
+        b.children[0]?.lane.label || b.text,
+        sort.dir,
+      );
+    });
+  }
+
+  for (const group of groupList) {
+    const isCollapsed = !!collapsed[group.key];
     items.push({
       type: "heading",
-      key,
+      key: group.key,
       text: group.text,
       collapsed: isCollapsed,
       childCount: group.children.length,
@@ -182,7 +240,7 @@ export function buildGanttLayout(
         y += laneH;
       }
     }
-    items.push({ type: "gap", key: `${key}-gap`, h: gap, stripe: 0 });
+    items.push({ type: "gap", key: `${group.key}-gap`, h: gap, stripe: 0 });
     y += gap;
   }
 

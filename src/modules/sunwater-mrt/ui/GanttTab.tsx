@@ -33,6 +33,8 @@ import {
   visiblePairs,
   type GroupMode,
   type GanttLayoutItem,
+  type GanttSort,
+  type GanttSortKey,
 } from "../logic/gantt-layout";
 import {
   ganttMarkers,
@@ -41,6 +43,7 @@ import {
   isUserNotRequired,
   occurrenceStatus,
   recalculateRow,
+  rowNeedsRecalc,
   schedKey,
   type GanttMarker,
   type NextDueChip,
@@ -120,6 +123,7 @@ export function GanttTab({
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [showSummarised, setShowSummarised] = useState(true);
   const [baselineOpen, setBaselineOpen] = useState(false);
+  const [rowSort, setRowSort] = useState<GanttSort | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [fsTop, setFsTop] = useState(120);
   const [minimap, setMinimap] = useState({ leftPct: 0, widthPct: 12 });
@@ -178,7 +182,7 @@ export function GanttTab({
   const laneH = BASE_LANE_H * zoomY;
   const headingH = BASE_HEADING_H * Math.max(0.85, Math.min(1.4, zoomY));
   const mode: GroupMode = flatMode ? "flat" : groupMode;
-  const labelW = mode === "flat" ? 420 : 340;
+  const labelW = 420;
   const markers = useMemo(() => ganttMarkers(store), [store]);
 
   const pairs = useMemo(
@@ -189,8 +193,8 @@ export function GanttTab({
 
   const { items, totalHeight } = useMemo(
     () =>
-      buildGanttLayout(pairs, mode, collapsed, headingH, laneH, GROUP_GAP),
-    [pairs, mode, collapsed, headingH, laneH],
+      buildGanttLayout(pairs, mode, collapsed, headingH, laneH, GROUP_GAP, rowSort),
+    [pairs, mode, collapsed, headingH, laneH, rowSort],
   );
 
   const years = useMemo(() => {
@@ -566,7 +570,7 @@ export function GanttTab({
   function confirmRecalcRow(damId: string, laneCode: string, damName: string, laneLabel: string) {
     if (
       !confirm(
-        `Recalculate future inspections for ${damName} · ${laneLabel}?\n\nUses this row’s next known due as the cycle origin. Scheduled, completed, and not-required records stay. Hidden predicted occurrences return. Predicted futures are replaced.`,
+        `Recalculate future inspections for ${damName} · ${laneLabel}?\n\nUses this row’s next known due as the cycle origin (not-required is skipped). Scheduled and completed stay. Not-required slots move with the cycle and may become required. Hidden predicted occurrences return. Predicted futures are replaced.`,
       )
     ) {
       return;
@@ -585,11 +589,16 @@ export function GanttTab({
     damName: string;
     laneLabel: string;
   }) {
+    const stale = rowNeedsRecalc(store, damId, laneCode);
     return (
       <button
         type="button"
-        className="mrt-gantt-recalc"
-        title="Recalculate this row from the next known due date"
+        className={`mrt-gantt-recalc${stale ? " is-stale" : ""}`}
+        title={
+          stale
+            ? "Saved due is off the cycle origin — recalculate to rebase later dates"
+            : "Recalculate this row from the next known due date"
+        }
         onClick={(e) => {
           e.stopPropagation();
           confirmRecalcRow(damId, laneCode, damName, laneLabel);
@@ -752,8 +761,18 @@ export function GanttTab({
   }
 
   const grouped = !flatMode;
-  const groupLabel =
-    groupMode === "obl-dam" ? "Obligation / Dam" : "Dam / Obligation";
+
+  function toggleRowSort(key: GanttSortKey) {
+    setRowSort((cur) => {
+      if (cur?.key === key) return { key, dir: cur.dir === 1 ? -1 : 1 };
+      return { key, dir: 1 };
+    });
+  }
+
+  function sortMark(key: GanttSortKey) {
+    if (rowSort?.key !== key) return "";
+    return rowSort.dir === 1 ? " ▲" : " ▼";
+  }
 
   const chartHeight = fullscreen
     ? `calc(100dvh - ${fsTop}px - 168px)`
@@ -1076,28 +1095,28 @@ export function GanttTab({
         </div>
         <div className="border-b border-[var(--border)] bg-[var(--surface)]" />
         <div className="flex border-r border-b border-[var(--border)] bg-[var(--surface-muted)] text-[11px] font-semibold">
-          {mode === "flat" ? (
-            <>
-              <span className="flex flex-1 items-center px-2">Dam</span>
-              <span className="flex flex-1 items-center px-2">Obligation</span>
-              <span
-                className="flex items-center justify-end px-2"
-                style={{ width: DUE_COL_W }}
-              >
-                Next due
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="flex flex-1 items-center px-2">{groupLabel}</span>
-              <span
-                className="flex items-center justify-end px-2"
-                style={{ width: DUE_COL_W }}
-              >
-                Next due
-              </span>
-            </>
-          )}
+          <button
+            type="button"
+            className="flex flex-1 items-center px-2 text-left"
+            onClick={() => toggleRowSort("dam")}
+          >
+            Dam{sortMark("dam")}
+          </button>
+          <button
+            type="button"
+            className="flex flex-1 items-center px-2 text-left"
+            onClick={() => toggleRowSort("obligation")}
+          >
+            Obligation{sortMark("obligation")}
+          </button>
+          <button
+            type="button"
+            className="flex items-center justify-end px-2 text-right"
+            style={{ width: DUE_COL_W }}
+            onClick={() => toggleRowSort("due")}
+          >
+            Next due{sortMark("due")}
+          </button>
         </div>
         <div className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
           {todayLabelLeft !== null ? (
@@ -1190,24 +1209,47 @@ export function GanttTab({
                 return <div key={it.key} style={{ height: it.h }} />;
               }
               if (it.type === "heading") {
+                const damText = groupMode === "dam-obl" ? it.text : "";
+                const oblText = groupMode === "obl-dam" ? it.text : "";
                 return (
-                  <button
+                  <div
                     key={it.key}
-                    type="button"
-                    className="flex w-full items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-2 text-left text-[11px] font-semibold"
+                    className="flex w-full items-center border-b border-[var(--border)] bg-[var(--surface-muted)] text-[11px] font-semibold"
                     style={{ height: it.h }}
-                    onClick={() => toggleHeading(it.key)}
                   >
-                    <span className="min-w-0 truncate">
-                      {it.collapsed ? "▸" : "▾"} {it.text}
-                    </span>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center truncate px-2 text-left"
+                      onClick={() => toggleHeading(it.key)}
+                    >
+                      {groupMode === "dam-obl" ? (
+                        <>
+                          {it.collapsed ? "▸" : "▾"} {damText}
+                        </>
+                      ) : (
+                        <span className="truncate text-[var(--muted)]">—</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center truncate px-2 text-left"
+                      onClick={() => toggleHeading(it.key)}
+                    >
+                      {groupMode === "obl-dam" ? (
+                        <>
+                          {it.collapsed ? "▸" : "▾"} {oblText}
+                        </>
+                      ) : (
+                        <span className="truncate text-[var(--muted)]">—</span>
+                      )}
+                    </button>
                     <span
-                      className="flex justify-end"
+                      className="flex justify-end px-2"
                       style={{ width: DUE_COL_W }}
                     >
                       <DueChip chip={it.chip} />
                     </span>
-                  </button>
+                  </div>
                 );
               }
               if (mode === "flat") {
@@ -1241,24 +1283,41 @@ export function GanttTab({
                   </div>
                 );
               }
-              const name =
-                groupMode === "dam-obl" ? it.laneLabel : it.damName;
               return (
                 <div
                   key={it.key}
-                  className="flex cursor-pointer items-center justify-between border-b border-[var(--border)]/70 bg-[var(--surface)] pr-2 pl-5 text-[10.5px]"
+                  className="flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] text-[10.5px]"
                   style={{ height: it.h }}
                   onDoubleClick={() => openLeaf(it)}
                 >
-                  <span className="flex min-w-0 items-center gap-1.5 truncate">
-                    <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: it.color }}
-                    />
-                    {name}
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 pl-5">
+                    {groupMode === "obl-dam" ? (
+                      <>
+                        <span
+                          className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: it.color }}
+                        />
+                        {it.damName}
+                      </>
+                    ) : (
+                      <span className="truncate text-[var(--muted)]">—</span>
+                    )}
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2">
+                    {groupMode === "dam-obl" ? (
+                      <>
+                        <span
+                          className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: it.color }}
+                        />
+                        {it.laneLabel}
+                      </>
+                    ) : (
+                      <span className="truncate text-[var(--muted)]">—</span>
+                    )}
                   </span>
                   <span
-                    className="flex items-center justify-end gap-1"
+                    className="flex items-center justify-end gap-1 px-2"
                     style={{ width: DUE_COL_W }}
                   >
                     <RecalcBtn

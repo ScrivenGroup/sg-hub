@@ -444,8 +444,9 @@ export function predictedBeforeDate(
 
 /**
  * Rebase this dam × obligation cycle on the most recent known due
- * (soonest incomplete, else latest completed) and regenerate later
- * predicted dates from frequency. Completed records stay.
+ * (soonest incomplete that is not not-required, else latest completed)
+ * and regenerate later predicted dates from frequency. Completed stay.
+ * Not-required slots move onto the new cycle and may become required.
  */
 export function recalculateRow(
   store: ScheduleStore,
@@ -462,13 +463,20 @@ export function recalculateRow(
     (m) => m.damId === damId && m.laneCode === laneCode,
   );
   const incomplete = markers
-    .filter((m) => m.kind !== "completed")
+    .filter((m) => m.kind !== "completed" && m.kind !== "notRequired")
+    .sort((a, b) => a.displayDueIdx - b.displayDueIdx);
+  const notRequired = markers
+    .filter((m) => m.kind === "notRequired")
     .sort((a, b) => a.displayDueIdx - b.displayDueIdx);
   const completed = markers
     .filter((m) => m.kind === "completed")
     .sort((a, b) => b.displayDueIdx - a.displayDueIdx);
-  const known = incomplete[0] ?? completed[0];
+  const known = incomplete[0] ?? completed[0] ?? notRequired[0];
   if (!known) return store;
+
+  const oldSlots = occurrences(next, dam, lane).map(([y, m]) =>
+    monthIndex(y, m, start),
+  );
 
   const { y, m0 } = idxToYm(known.displayDueIdx, start);
   const originM = m0 + 1;
@@ -490,6 +498,7 @@ export function recalculateRow(
 
   if (
     known.kind !== "predicted" &&
+    known.kind !== "notRequired" &&
     oldKey !== newKey &&
     detailIsActualised(keep)
   ) {
@@ -514,5 +523,104 @@ export function recalculateRow(
     }
   }
 
+  const newSlots = occurrences(next, dam, lane).map(([oy, om]) =>
+    monthIndex(oy, om, start),
+  );
+  const nrKeys = Object.keys(next.scheduledDetails).filter((key) => {
+    if (!key.startsWith(prefix)) return false;
+    const sd = next.scheduledDetails[key];
+    return !!(sd?.notRequired && !sd.completed);
+  });
+  for (const key of nrKeys) {
+    const parsed = parseSchedKey(key);
+    if (!parsed) continue;
+    const sd = next.scheduledDetails[key];
+    if (!sd) continue;
+    const i = oldSlots.findIndex((s) => s === parsed.dueIdx);
+    const target =
+      i >= 0 && newSlots[i] !== undefined
+        ? newSlots[i]
+        : nearestSlot(parsed.dueIdx + (newProc - known.procDueIdx), newSlots);
+    if (target === null) continue;
+    const dest = schedKey(damId, laneCode, target);
+    const moved = { ...sd };
+    if (moved.dueIdxOverride === target || moved.dueIdxOverride === parsed.dueIdx) {
+      delete moved.dueIdxOverride;
+    }
+    const stillNr = derivedNotRequired(next, dam, lane, target);
+    if (!stillNr) {
+      delete moved.notRequired;
+      delete moved.notRequiredReason;
+    }
+    moved.history = [
+      ...(moved.history || []),
+      {
+        at: new Date().toISOString(),
+        note: stillNr
+          ? "Recalculate this row: not-required moved with cycle"
+          : "Recalculate this row: not-required became required",
+      },
+    ];
+    if (dest === key) {
+      next.scheduledDetails[key] = moved;
+      if (!stillNr && !detailIsActualised({ ...moved, notRequired: undefined })) {
+        delete next.scheduledDetails[key];
+      }
+      continue;
+    }
+    const occupant = next.scheduledDetails[dest];
+    if (occupant && detailIsActualised(occupant) && dest !== key) {
+      delete next.scheduledDetails[key];
+      continue;
+    }
+    next.scheduledDetails[dest] = moved;
+    if (dest !== key) delete next.scheduledDetails[key];
+    if (!stillNr && !detailIsActualised({ ...moved, notRequired: undefined })) {
+      delete next.scheduledDetails[dest];
+    }
+  }
+
   return next;
+}
+
+function nearestSlot(proc: number, slots: number[]) {
+  if (slots.length === 0) return null;
+  let best = slots[0];
+  let bestD = Math.abs(slots[0] - proc);
+  for (const s of slots) {
+    const d = Math.abs(s - proc);
+    if (d < bestD) {
+      best = s;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+export function rowNeedsRecalc(
+  store: ScheduleStore,
+  damId: string,
+  laneCode: string,
+) {
+  const dam = store.dams.find((d) => d.id === damId);
+  const lane = store.lanes.find((l) => l.code === laneCode);
+  if (!dam || !lane) return false;
+  const start = storeWindow(store).start;
+  const markers = ganttMarkers(store)
+    .filter(
+      (m) =>
+        m.damId === damId &&
+        m.laneCode === laneCode &&
+        m.kind !== "completed" &&
+        m.kind !== "notRequired",
+    )
+    .sort((a, b) => a.displayDueIdx - b.displayDueIdx);
+  const first = markers[0];
+  if (!first) return false;
+  const actualised = isScheduled(store, dam, lane, first.procDueIdx);
+  if (!actualised) return false;
+  const anchor = store.laneCycleAnchors?.[damId]?.[laneCode];
+  if (!anchor?.y || !anchor?.m) return first.displayDueIdx !== first.procDueIdx;
+  const originIdx = monthIndex(anchor.y, anchor.m, start);
+  return Math.round(first.displayDueIdx) !== originIdx;
 }
