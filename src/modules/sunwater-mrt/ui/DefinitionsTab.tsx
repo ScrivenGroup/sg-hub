@@ -3,6 +3,11 @@
 import { useState } from "react";
 import type { ScheduleStore } from "../schema";
 import { getEffectiveDamOwnership } from "../logic/assignment";
+import { laneApplies } from "../logic/applicability";
+import { removeOwnershipColumn } from "../logic/cascade";
+import { MONTH_NAMES } from "../logic/dates";
+import { pairHasActualised } from "../logic/scheduling";
+import { ensureEffortDemo, outOfRoleKeys } from "../logic/effort-gantt";
 import { SubTabs } from "./SubTabs";
 
 const SUBS = [
@@ -50,7 +55,7 @@ function FlipToggle({
   onFlip: () => void;
 }) {
   return (
-    <button type="button" className="sg-btn-secondary mb-3 text-sm" onClick={onFlip}>
+    <button type="button" className="mrt-btn-secondary mb-3" onClick={onFlip}>
       Flip axis {flipped ? "(obligations × assets)" : ""}
     </button>
   );
@@ -70,8 +75,12 @@ function ApplyMatrix({
   return (
     <div>
       <FlipToggle flipped={flipped} onFlip={() => setFlipped((v) => !v)} />
+      <p className="mb-2 text-xs text-[var(--muted)]">
+        Unchecking drops calculated-only rows. Actualised occurrences stay
+        (grey on Gantt / Obligations) until you delete them explicitly.
+      </p>
       <div className="overflow-x-auto">
-        <table className="w-max table-auto border-collapse text-xs">
+        <table className="mrt-table">
           <thead>
             <tr>
               <th className="px-2 py-1 text-left">
@@ -99,8 +108,13 @@ function ApplyMatrix({
                     const dam = rowDam ? row : (col as typeof store.dams[0]);
                     const lane = rowDam ? (col as typeof store.lanes[0]) : row;
                     const on = store.laneApplicability[dam.id]?.[lane.code] ?? true;
+                    const kept = !on && pairHasActualised(store, dam.id, lane.code);
                     return (
-                      <td key={dam.id + lane.code} className="px-2 text-center">
+                      <td
+                        key={dam.id + lane.code}
+                        className={`px-2 text-center ${kept ? "mrt-row-kept" : ""}`}
+                        title={kept ? "Input off — not deleted" : undefined}
+                      >
                         <input
                           type="checkbox"
                           checked={on}
@@ -122,6 +136,126 @@ function ApplyMatrix({
           </tbody>
         </table>
       </div>
+      <AnchorTable store={store} update={update} />
+    </div>
+  );
+}
+
+function AnchorTable({
+  store,
+  update,
+}: {
+  store: ScheduleStore;
+  update: (mut: (next: ScheduleStore) => void) => void;
+}) {
+  const pairs = store.dams.flatMap((dam) =>
+    store.lanes
+      .filter((lane) => {
+        const applies = laneApplies(store.laneApplicability, dam, lane);
+        const kept =
+          pairHasActualised(store, dam.id, lane.code) ||
+          !!store.laneCycleAnchors?.[dam.id]?.[lane.code];
+        return applies || kept;
+      })
+      .map((lane) => ({ dam, lane })),
+  );
+  const years: number[] = [];
+  const now = new Date().getFullYear();
+  for (let y = now - 10; y <= now + 40; y++) years.push(y);
+
+  function setAnchor(damId: string, code: string, y: number | null, m: number | null) {
+    update((n) => {
+      if (!n.laneCycleAnchors) n.laneCycleAnchors = {};
+      if (!n.laneCycleAnchors[damId]) n.laneCycleAnchors[damId] = {};
+      if (!y || !m) {
+        delete n.laneCycleAnchors[damId][code];
+        return;
+      }
+      n.laneCycleAnchors[damId][code] = { y, m };
+    });
+  }
+
+  return (
+    <div className="mt-6">
+      <h3 className="mb-1 text-sm font-semibold">Cycle origins</h3>
+      <p className="mb-2 text-xs text-[var(--muted)]">
+        Next due is the cycle origin for that dam × obligation (for example
+        staggering comprehensive inspections so they do not all land in the
+        same year). Leave blank to count forward from today.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="mrt-table mrt-table-gaps">
+          <thead>
+            <tr>
+              <th>Dam</th>
+              <th>Obligation</th>
+              <th>Next due</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pairs.map(({ dam, lane }) => {
+              const anchor = store.laneCycleAnchors?.[dam.id]?.[lane.code];
+              const applies = laneApplies(store.laneApplicability, dam, lane);
+              return (
+                <tr
+                  key={`${dam.id}-${lane.code}`}
+                  className={applies ? undefined : "mrt-row-kept"}
+                  title={applies ? undefined : "Input off — not deleted"}
+                >
+                  <td>{dam.name}</td>
+                  <td>
+                    {lane.code} {lane.label}
+                  </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <select
+                        className="mrt-select"
+                        style={{ width: 88 }}
+                        value={anchor?.y ?? ""}
+                        onChange={(e) =>
+                          setAnchor(
+                            dam.id,
+                            lane.code,
+                            e.target.value ? Number(e.target.value) : null,
+                            anchor?.m ?? 6,
+                          )
+                        }
+                      >
+                        <option value="">Default</option>
+                        {years.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="mrt-select"
+                        style={{ width: 72 }}
+                        value={anchor?.m ?? ""}
+                        onChange={(e) =>
+                          setAnchor(
+                            dam.id,
+                            lane.code,
+                            anchor?.y ?? now,
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                      >
+                        <option value="">—</option>
+                        {MONTH_NAMES.map((name, i) => (
+                          <option key={name} value={i + 1}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -136,15 +270,19 @@ function EligibilityMatrix({
   const [flipped, setFlipped] = useState(false);
   const roles = store.resourceRoles;
   const people = store.people;
+  const outOfRole = outOfRoleKeys(ensureEffortDemo(store.effortDemo), store.roleEligibility);
 
   return (
     <div>
       <FlipToggle flipped={flipped} onFlip={() => setFlipped((v) => !v)} />
       <p className="mb-2 text-xs text-[var(--muted)]">
-        Tick = this person appears in dropdowns for that role.
+        Tick = this person appears in dropdowns for that role. Unchecking does
+        not remove people already assigned on assets or actualised plans.
+        <span className="ml-1 text-[var(--ink)]">*</span> = assigned on a
+        milestone Gantt outside this tick.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-max table-auto border-collapse text-xs">
+        <table className="mrt-table">
           <thead>
             <tr>
               <th className="px-2 py-1 text-left">
@@ -170,6 +308,7 @@ function EligibilityMatrix({
                     const role = roleRow ? row : (col as string);
                     const person = roleRow ? (col as (typeof people)[0]) : row;
                     const on = !!store.roleEligibility[role]?.[person.id];
+                    const star = outOfRole.has(`${role}::${person.id}`);
                     return (
                       <td key={`${role}-${person.id}`} className="px-2 text-center">
                         <input
@@ -182,6 +321,9 @@ function EligibilityMatrix({
                             })
                           }
                         />
+                        {star ? (
+                          <span className="ml-0.5 text-[11px] text-[var(--ink)]" title="Assigned outside this role tick">*</span>
+                        ) : null}
                       </td>
                     );
                   })}
@@ -195,8 +337,19 @@ function EligibilityMatrix({
   );
 }
 
-function eligiblePeople(store: ScheduleStore, role: string) {
-  return store.people.filter((p) => store.roleEligibility[role]?.[p.id]);
+function peopleForRoleSelect(
+  store: ScheduleStore,
+  role: string,
+  currentValue: string,
+) {
+  const eligible = store.people.filter((p) => store.roleEligibility[role]?.[p.id]);
+  const extra = store.people.find(
+    (p) => p.name === currentValue || p.id === currentValue,
+  );
+  if (extra && !eligible.some((p) => p.id === extra.id)) {
+    return { people: [extra, ...eligible], keptId: extra.id };
+  }
+  return { people: eligible, keptId: null as string | null };
 }
 
 function OwnershipMatrix({
@@ -223,7 +376,8 @@ function OwnershipMatrix({
     <div className="overflow-x-auto">
       <p className="mb-2 text-xs text-[var(--muted)]">
         All assets, then region, then asset. More specific cells overwrite.
-        Dropdowns follow Resource × Role.
+        Clearing a cell is explicit; making a person ineligible later does not
+        wipe a filled assignment.
       </p>
       <div className="mb-3 flex flex-wrap gap-2">
         {store.resourceRoles
@@ -243,13 +397,24 @@ function OwnershipMatrix({
             </button>
           ))}
       </div>
-      <table className="w-max table-auto text-xs">
+      <table className="mrt-table">
         <thead>
           <tr>
-            <th className="px-2 py-1 text-left">Context</th>
+            <th>Context</th>
             {cols.map((c) => (
-              <th key={c} className="px-2 py-1">
-                {c}
+              <th key={c}>
+                {c}{" "}
+                <button
+                  type="button"
+                  className="mrt-remove"
+                  title={`Remove ${c} column`}
+                  onClick={() => {
+                    if (!confirm(`Remove column ${c}?`)) return;
+                    update((n) => removeOwnershipColumn(n, c));
+                  }}
+                >
+                  ×
+                </button>
               </th>
             ))}
           </tr>
@@ -351,11 +516,11 @@ function PersonSelect({
   placeholder?: string;
   onChange: (value: string) => void;
 }) {
-  const people = eligiblePeople(store, role);
   const shown = value || "";
+  const { people, keptId } = peopleForRoleSelect(store, role, shown);
   return (
     <select
-      className="sg-input min-h-8 py-0 text-xs"
+      className="mrt-select"
       value={shown}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -367,7 +532,7 @@ function PersonSelect({
       ) : null}
       {people.map((p) => (
         <option key={p.id} value={p.name}>
-          {p.name}
+          {p.id === keptId ? `${p.name} (kept)` : p.name}
         </option>
       ))}
     </select>

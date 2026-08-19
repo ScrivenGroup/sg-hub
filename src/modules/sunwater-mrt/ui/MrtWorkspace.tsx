@@ -9,8 +9,16 @@ import { DefinitionsTab } from "./DefinitionsTab";
 import { DevelopmentTab } from "./DevelopmentTab";
 import { GanttTab } from "./GanttTab";
 import { InputsTab } from "./InputsTab";
+import { ObligationsTab } from "./ObligationsTab";
+import "./mrt-tables.css";
 
-const BASE_TABS = ["Gantt", "Inputs", "Definitions", "Defaults"] as const;
+const BASE_TABS = [
+  "Gantt",
+  "Obligations",
+  "Inputs",
+  "Definitions",
+  "Defaults",
+] as const;
 
 export function MrtWorkspace({
   initialStore,
@@ -90,6 +98,9 @@ export function MrtWorkspace({
       </div>
 
       {tab === "Gantt" ? <GanttTab store={store} onChange={persist} /> : null}
+      {tab === "Obligations" ? (
+        <ObligationsTab store={store} onChange={persist} />
+      ) : null}
       {tab === "Inputs" ? <InputsTab store={store} onChange={persist} /> : null}
       {tab === "Definitions" ? (
         <DefinitionsTab store={store} onChange={persist} />
@@ -98,7 +109,11 @@ export function MrtWorkspace({
         <DefaultsTab store={store} onChange={persist} />
       ) : null}
       {tab === "Development" ? (
-        <DevelopmentTab changelogs={changelogs} />
+        <DevelopmentTab
+          changelogs={changelogs}
+          store={store}
+          onChange={persist}
+        />
       ) : null}
     </div>
   );

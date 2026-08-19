@@ -1,11 +1,19 @@
-import type { Dam, Lane, ScheduleStore } from "../schema";
+import type { Dam, Lane, ScheduleStore, ScheduledDetail } from "../schema";
 import { laneApplies } from "./applicability";
-import { planStatusKind } from "./status";
+import { nextDueRag, planStatusKind } from "./status";
 import {
   addMonths,
+  clampHorizonYears,
+  defaultDueDayForIdx,
   frequencyToMonths,
+  fullDateLabel,
+  fyEndYearFromIdx,
+  idxDayOnOrAfterDate,
+  idxToShortLabel,
+  idxToYm,
   monthIndex,
   planningWindow,
+  storeBaseline,
   todayIdx,
   todayYm,
   ymOnOrAfter,
@@ -13,6 +21,50 @@ import {
 
 export function schedKey(damId: string, laneCode: string, dueIdx: number) {
   return `${damId}|${laneCode}|${Math.round(dueIdx)}`;
+}
+
+export function parseSchedKey(key: string) {
+  const parts = key.split("|");
+  if (parts.length < 3) return null;
+  const dueIdx = Number(parts[parts.length - 1]);
+  if (Number.isNaN(dueIdx)) return null;
+  return {
+    damId: parts[0],
+    laneCode: parts.slice(1, -1).join("|"),
+    dueIdx,
+  };
+}
+
+export function detailIsActualised(sd: ScheduledDetail | undefined) {
+  if (!sd) return false;
+  return !!(
+    sd.actualised ||
+    sd.dueIdxOverride !== undefined ||
+    sd.dueDayOverride !== undefined ||
+    sd.leadInOverrideMonths !== undefined ||
+    sd.completed ||
+    sd.notRequired
+  );
+}
+
+export function isActualised(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  dueIdx: number,
+) {
+  return detailIsActualised(store.scheduledDetails[schedKey(dam.id, lane.code, dueIdx)]);
+}
+
+export function pairHasActualised(
+  store: ScheduleStore,
+  damId: string,
+  laneCode: string,
+) {
+  const prefix = `${damId}|${laneCode}|`;
+  return Object.entries(store.scheduledDetails).some(
+    ([key, sd]) => key.startsWith(prefix) && detailIsActualised(sd),
+  );
 }
 
 export function getLead(store: ScheduleStore, code: string, damId: string) {
@@ -25,7 +77,25 @@ export function getLead(store: ScheduleStore, code: string, damId: string) {
 
 export function isScheduled(store: ScheduleStore, dam: Dam, lane: Lane, dueIdx: number) {
   const sd = store.scheduledDetails[schedKey(dam.id, lane.code, dueIdx)];
-  return !!(sd && (sd.dueIdxOverride !== undefined || sd.leadInOverrideMonths !== undefined));
+  return !!(
+    sd &&
+    (sd.actualised ||
+      sd.dueIdxOverride !== undefined ||
+      sd.dueDayOverride !== undefined ||
+      sd.leadInOverrideMonths !== undefined)
+  );
+}
+
+export function effectiveDueDay(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  procDueIdx: number,
+  windowStart = storeWindow(store).start,
+) {
+  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
+  const displayIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
+  return sd?.dueDayOverride ?? defaultDueDayForIdx(displayIdx, windowStart);
 }
 
 export function isCompleted(store: ScheduleStore, dam: Dam, lane: Lane, dueIdx: number) {
@@ -54,18 +124,53 @@ export function effectiveLead(
   return getLead(store, lane.code, dam.id);
 }
 
-export function occurrences(lane: Lane, today = todayYm()): [number, number][] {
+export function storeWindow(store: ScheduleStore, now = new Date()) {
+  return planningWindow(now, clampHorizonYears(store.horizonYears));
+}
+
+export function isUserNotRequired(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  dueIdx: number,
+) {
+  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, dueIdx)];
+  return !!(sd && sd.notRequired && !sd.completed);
+}
+
+export function occurrences(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  today = todayYm(),
+): [number, number][] {
   const step = frequencyToMonths(lane.frequencyCount, lane.frequencyUnit);
-  const dueMonth =
-    lane.frequencyUnit === "year" ? Math.min(12, Math.max(1, lane.dueMonth || 6)) : today.m;
-  let first = { y: today.y, m: dueMonth };
-  if (lane.frequencyUnit !== "year") {
-    first = { y: today.y, m: today.m };
+  const horizonYears = clampHorizonYears(store.horizonYears);
+  const horizon = addMonths(today.y, today.m, horizonYears * 12);
+  const baseline = storeBaseline(store);
+  const from = { y: baseline.y, m: baseline.m };
+  const anchor = store.laneCycleAnchors?.[dam.id]?.[lane.code];
+  let first: { y: number; m: number };
+  if (anchor?.y && anchor?.m) {
+    first = {
+      y: anchor.y,
+      m: Math.min(12, Math.max(1, anchor.m)),
+    };
+  } else {
+    const dueMonth =
+      lane.frequencyUnit === "year"
+        ? Math.min(12, Math.max(1, lane.dueMonth || 6))
+        : from.m;
+    first = { y: from.y, m: dueMonth };
+    if (lane.frequencyUnit !== "year") {
+      first = { y: from.y, m: from.m };
+    }
   }
-  if (!ymOnOrAfter(first.y, first.m, today)) {
+  let skip = 0;
+  while (skip < 400 && !ymOnOrAfter(first.y, first.m, from)) {
     first = addMonths(first.y, first.m, step);
+    skip += 1;
   }
-  const horizon = addMonths(today.y, today.m, 25 * 12);
   const out: [number, number][] = [];
   let cur = first;
   let i = 0;
@@ -73,7 +178,7 @@ export function occurrences(lane: Lane, today = todayYm()): [number, number][] {
     cur.y < horizon.y ||
     (cur.y === horizon.y && cur.m <= horizon.m)
   ) {
-    out.push([cur.y, cur.m]);
+    if (ymOnOrAfter(cur.y, cur.m, from)) out.push([cur.y, cur.m]);
     cur = addMonths(cur.y, cur.m, step);
     i += 1;
     if (i > 400) break;
@@ -82,25 +187,122 @@ export function occurrences(lane: Lane, today = todayYm()): [number, number][] {
 }
 
 export function nextDueInfo(store: ScheduleStore, dam: Dam, lane: Lane) {
-  const start = planningWindow().start;
-  const occs = occurrences(lane)
+  const start = storeWindow(store).start;
+  const occs = occurrences(store, dam, lane)
     .map(([y, m]) => monthIndex(y, m, start))
     .sort((a, b) => a - b);
   if (occs.length === 0) return null;
   const tIdx = todayIdx();
   for (const d of occs) {
     const dr = Math.round(d);
-    if (d >= tIdx && !isCompleted(store, dam, lane, dr)) {
+    if (d >= tIdx && !skipsNextDue(store, dam, lane, dr)) {
       return { dueIdx: d, overdue: false };
     }
   }
   for (let i = occs.length - 1; i >= 0; i--) {
     const dr = Math.round(occs[i]);
-    if (!isCompleted(store, dam, lane, dr)) {
+    if (!skipsNextDue(store, dam, lane, dr)) {
       return { dueIdx: occs[i], overdue: true };
     }
   }
-  return { dueIdx: occs[occs.length - 1], overdue: false };
+  return null;
+}
+
+function skipsNextDue(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  procDueIdx: number,
+) {
+  if (isCompleted(store, dam, lane, procDueIdx)) return true;
+  if (isUserNotRequired(store, dam, lane, procDueIdx)) return true;
+  if (isScheduled(store, dam, lane, procDueIdx)) return false;
+  const display = effectiveDueIdx(store, dam, lane, procDueIdx);
+  return derivedNotRequired(store, dam, lane, display);
+}
+
+function damHasLaneInFy(
+  store: ScheduleStore,
+  dam: Dam,
+  code: string,
+  fy: number,
+) {
+  const lane = store.lanes.find((l) => l.code === code);
+  if (!lane) return false;
+  if (!laneApplies(store.laneApplicability, dam, lane)) return false;
+  const start = storeWindow(store).start;
+  for (const [y, m] of occurrences(store, dam, lane)) {
+    const proc = monthIndex(y, m, start);
+    const display = effectiveDueIdx(store, dam, lane, proc);
+    if (fyEndYearFromIdx(display, start) === fy) return true;
+  }
+  const prefix = `${dam.id}|${code}|`;
+  for (const [key, sd] of Object.entries(store.scheduledDetails)) {
+    if (!key.startsWith(prefix) || !detailIsActualised(sd)) continue;
+    const parsed = parseSchedKey(key);
+    if (!parsed) continue;
+    const display = effectiveDueIdx(store, dam, lane, parsed.dueIdx);
+    if (fyEndYearFromIdx(display, start) === fy) return true;
+  }
+  return false;
+}
+
+export function derivedNotRequired(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  displayIdx: number,
+) {
+  if (lane.code !== "AI" && lane.code !== "CI") return false;
+  const fy = fyEndYearFromIdx(displayIdx, storeWindow(store).start);
+  const ds = damHasLaneInFy(store, dam, "DS", fy);
+  if (lane.code === "AI") {
+    return ds || damHasLaneInFy(store, dam, "CI", fy);
+  }
+  return ds;
+}
+
+export type NextDueChip = {
+  dueIdx: number;
+  procDueIdx: number;
+  dueDay: number;
+  overdue: boolean;
+  label: string;
+  fullLabel: string;
+  rag: ReturnType<typeof nextDueRag>;
+};
+
+export function nextDueChip(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  tIdx = todayIdx(),
+): NextDueChip | null {
+  const info = nextDueInfo(store, dam, lane);
+  if (!info) return null;
+  const procDueIdx = Math.round(info.dueIdx);
+  const displayIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
+  const dueDay = effectiveDueDay(store, dam, lane, procDueIdx);
+  const overdue = info.overdue || displayIdx < tIdx;
+  const rag = nextDueRag(displayIdx, overdue, tIdx);
+  const short = idxToShortLabel(displayIdx);
+  const full = fullDateLabel(displayIdx, dueDay);
+  return {
+    dueIdx: displayIdx,
+    procDueIdx,
+    dueDay,
+    overdue,
+    label: overdue ? `OVERDUE ${short}` : short,
+    fullLabel: overdue ? `OVERDUE ${full}` : full,
+    rag,
+  };
+}
+
+export function earliestNextDue(chips: NextDueChip[]): NextDueChip | null {
+  if (chips.length === 0) return null;
+  return chips.reduce((best, chip) =>
+    chip.dueIdx < best.dueIdx ? chip : best,
+  );
 }
 
 export function occurrenceStatus(
@@ -143,37 +345,152 @@ export type GanttMarker = {
   color: string;
   procDueIdx: number;
   displayDueIdx: number;
+  dueDay: number;
   leadStart: number;
   kind: ReturnType<typeof planStatusKind>;
   bucket: "overdue" | "ongoing" | "upcoming";
+  inputOff?: boolean;
 };
 
+function toMarker(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  procDueIdx: number,
+  inputOff: boolean,
+): GanttMarker {
+  const start = storeWindow(store).start;
+  const st = occurrenceStatus(store, dam, lane, Math.round(procDueIdx));
+  const completed = isCompleted(store, dam, lane, Math.round(procDueIdx));
+  const scheduled = isScheduled(store, dam, lane, Math.round(procDueIdx));
+  const userNr = isUserNotRequired(store, dam, lane, Math.round(procDueIdx));
+  const derived =
+    !completed && !scheduled && !userNr
+      ? derivedNotRequired(store, dam, lane, st.displayDueIdx)
+      : false;
+  return {
+    damId: dam.id,
+    damName: dam.name,
+    laneCode: lane.code,
+    laneLabel: lane.label,
+    color: lane.color,
+    procDueIdx: Math.round(procDueIdx),
+    displayDueIdx: st.displayDueIdx,
+    dueDay: effectiveDueDay(store, dam, lane, Math.round(procDueIdx), start),
+    leadStart: st.displayLeadStart,
+    kind: planStatusKind(scheduled, completed, userNr || derived),
+    bucket: st.status,
+    inputOff,
+  };
+}
+
 export function ganttMarkers(store: ScheduleStore): GanttMarker[] {
-  const start = planningWindow().start;
+  const start = storeWindow(store).start;
   const out: GanttMarker[] = [];
+  const seen = new Set<string>();
+
   for (const dam of store.dams) {
-    for (const lane of appliedLanes(store, dam)) {
-      for (const [y, m] of occurrences(lane)) {
+    for (const lane of store.lanes) {
+      const applies = laneApplies(store.laneApplicability, dam, lane);
+      if (!applies) continue;
+      for (const [y, m] of occurrences(store, dam, lane)) {
         const procDueIdx = monthIndex(y, m, start);
         if (procDueIdx < 0) continue;
-        const st = occurrenceStatus(store, dam, lane, Math.round(procDueIdx));
-        out.push({
-          damId: dam.id,
-          damName: dam.name,
-          laneCode: lane.code,
-          laneLabel: lane.label,
-          color: lane.color,
-          procDueIdx: Math.round(procDueIdx),
-          displayDueIdx: st.displayDueIdx,
-          leadStart: st.displayLeadStart,
-          kind: planStatusKind(
-            isScheduled(store, dam, lane, Math.round(procDueIdx)),
-            isCompleted(store, dam, lane, Math.round(procDueIdx)),
-          ),
-          bucket: st.status,
-        });
+        const key = schedKey(dam.id, lane.code, procDueIdx);
+        seen.add(key);
+        out.push(toMarker(store, dam, lane, procDueIdx, false));
       }
     }
   }
+
+  for (const [key, sd] of Object.entries(store.scheduledDetails)) {
+    if (!detailIsActualised(sd) || seen.has(key)) continue;
+    const parsed = parseSchedKey(key);
+    if (!parsed) continue;
+    const dam = store.dams.find((d) => d.id === parsed.damId);
+    const lane = store.lanes.find((l) => l.code === parsed.laneCode);
+    if (!dam || !lane) continue;
+    const applies = laneApplies(store.laneApplicability, dam, lane);
+    seen.add(key);
+    out.push(toMarker(store, dam, lane, parsed.dueIdx, !applies));
+  }
+
   return out;
+}
+
+export function predictedBeforeDate(
+  store: ScheduleStore,
+  date: { y: number; m: number; d: number },
+) {
+  const start = storeWindow(store).start;
+  return ganttMarkers(store).filter(
+    (m) =>
+      m.kind === "predicted" &&
+      !idxDayOnOrAfterDate(m.displayDueIdx, m.dueDay, date, start),
+  );
+}
+
+/**
+ * Rebase this dam × obligation cycle on the most recent known due
+ * (soonest incomplete, else latest completed) and regenerate later
+ * predicted dates from frequency. Completed records stay.
+ */
+export function recalculateRow(
+  store: ScheduleStore,
+  damId: string,
+  laneCode: string,
+): ScheduleStore {
+  const dam = store.dams.find((d) => d.id === damId);
+  const lane = store.lanes.find((l) => l.code === laneCode);
+  if (!dam || !lane) return store;
+
+  const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
+  const start = storeWindow(next).start;
+  const markers = ganttMarkers(next).filter(
+    (m) => m.damId === damId && m.laneCode === laneCode,
+  );
+  const incomplete = markers
+    .filter((m) => m.kind !== "completed")
+    .sort((a, b) => a.displayDueIdx - b.displayDueIdx);
+  const completed = markers
+    .filter((m) => m.kind === "completed")
+    .sort((a, b) => b.displayDueIdx - a.displayDueIdx);
+  const known = incomplete[0] ?? completed[0];
+  if (!known) return store;
+
+  const { y, m0 } = idxToYm(known.displayDueIdx, start);
+  const originM = m0 + 1;
+  if (!next.laneCycleAnchors) next.laneCycleAnchors = {};
+  if (!next.laneCycleAnchors[damId]) next.laneCycleAnchors[damId] = {};
+  next.laneCycleAnchors[damId][laneCode] = { y, m: originM };
+
+  const prefix = `${damId}|${laneCode}|`;
+  const oldKey = schedKey(damId, laneCode, known.procDueIdx);
+  const keep = next.scheduledDetails[oldKey] || {};
+
+  for (const key of Object.keys(next.scheduledDetails)) {
+    if (!key.startsWith(prefix)) continue;
+    if (detailIsActualised(next.scheduledDetails[key])) continue;
+    delete next.scheduledDetails[key];
+  }
+
+  if (known.kind === "predicted") {
+    const newProc = monthIndex(y, originM, start);
+    const newKey = schedKey(damId, laneCode, newProc);
+    next.scheduledDetails[newKey] = {
+      history: [
+        ...(keep.history || []),
+        {
+          at: new Date().toISOString(),
+          note: "Recalculate this row: future cycle from known due",
+        },
+      ],
+      actualised: true,
+      dueDayOverride: known.dueDay,
+      leadInOverrideMonths: keep.leadInOverrideMonths,
+      plan: keep.plan,
+    };
+  }
+
+  return next;
 }

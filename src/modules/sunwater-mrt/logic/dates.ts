@@ -9,11 +9,17 @@ export function todayYm(now = new Date()) {
   return { y: now.getFullYear(), m: now.getMonth() + 1 };
 }
 
-export function planningWindow(now = new Date()) {
+export function clampHorizonYears(n: number | undefined) {
+  const v = Math.round(Number(n) || HORIZON_YEARS);
+  return Math.min(40, Math.max(5, v));
+}
+
+export function planningWindow(now = new Date(), horizonYears = HORIZON_YEARS) {
   const today = todayYm(now);
+  const years = clampHorizonYears(horizonYears);
   return {
     start: { y: today.y, m: today.m },
-    end: { y: today.y + HORIZON_YEARS, m: today.m },
+    end: { y: today.y + years, m: today.m },
   };
 }
 
@@ -110,4 +116,97 @@ export function ymOnOrAfter(
   today: { y: number; m: number },
 ) {
   return y > today.y || (y === today.y && m >= today.m);
+}
+
+export function fyEndYearFromIdx(
+  idx: number,
+  windowStart = planningWindow().start,
+) {
+  const { y, m0 } = idxToYm(idx, windowStart);
+  return m0 >= 6 ? y + 1 : y;
+}
+
+/** Australian FY n = 1 Jul (n-1) – 30 Jun n. */
+export function fyStartIdx(
+  endYear: number,
+  windowStart = planningWindow().start,
+) {
+  return monthIndex(endYear - 1, 7, windowStart);
+}
+
+export const DEFAULT_BASELINE = { y: 2026, m: 7, d: 1 } as const;
+
+export function storeBaseline(store: { baselineDate?: { y: number; m: number; d: number } }) {
+  const b = store.baselineDate;
+  if (b?.y && b?.m) {
+    return {
+      y: b.y,
+      m: Math.min(12, Math.max(1, b.m)),
+      d: Math.min(31, Math.max(1, b.d || 1)),
+    };
+  }
+  return { y: DEFAULT_BASELINE.y, m: DEFAULT_BASELINE.m, d: DEFAULT_BASELINE.d };
+}
+
+export function ymOnOrAfterDate(
+  y: number,
+  m: number,
+  d: number,
+  other: { y: number; m: number; d?: number },
+) {
+  const od = other.d ?? 1;
+  if (y !== other.y) return y > other.y;
+  if (m !== other.m) return m > other.m;
+  return d >= od;
+}
+
+export function idxDayOnOrAfterDate(
+  idx: number,
+  day: number,
+  date: { y: number; m: number; d: number },
+  windowStart = planningWindow().start,
+) {
+  const d0 = idxDayToDate(idx, day, windowStart);
+  return ymOnOrAfterDate(d0.y, d0.m1, d0.d, date);
+}
+
+export function idxDayToContinuous(
+  idx: number,
+  day: number,
+  windowStart = planningWindow().start,
+) {
+  const { y, m0 } = idxToYm(idx, windowStart);
+  const dim = daysInMonth(y, m0 + 1);
+  return idx + (Math.min(Math.max(1, day), dim) - 1) / dim;
+}
+
+export function rollupToEndOfWeek(
+  idx: number,
+  day: number,
+  windowStart = planningWindow().start,
+) {
+  const d0 = idxDayToDate(idx, day, windowStart);
+  const we = weekEndingSunday(d0.y, d0.m1, d0.d);
+  return {
+    idx: monthIndex(we.y, we.m1, windowStart),
+    day: we.d,
+  };
+}
+
+export function idxDayToShortDateLabel(
+  idx: number,
+  day: number,
+  windowStart = planningWindow().start,
+) {
+  const d0 = idxDayToDate(idx, day, windowStart);
+  return `${String(d0.d).padStart(2, "0")}-${MONTH_NAMES[d0.m1 - 1]}-${String(d0.y).slice(2)}`;
+}
+
+/** Stored/tooltip/table value: always a full day-month-year (e.g. 30-Jun-27). */
+export function fullDateLabel(
+  idx: number,
+  day: number,
+  windowStart = planningWindow().start,
+) {
+  return idxDayToShortDateLabel(idx, day, windowStart);
 }

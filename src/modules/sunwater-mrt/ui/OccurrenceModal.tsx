@@ -8,17 +8,18 @@ import {
 } from "../logic/assignment";
 import {
   defaultDueDayForIdx,
-  idxToLabel,
+  fullDateLabel,
   idxToYm,
   monthIndex,
-  planningWindow,
 } from "../logic/dates";
 import {
   effectiveDueIdx,
   effectiveLead,
   isCompleted,
   isScheduled,
+  isUserNotRequired,
   schedKey,
+  storeWindow,
 } from "../logic/scheduling";
 import { planStatusKind, planStatusLabel } from "../logic/status";
 import type { GanttMarker } from "../logic/scheduling";
@@ -50,22 +51,47 @@ export function OccurrenceModal({
   const kind = planStatusKind(
     isScheduled(store, dam, lane, marker.procDueIdx),
     isCompleted(store, dam, lane, marker.procDueIdx),
+    isUserNotRequired(store, dam, lane, marker.procDueIdx),
   );
 
-  const { y, m0 } = idxToYm(dueIdx);
-  const dueDay = sd.dueDayOverride ?? defaultDueDayForIdx(dueIdx);
+  const winStart = storeWindow(store).start;
+  const { y, m0 } = idxToYm(dueIdx, winStart);
+  const dueDay = sd.dueDayOverride ?? defaultDueDayForIdx(dueIdx, winStart);
+  const procDay = defaultDueDayForIdx(marker.procDueIdx, winStart);
 
-  function patchDetail(partial: Partial<ScheduleStore["scheduledDetails"][string]>) {
+  function patchDetail(
+    partial: Partial<ScheduleStore["scheduledDetails"][string]>,
+    actualise = true,
+  ) {
     const next: ScheduleStore = JSON.parse(JSON.stringify(store));
     next.scheduledDetails[key] = {
       ...(next.scheduledDetails[key] || {}),
       ...partial,
+      ...(actualise ? { actualised: true } : {}),
     };
     onChange(next);
   }
 
   function savePlan() {
     patchDetail({ plan });
+  }
+
+  function restoreToDefaults() {
+    const seeded = seedPlanFromDefaults(
+      store,
+      lane.code,
+      weeks.length,
+      dam.id,
+    );
+    setPlan(seeded);
+    const next: ScheduleStore = JSON.parse(JSON.stringify(store));
+    const existing = next.scheduledDetails[key] || {};
+    next.scheduledDetails[key] = {
+      history: existing.history,
+      completed: existing.completed,
+      plan: seeded,
+    };
+    onChange(next);
   }
 
   return (
@@ -77,8 +103,9 @@ export function OccurrenceModal({
               {dam.name} · {lane.code}
             </h2>
             <p className="text-sm text-[var(--muted)]">
-              {lane.label} · {planStatusLabel(kind)} · procedural due{" "}
-              {idxToLabel(marker.procDueIdx)}
+              {lane.label} · {planStatusLabel(kind)} · due{" "}
+              {fullDateLabel(dueIdx, dueDay, winStart)} · procedural{" "}
+              {fullDateLabel(marker.procDueIdx, procDay, winStart)}
             </p>
           </div>
           <button type="button" className="sg-btn-ghost" onClick={onClose}>
@@ -91,11 +118,13 @@ export function OccurrenceModal({
             Due (month index override)
             <input
               type="month"
-              className="sg-input mt-1"
+              className="mrt-input mt-1"
               value={`${y}-${String(m0 + 1).padStart(2, "0")}`}
               onChange={(e) => {
                 const [yy, mm] = e.target.value.split("-").map(Number);
-                patchDetail({ dueIdxOverride: monthIndex(yy, mm, planningWindow().start) });
+                patchDetail({
+                  dueIdxOverride: monthIndex(yy, mm, winStart),
+                });
               }}
             />
           </label>
@@ -105,7 +134,7 @@ export function OccurrenceModal({
               type="number"
               min={1}
               max={31}
-              className="sg-input mt-1"
+              className="mrt-input mt-1"
               value={dueDay}
               onChange={(e) =>
                 patchDetail({ dueDayOverride: Number(e.target.value) || 1 })
@@ -117,7 +146,7 @@ export function OccurrenceModal({
             <input
               type="number"
               min={0}
-              className="sg-input mt-1"
+              className="mrt-input mt-1"
               value={lead}
               onChange={(e) =>
                 patchDetail({
@@ -149,25 +178,16 @@ export function OccurrenceModal({
           mode="people"
           onChange={setPlan}
         />
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-start gap-2">
           <button type="button" className="sg-btn-primary" onClick={savePlan}>
             Save assignment
           </button>
           <button
             type="button"
             className="sg-btn-secondary"
-            onClick={() => {
-              const seeded = seedPlanFromDefaults(
-                store,
-                lane.code,
-                weeks.length,
-                dam.id,
-              );
-              setPlan(seeded);
-              patchDetail({ plan: seeded });
-            }}
+            onClick={restoreToDefaults}
           >
-            Reset from Defaults
+            Restore to defaults
           </button>
           <button
             type="button"
@@ -179,6 +199,10 @@ export function OccurrenceModal({
             Re-seed without saving
           </button>
         </div>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Restores dates, lead-in, and effort plan from current defaults. History
+          is kept.
+        </p>
       </div>
     </div>
   );

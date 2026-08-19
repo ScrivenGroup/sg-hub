@@ -2,12 +2,22 @@
 
 import { useState } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
+import type { ScheduleStore } from "../schema";
+import { EffortGantt } from "./EffortGantt";
 import { SubTabs } from "./SubTabs";
 
-const SUBS = ["Changelog", "Future Planning"] as const;
+const SUBS = ["Changelog", "Effort Gantt", "Future Planning"] as const;
 
-export function DevelopmentTab({ changelogs }: { changelogs: ChangelogEntry[] }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]>("Changelog");
+export function DevelopmentTab({
+  changelogs,
+  store,
+  onChange,
+}: {
+  changelogs: ChangelogEntry[];
+  store: ScheduleStore;
+  onChange: (store: ScheduleStore) => void;
+}) {
+  const [sub, setSub] = useState<(typeof SUBS)[number]>("Effort Gantt");
 
   return (
     <div>
@@ -30,16 +40,20 @@ export function DevelopmentTab({ changelogs }: { changelogs: ChangelogEntry[] })
             ))
           )}
         </section>
-      ) : (
+      ) : null}
+      {sub === "Effort Gantt" ? (
+        <EffortGantt store={store} onChange={onChange} />
+      ) : null}
+      {sub === "Future Planning" ? (
         <div className="sg-card max-w-xl border-dashed">
           <h2 className="font-medium">Future planning</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Parking lot for notes while this product is building. Hidden when
-            the hub status is Live. Task+Resource Effort on Defaults is a
-            follow-on plan.
+            the hub status is Live. Wiring this chart into the occurrence
+            popup is a follow-on plan. Defaults stays W1…n until then.
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

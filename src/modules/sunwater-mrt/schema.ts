@@ -56,7 +56,10 @@ export const scheduledDetailSchema = z.object({
   dueIdxOverride: z.number().optional(),
   dueDayOverride: z.number().optional(),
   leadInOverrideMonths: z.number().optional(),
+  actualised: z.boolean().optional(),
   completed: z.boolean().optional(),
+  notRequired: z.boolean().optional(),
+  notRequiredReason: z.string().optional(),
   plan: assignmentPlanSchema.optional(),
   history: z
     .array(
@@ -71,6 +74,51 @@ export const scheduledDetailSchema = z.object({
 export const damMetaSchema = z.object({
   region: z.string().optional(),
   ownerName: z.string().optional(),
+});
+
+export const effortStickSchema = z.enum(["tail-start", "tail-end", "unstick"]);
+
+export const effortResourceSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  role: z.string().default(""),
+  personId: z.string().optional(),
+  hours: z.array(z.number()),
+});
+
+export const effortTaskSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  resources: z.array(effortResourceSchema),
+});
+
+export const effortDemoSchema = z.object({
+  weekCount: z.number().default(8),
+  stick: effortStickSchema.default("unstick"),
+  windowStart: z
+    .object({
+      y: z.number(),
+      m: z.number(),
+      d: z.number(),
+    })
+    .optional(),
+  hoursOrigin: z
+    .object({
+      y: z.number(),
+      m: z.number(),
+      d: z.number(),
+    })
+    .optional(),
+  milestone: z.object({
+    label: z.string().default("Milestone"),
+    due: z.object({
+      y: z.number(),
+      m: z.number(),
+      d: z.number(),
+    }),
+    tailWeeks: z.number(),
+  }),
+  tasks: z.array(effortTaskSchema).default([]),
 });
 
 export const scheduleStoreSchema = z.object({
@@ -90,6 +138,36 @@ export const scheduleStoreSchema = z.object({
   damOwnershipColumns: z.array(z.string()),
   defaultPlansByLane: z.record(z.string(), assignmentPlanSchema),
   scheduledDetails: z.record(z.string(), scheduledDetailSchema),
+  horizonYears: z.number().default(25),
+  laneCycleAnchors: z
+    .record(
+      z.string(),
+      z.record(
+        z.string(),
+        z.object({
+          y: z.number(),
+          m: z.number(),
+        }),
+      ),
+    )
+    .default({}),
+  baselineDate: z
+    .object({
+      y: z.number(),
+      m: z.number(),
+      d: z.number(),
+    })
+    .default({ y: 2026, m: 7, d: 1 }),
+  effortDemo: effortDemoSchema.default({
+    weekCount: 8,
+    stick: "unstick",
+    milestone: {
+      label: "Milestone",
+      due: { y: 2027, m: 6, d: 30 },
+      tailWeeks: 8,
+    },
+    tasks: [],
+  }),
 });
 
 export type Dam = z.infer<typeof damSchema>;
@@ -100,10 +178,43 @@ export type PlanTask = z.infer<typeof planTaskSchema>;
 export type ScheduledDetail = z.infer<typeof scheduledDetailSchema>;
 export type ScheduleStore = z.infer<typeof scheduleStoreSchema>;
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>;
+export type EffortDemo = z.infer<typeof effortDemoSchema>;
+export type EffortTask = z.infer<typeof effortTaskSchema>;
+export type EffortResource = z.infer<typeof effortResourceSchema>;
+export type EffortStick = z.infer<typeof effortStickSchema>;
 
-function personIdFromName(name: string, i: number) {
+export function personIdFromName(name: string, i: number) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return `${base || "res"}-${i}`;
+}
+
+export function splitPersonName(name: string) {
+  const t = (name || "").trim();
+  const i = t.indexOf(" ");
+  if (i < 0) return { first: t, last: "" };
+  return { first: t.slice(0, i), last: t.slice(i + 1).trim() };
+}
+
+export function joinPersonName(first: string, last: string) {
+  return `${first.trim()} ${last.trim()}`.replace(/\s+/g, " ").trim();
+}
+
+export function samePersonName(a: string, b: string) {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  return norm(a) === norm(b);
+}
+
+export function emptyEffortDemo(): EffortDemo {
+  return {
+    weekCount: 8,
+    stick: "unstick",
+    milestone: {
+      label: "Milestone",
+      due: { y: 2027, m: 6, d: 30 },
+      tailWeeks: 8,
+    },
+    tasks: [],
+  };
 }
 
 export function emptyPlan(weekCount = 1): AssignmentPlan {
@@ -160,5 +271,9 @@ export function emptyScheduleStore(): ScheduleStore {
     damOwnershipColumns: ["Lead", "Engineer", "Support"],
     defaultPlansByLane: {},
     scheduledDetails: {},
+    horizonYears: 25,
+    laneCycleAnchors: {},
+    baselineDate: { y: 2026, m: 7, d: 1 },
+    effortDemo: emptyEffortDemo(),
   };
 }

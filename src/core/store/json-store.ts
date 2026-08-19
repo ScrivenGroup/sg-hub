@@ -96,6 +96,11 @@ export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
   const raw = await readJson("sunwater-mrt.json", fallback);
   const parsed = scheduleStoreSchema.safeParse(raw);
   if (parsed.success) return parsed.data;
+  const merged = scheduleStoreSchema.safeParse({
+    ...fallback,
+    ...(raw && typeof raw === "object" ? raw : {}),
+  });
+  if (merged.success) return merged.data;
   await writeJson("sunwater-mrt.json", fallback);
   return fallback;
 }

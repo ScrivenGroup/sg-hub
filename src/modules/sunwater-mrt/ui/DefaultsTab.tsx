@@ -54,7 +54,7 @@ function LeadMatrix({
     <div>
       <button
         type="button"
-        className="sg-btn-secondary mb-3 text-sm"
+        className="mrt-btn-secondary mb-3"
         onClick={() => setFlipped((v) => !v)}
       >
         Flip axis
@@ -65,7 +65,7 @@ function LeadMatrix({
       </p>
       <div className="overflow-x-auto">
         {!flipped ? (
-          <table className="w-max table-auto border-collapse text-xs">
+          <table className="mrt-table">
             <thead>
               <tr>
                 <th className="px-2 py-1 text-left">Asset</th>
@@ -92,7 +92,7 @@ function LeadMatrix({
                     <input
                       type="number"
                       min={0}
-                      className="h-8 w-16 rounded border border-[var(--border)] text-center"
+                      className="mrt-input w-16 text-center"
                       value={store.leadGeneral[lane.code] ?? lane.defLead}
                       onChange={(e) =>
                         update((n) => {
@@ -111,7 +111,11 @@ function LeadMatrix({
                       <input
                         type="number"
                         min={0}
-                        className="h-8 w-16 rounded border border-[var(--border)] text-center"
+                        className={`mrt-input w-16 text-center ${
+                          store.leadOverrides[lane.code]?.[dam.id] != null
+                            ? "overridden"
+                            : ""
+                        }`}
                         value={store.leadOverrides[lane.code]?.[dam.id] ?? ""}
                         placeholder={String(store.leadGeneral[lane.code] ?? "")}
                         onChange={(e) =>
@@ -133,7 +137,7 @@ function LeadMatrix({
             </tbody>
           </table>
         ) : (
-          <table className="w-max table-auto border-collapse text-xs">
+          <table className="mrt-table">
             <thead>
               <tr>
                 <th className="px-2 py-1 text-left">Obligation</th>
@@ -155,7 +159,7 @@ function LeadMatrix({
                     <input
                       type="number"
                       min={0}
-                      className="h-8 w-16 rounded border border-[var(--border)] text-center"
+                      className="mrt-input w-16 text-center"
                       value={store.leadGeneral[lane.code] ?? lane.defLead}
                       onChange={(e) =>
                         update((n) => {
@@ -169,7 +173,11 @@ function LeadMatrix({
                       <input
                         type="number"
                         min={0}
-                        className="h-8 w-16 rounded border border-[var(--border)] text-center"
+                        className={`mrt-input w-16 text-center ${
+                          store.leadOverrides[lane.code]?.[dam.id] != null
+                            ? "overridden"
+                            : ""
+                        }`}
                         value={store.leadOverrides[lane.code]?.[dam.id] ?? ""}
                         placeholder={String(store.leadGeneral[lane.code] ?? "")}
                         onChange={(e) =>

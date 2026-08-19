@@ -1,5 +1,4 @@
 import { AppShell } from "@/core/shell/AppShell";
-import { PageNav } from "@/core/shell/PageNav";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
@@ -37,7 +36,6 @@ export default async function SunwaterMrtPage() {
           <CodeBadge node={node} />
           <StatusPill status={node.status} />
         </div>
-        <PageNav href={HREF} compact />
       </header>
 
       <MrtWorkspace

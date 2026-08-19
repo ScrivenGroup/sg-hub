@@ -1,9 +1,17 @@
-export function planStatusKind(scheduled: boolean, completed: boolean) {
-  return completed ? "completed" : scheduled ? "scheduled" : "predicted";
+export function planStatusKind(
+  scheduled: boolean,
+  completed: boolean,
+  notRequired = false,
+) {
+  if (completed) return "completed";
+  if (notRequired) return "notRequired";
+  if (scheduled) return "scheduled";
+  return "predicted";
 }
 
 export function planStatusLabel(kind: ReturnType<typeof planStatusKind>) {
   if (kind === "completed") return "Completed";
+  if (kind === "notRequired") return "Not required";
   if (kind === "scheduled") return "Scheduled";
   return "Predicted";
 }
@@ -26,4 +34,24 @@ export function ragClass(kind: ReturnType<typeof ragStatus>) {
   if (kind === "red") return "bg-[var(--rag-red)]/25";
   if (kind === "yellow") return "bg-[var(--rag-amber)]/25";
   return "";
+}
+
+export function nextDueRag(
+  displayDueIdx: number,
+  overdue: boolean,
+  tIdx: number,
+): "red" | "yellow" | "none" {
+  if (overdue || displayDueIdx < tIdx) return "red";
+  if (displayDueIdx - tIdx <= 3) return "yellow";
+  return "none";
+}
+
+export function nextDueChipClass(rag: ReturnType<typeof nextDueRag>) {
+  if (rag === "red") {
+    return "bg-[var(--rag-red)] text-white";
+  }
+  if (rag === "yellow") {
+    return "bg-[var(--rag-amber)] text-[var(--ink)]";
+  }
+  return "text-[var(--muted)]";
 }
