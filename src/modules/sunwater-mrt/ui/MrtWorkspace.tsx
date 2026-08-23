@@ -25,11 +25,13 @@ export function MrtWorkspace({
   changelogs,
   showDevelopment,
   readOnly = false,
+  sandbox = false,
 }: {
   initialStore: ScheduleStore;
   changelogs: ChangelogEntry[];
   showDevelopment: boolean;
   readOnly?: boolean;
+  sandbox?: boolean;
 }) {
   const tabs = showDevelopment && !readOnly
     ? ([...BASE_TABS, "Development"] as const)
@@ -67,6 +69,12 @@ export function MrtWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {sandbox ? (
+        <p className="shrink-0 pb-1 text-[11px] text-[var(--muted)]">
+          Demo copy — click and drag as you like. Changes stay in this session
+          and do not update the live plan.
+        </p>
+      ) : null}
       <div className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--page)] pt-1">
         <div
           role="tablist"

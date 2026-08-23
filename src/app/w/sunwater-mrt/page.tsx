@@ -1,9 +1,11 @@
+import { auth, isMrtGuest } from "@/auth";
 import { AppShell } from "@/core/shell/AppShell";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
 import {
   getChangelogsForNode,
+  getGuestMrtSandbox,
   getSunwaterMrtStore,
 } from "@/core/store/json-store";
 import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
@@ -11,8 +13,12 @@ import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
 const HREF = "/w/sunwater-mrt";
 
 export default async function SunwaterMrtPage() {
+  const session = await auth();
+  const guest = isMrtGuest(session);
   const node = getNodeByHref(HREF);
-  const store = await getSunwaterMrtStore();
+  const store = guest && session?.user?.id
+    ? await getGuestMrtSandbox(session.user.id)
+    : await getSunwaterMrtStore();
   const changelogs = await getChangelogsForNode("w-sunwater-mrt");
 
   if (!node) {
@@ -39,6 +45,7 @@ export default async function SunwaterMrtPage() {
         initialStore={store}
         changelogs={changelogs}
         showDevelopment={node.status === "building"}
+        sandbox={guest}
       />
     </AppShell>
   );

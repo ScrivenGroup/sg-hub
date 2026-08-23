@@ -74,7 +74,7 @@ export async function AppShell({
               childrenByHub={childrenByHub}
               currentHref={currentHref}
             />
-            <FeedbackCapture />
+            {session?.user?.role === "mrt-guest" ? null : <FeedbackCapture />}
             <details className="relative">
               <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold text-[var(--surface)]">
                 <span className="sr-only">Profile menu</span>
@@ -85,7 +85,9 @@ export async function AppShell({
                   {session?.user?.name}
                 </p>
                 <p className="truncate text-xs text-[var(--muted)]">
-                  {session?.user?.email}
+                  {session?.user?.role === "mrt-guest"
+                    ? "View session · demo copy"
+                    : session?.user?.email}
                 </p>
                 <form
                   className="mt-3"

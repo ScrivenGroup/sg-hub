@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
@@ -9,6 +10,16 @@ const entraConfigured =
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER;
+
+const sharePassword = process.env.MRT_SHARE_PASSWORD || "";
+const shareConfigured = sharePassword.length > 0;
+
+function secretsEqual(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 if (entraConfigured) {
   providers.push(
@@ -43,12 +54,60 @@ if (process.env.DEV_AUTH === "true") {
   );
 }
 
+if (shareConfigured) {
+  providers.push(
+    Credentials({
+      id: "mrt-share",
+      name: "MRT view",
+      credentials: {
+        name: { label: "Your name", type: "text" },
+        password: { label: "Share password", type: "password" },
+        ip: { label: "ip", type: "text" },
+      },
+      async authorize(credentials) {
+        const name =
+          typeof credentials?.name === "string" ? credentials.name.trim() : "";
+        const password =
+          typeof credentials?.password === "string" ? credentials.password : "";
+        const ip =
+          typeof credentials?.ip === "string" && credentials.ip.trim()
+            ? credentials.ip.trim()
+            : "unknown";
+        if (name.length < 3) return null;
+        if (!secretsEqual(password, sharePassword)) return null;
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+        const ipKey = ip.replace(/[^a-zA-Z0-9.:-]/g, "").slice(0, 40) || "unknown";
+        return {
+          id: `mrt-guest-${slug || "guest"}-${ipKey}`,
+          name,
+          email: "mrt-guest@local",
+          role: "mrt-guest",
+        };
+      },
+    }),
+  );
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   pages: {
     signIn: "/login",
   },
   callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.sub = user.id;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) {
+        if (typeof token.role === "string") session.user.role = token.role;
+        if (token.sub) session.user.id = token.sub;
+      }
+      return session;
+    },
     authorized({ auth: session, request }) {
       const { pathname } = request.nextUrl;
       if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
@@ -64,4 +123,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 export const authFlags = {
   entraConfigured,
   devAuth: process.env.DEV_AUTH === "true",
+  shareConfigured,
 };
+
+export function isMrtGuest(session: { user?: { role?: string } } | null) {
+  return session?.user?.role === "mrt-guest";
+}

@@ -1,12 +1,14 @@
 import Image from "next/image";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, authFlags, signIn } from "@/auth";
+import { logMrtGuestActivity } from "@/core/store/json-store";
 
 export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/home");
 
-  const { entraConfigured, devAuth } = authFlags;
+  const { entraConfigured, devAuth, shareConfigured } = authFlags;
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--page)] px-4">
@@ -38,6 +40,64 @@ export default async function LoginPage() {
             >
               <button type="submit" className="sg-btn-primary w-full">
                 Sign in with Microsoft
+              </button>
+            </form>
+          ) : null}
+
+          {shareConfigured ? (
+            <form
+              className="space-y-3"
+              action={async (formData) => {
+                "use server";
+                const name = String(formData.get("name") || "").trim();
+                const password = String(formData.get("password") || "");
+                const h = await headers();
+                const ip =
+                  h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+                  h.get("x-real-ip") ||
+                  "unknown";
+                await logMrtGuestActivity({
+                  name: name || "unknown",
+                  ip,
+                  userAgent: h.get("user-agent") || "",
+                  action: "share-login",
+                });
+                await signIn("mrt-share", {
+                  name,
+                  password,
+                  ip,
+                  redirectTo: "/w/sunwater-mrt",
+                });
+              }}
+            >
+              {entraConfigured ? (
+                <p className="text-center text-xs text-[var(--muted)]">
+                  Or view the Milestone Resourcing Tracker
+                </p>
+              ) : null}
+              <label className="block text-sm font-medium text-[var(--ink)]">
+                Your name
+                <input
+                  className="sg-input mt-1"
+                  name="name"
+                  type="text"
+                  minLength={3}
+                  required
+                  autoComplete="name"
+                />
+              </label>
+              <label className="block text-sm font-medium text-[var(--ink)]">
+                Share password
+                <input
+                  className="sg-input mt-1"
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                />
+              </label>
+              <button type="submit" className="sg-btn-secondary w-full">
+                View MRT
               </button>
             </form>
           ) : null}
@@ -74,9 +134,9 @@ export default async function LoginPage() {
             </form>
           ) : null}
 
-          {!entraConfigured && !devAuth ? (
+          {!entraConfigured && !devAuth && !shareConfigured ? (
             <p className="text-sm text-[var(--muted)]">
-              No login providers configured. Set Entra env vars or DEV_AUTH=true.
+              No login providers configured. Set Entra env vars, MRT_SHARE_PASSWORD, or DEV_AUTH=true.
             </p>
           ) : null}
         </div>

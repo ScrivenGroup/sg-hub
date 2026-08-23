@@ -41,11 +41,47 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
 
 async function writeJson<T>(file: string, value: T): Promise<void> {
   await ensureDir();
-  await fs.writeFile(
-    path.join(dataDir, file),
-    JSON.stringify(value, null, 2),
-    "utf8",
-  );
+  const full = path.join(dataDir, file);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, JSON.stringify(value, null, 2), "utf8");
+}
+
+function sandboxFile(guestId: string) {
+  const key = guestId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "guest";
+  return path.join("mrt-sandboxes", `${key}.json`);
+}
+
+export async function getGuestMrtSandbox(guestId: string): Promise<ScheduleStore> {
+  const fallback = await getSunwaterMrtStore();
+  const clone = JSON.parse(JSON.stringify(fallback)) as ScheduleStore;
+  const raw = await readJson(sandboxFile(guestId), clone);
+  const parsed = scheduleStoreSchema.safeParse(raw);
+  if (parsed.success) return normalizeScheduleStore(parsed.data).store;
+  return normalizeScheduleStore(clone).store;
+}
+
+export async function saveGuestMrtSandbox(
+  guestId: string,
+  store: ScheduleStore,
+): Promise<void> {
+  const parsed = scheduleStoreSchema.parse(store);
+  await writeJson(sandboxFile(guestId), parsed);
+}
+
+export type MrtGuestActivity = {
+  at: string;
+  name: string;
+  ip: string;
+  userAgent: string;
+  action: string;
+};
+
+export async function logMrtGuestActivity(
+  entry: Omit<MrtGuestActivity, "at">,
+): Promise<void> {
+  const all = await readJson("mrt-guest-activity.json", [] as MrtGuestActivity[]);
+  all.unshift({ ...entry, at: new Date().toISOString() });
+  await writeJson("mrt-guest-activity.json", all.slice(0, 500));
 }
 
 export async function getDependencies(): Promise<DependencyRecord[]> {

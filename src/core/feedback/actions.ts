@@ -10,6 +10,9 @@ export async function submitFeedbackAction(formData: FormData) {
   if (!session?.user) {
     throw new Error("Not signed in");
   }
+  if (session.user.role === "mrt-guest") {
+    return { ok: false as const, error: "View sessions cannot send feedback" };
+  }
 
   const message = String(formData.get("message") || "").trim();
   const kind = String(formData.get("kind") || "other") as FeedbackKind;
