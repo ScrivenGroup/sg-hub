@@ -1,6 +1,7 @@
 import type { EffortDemo, EffortResource, EffortStick, EffortTask } from "../schema";
 import { emptyEffortDemo } from "../schema";
 import { MONTH_NAMES, weekEndingSunday } from "./dates";
+import { round2 } from "./numbers";
 
 export const MIN_EFFORT_WEEKS = 8;
 export const VIEW_PAD_WEEKS = 1;
@@ -182,6 +183,7 @@ function padWindowToCover(demo: EffortDemo, dataStart: WeDate, dataEnd: WeDate) 
   demo.windowStart = winStart;
   const min = demo.stick === "unstick" ? MIN_EFFORT_WEEKS : 1;
   demo.weekCount = Math.max(min, n, weeksBetweenWe(winStart, winEnd) + 1);
+  syncHoursOriginToWindow(demo);
 }
 
 export function growWindowToFit(demo: EffortDemo) {
@@ -285,7 +287,7 @@ function writeWindowHour(
   }
   const src = nums(res.hours);
   while (src.length <= idx) src.push(0);
-  src[idx] = Math.max(0, hours);
+  src[idx] = Math.max(0, round2(hours));
   res.hours = src;
 }
 
@@ -301,10 +303,130 @@ export function extendViewport(
   if (side === "start") {
     next.windowStart = addWeeksWe(start, -extra);
     next.weekCount = n + extra;
+    syncHoursOriginToWindow(next);
   } else {
     next.weekCount = n + extra;
   }
   return next;
+}
+
+/** Pad start and end so the week grid is at least `neededWeeks` wide. */
+export function padViewportToFill(demo: EffortDemo, neededWeeks: number): EffortDemo {
+  const next = JSON.parse(JSON.stringify(demo)) as EffortDemo;
+  const { start, n } = calendarWindow(next);
+  const extra = Math.max(0, Math.ceil(neededWeeks) - n);
+  if (extra <= 0) return next;
+  const padStart = Math.floor(extra / 2);
+  next.windowStart = addWeeksWe(start, -padStart);
+  next.weekCount = n + extra;
+  syncHoursOriginToWindow(next);
+  return next;
+}
+
+/** Rewrite stored hours so hoursOrigin matches windowStart (viewport-relative). */
+export function syncHoursOriginToWindow(demo: EffortDemo) {
+  const { start, origin } = calendarWindow(demo);
+  const delta = weeksBetweenWe(origin, start);
+  if (delta < 0) {
+    const pad = -delta;
+    forEachResource(demo, (res) => {
+      res.hours = [...new Array(pad).fill(0), ...nums(res.hours)];
+    });
+  } else if (delta > 0) {
+    forEachResource(demo, (res) => {
+      res.hours = windowHours(demo, res.hours);
+    });
+  }
+  demo.hoursOrigin = start;
+}
+
+/** Shift all hours so the All-span starts on the tail-start week. */
+export function snapHoursToTailStart(
+  demo: EffortDemo,
+  opts?: { keepWindow?: { start: WeDate; n: number } },
+): EffortDemo {
+  const next = ensureEffortDemo(demo);
+  if (opts?.keepWindow) {
+    next.windowStart = opts.keepWindow.start;
+    next.weekCount = opts.keepWindow.n;
+  }
+  next.stick = "tail-start";
+  const span = allSpan(next);
+  const tailCol = tailStartColumnIndex(next);
+  if (span.start !== null) {
+    const delta = tailCol - span.start;
+    if (delta) shiftMatching(next, () => true, delta);
+  }
+  if (opts?.keepWindow) {
+    next.windowStart = opts.keepWindow.start;
+    next.weekCount = opts.keepWindow.n;
+  }
+  syncHoursOriginToWindow(next);
+  return next;
+}
+
+/** Copy baseline tasks/hours onto the live week axis without moving the view or snapping to the tail. */
+export function restoreHoursFromBaseline(live: EffortDemo, baseline: EffortDemo): EffortDemo {
+  const next = ensureEffortDemo(JSON.parse(JSON.stringify(live)));
+  const start = next.windowStart;
+  const n = calendarWindow(next).n;
+  const stick = next.stick;
+  const milestone = next.milestone;
+  const base = ensureEffortDemo(JSON.parse(JSON.stringify(baseline)));
+  next.tasks = base.tasks.map((t) => ({
+    ...t,
+    resources: t.resources.map((r) => ({
+      ...r,
+      hours: hoursOnLiveWindow(next, base, r.hours),
+    })),
+  }));
+  next.windowStart = start;
+  next.weekCount = n;
+  next.hoursOrigin = start;
+  next.stick = stick;
+  next.milestone = milestone;
+  return next;
+}
+
+export function restoreMilestoneFromBaseline(live: EffortDemo, baseline: EffortDemo): EffortDemo {
+  const next = ensureEffortDemo(JSON.parse(JSON.stringify(live)));
+  next.milestone = {
+    ...next.milestone,
+    due: { ...baseline.milestone.due },
+    tailWeeks: baseline.milestone.tailWeeks,
+  };
+  return next;
+}
+
+function hoursFingerprint(demo: EffortDemo) {
+  const d = ensureEffortDemo(demo);
+  return d.tasks.map((t) => ({
+    name: t.name,
+    status: t.status || "",
+    resources: t.resources.map((r) => ({
+      personId: r.personId || "",
+      role: r.role || "",
+      hours: windowHours(d, r.hours).map((h) => round2(Number(h) || 0)),
+      actualHours: round2(Number(r.actualHours) || 0),
+      actualCost: round2(Number(r.actualCost) || 0),
+    })),
+  }));
+}
+
+export function effortHoursDirty(live: EffortDemo, baseline: EffortDemo) {
+  const restored = restoreHoursFromBaseline(live, baseline);
+  return JSON.stringify(hoursFingerprint(live)) !== JSON.stringify(hoursFingerprint(restored));
+}
+
+export function milestoneDirty(live: EffortDemo, baseline: EffortDemo) {
+  const a = live.milestone;
+  const b = baseline.milestone;
+  return (
+    a.due.y !== b.due.y ||
+    a.due.m !== b.due.m ||
+    a.due.d !== b.due.d ||
+    a.tailWeeks !== b.tailWeeks
+  );
 }
 
 /**
@@ -584,14 +706,16 @@ export function setTailWeeks(demo: EffortDemo, tailWeeks: number): EffortDemo {
 export function setMilestoneDue(
   demo: EffortDemo,
   due: { y: number; m: number; d: number },
+  opts?: { alwaysShift?: boolean },
 ): EffortDemo {
   const next = JSON.parse(JSON.stringify(demo)) as EffortDemo;
   const oldDue = dueWeek(next);
   const oldTailStart = tailStartWeek(next);
   next.milestone.due = due;
-  if (next.stick === "tail-end") {
+  const stick = opts?.alwaysShift ? "tail-end" : next.stick;
+  if (stick === "tail-end") {
     shiftMatching(next, () => true, weeksBetweenWe(oldDue, dueWeek(next)));
-  } else if (next.stick === "tail-start") {
+  } else if (stick === "tail-start") {
     shiftMatching(next, () => true, weeksBetweenWe(oldTailStart, tailStartWeek(next)));
   }
   growToIncludeDueAndTail(next);
@@ -833,6 +957,90 @@ export function allSpan(demo: EffortDemo): HourSpan {
       t.resources.map((r) => spanOf(windowHours(demo, r.hours))),
     ),
   );
+}
+
+/** Named-person hours per visible week (this Gantt only). */
+export function personWeekLoad(demo: EffortDemo) {
+  const { n } = calendarWindow(demo);
+  const byPerson = new Map<string, number[]>();
+  for (const t of demo.tasks) {
+    for (const r of t.resources) {
+      if (!r.personId) continue;
+      const hours = windowHours(demo, r.hours);
+      let arr = byPerson.get(r.personId);
+      if (!arr) {
+        arr = new Array(n).fill(0);
+        byPerson.set(r.personId, arr);
+      }
+      hours.forEach((h, i) => {
+        arr![i] += Number(h) || 0;
+      });
+    }
+  }
+  return byPerson;
+}
+
+export function remainingHoursFromToday(demo: EffortDemo, hours: number[] | undefined) {
+  const vis = hours || [];
+  const todayCol = todayColumnIndex(demo);
+  let sum = 0;
+  vis.forEach((h, i) => {
+    if (i >= todayCol) sum += Number(h) || 0;
+  });
+  return round2(sum);
+}
+
+export function personAssignedRoles(
+  demo: EffortDemo,
+  personId: string,
+  eligibility?: Record<string, Record<string, boolean>>,
+) {
+  const seen = new Set<string>();
+  const roles: { role: string; star: boolean }[] = [];
+  for (const t of demo.tasks) {
+    for (const r of t.resources) {
+      if (r.personId !== personId) continue;
+      const role = (r.role || "").trim();
+      if (!role || seen.has(role.toLowerCase())) continue;
+      seen.add(role.toLowerCase());
+      roles.push({
+        role,
+        star: !eligibility?.[role]?.[personId],
+      });
+    }
+  }
+  return roles.sort((a, b) => a.role.localeCompare(b.role, undefined, { sensitivity: "base" }));
+}
+
+export function mergePersonWeekLoads(
+  loads: Map<string, number[]>[],
+  n: number,
+) {
+  const out = new Map<string, number[]>();
+  for (const load of loads) {
+    for (const [id, hours] of load) {
+      let arr = out.get(id);
+      if (!arr) {
+        arr = new Array(n).fill(0);
+        out.set(id, arr);
+      }
+      hours.forEach((h, i) => {
+        if (i < n) arr![i] += Number(h) || 0;
+      });
+    }
+  }
+  return out;
+}
+
+export function hoursSpanIndexes(hours: number[]) {
+  let start: number | null = null;
+  let finish: number | null = null;
+  hours.forEach((h, i) => {
+    if ((Number(h) || 0) <= 0) return;
+    if (start === null) start = i;
+    finish = i;
+  });
+  return { start, finish };
 }
 
 export function taskSpan(task: EffortTask, demo: EffortDemo): HourSpan {
@@ -1123,6 +1331,43 @@ export function setResourcePerson(
   const task = next.tasks.find((t) => t.id === taskId);
   const res = task?.resources.find((r) => r.id === resourceId);
   if (res) res.personId = personId;
+  return next;
+}
+
+export function setTaskStatus(
+  demo: EffortDemo,
+  taskId: string,
+  status: EffortTask["status"],
+): EffortDemo {
+  const next = JSON.parse(JSON.stringify(demo)) as EffortDemo;
+  const task = next.tasks.find((t) => t.id === taskId);
+  if (task) task.status = status || "not-started";
+  return next;
+}
+
+export function setResourceActualHours(
+  demo: EffortDemo,
+  taskId: string,
+  resourceId: string,
+  hours: number,
+): EffortDemo {
+  const next = JSON.parse(JSON.stringify(demo)) as EffortDemo;
+  const task = next.tasks.find((t) => t.id === taskId);
+  const res = task?.resources.find((r) => r.id === resourceId);
+  if (res) res.actualHours = Math.max(0, round2(hours));
+  return next;
+}
+
+export function setResourceActualCost(
+  demo: EffortDemo,
+  taskId: string,
+  resourceId: string,
+  cost: number,
+): EffortDemo {
+  const next = JSON.parse(JSON.stringify(demo)) as EffortDemo;
+  const task = next.tasks.find((t) => t.id === taskId);
+  const res = task?.resources.find((r) => r.id === resourceId);
+  if (res) res.actualCost = Math.max(0, round2(cost));
   return next;
 }
 

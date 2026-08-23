@@ -5,10 +5,11 @@ import type { ScheduleStore } from "../schema";
 import {
   clampHorizonYears,
   defaultDueDayForIdx,
+  dueInLookahead,
   fullDateLabel,
+  idxDayToDate,
   MONTH_NAMES,
   storeBaseline,
-  todayIdx,
 } from "../logic/dates";
 import {
   ganttMarkers,
@@ -17,6 +18,7 @@ import {
 } from "../logic/scheduling";
 import { planStatusLabel } from "../logic/status";
 import { BaselineModal } from "./BaselineModal";
+import { FilterChecklistField } from "./FilterChecklist";
 import { OccurrenceModal } from "./OccurrenceModal";
 import { SubTabs } from "./SubTabs";
 
@@ -33,7 +35,7 @@ const LOOKAHEAD = [6, 12, 24, 60, 0] as const;
 
 const STATUS_LABEL: Record<GanttMarker["bucket"], string> = {
   overdue: "OVERDUE",
-  ongoing: "In lead-in",
+  ongoing: "Ongoing",
   upcoming: "Upcoming",
 };
 
@@ -54,9 +56,17 @@ function statusChipClass(m: GanttMarker) {
 export function ObligationsTab({
   store,
   onChange,
+  onGoToDefaults,
+  onGoToGantt,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  onGoToDefaults?: (laneCode: string) => void;
+  onGoToGantt?: (focus: {
+    damId: string;
+    laneCode: string;
+    procDueIdx: number;
+  }) => void;
 }) {
   const [sub, setSub] = useState<(typeof SUBS)[number]>("All Obligations");
   const [dial, setDial] = useState(clampHorizonYears(store.horizonYears));
@@ -67,18 +77,22 @@ export function ObligationsTab({
     key: "displayDueIdx",
     dir: "asc",
   });
-  const [filters, setFilters] = useState({
-    damName: "",
-    laneLabel: "",
-    kind: "",
-    status: "",
-    lead: "",
-    due: "",
+  const [filters, setFilters] = useState(() => {
+    const marks = ganttMarkers(store);
+    return {
+      damNames: [...new Set(marks.map((m) => m.damName))].sort(),
+      laneLabels: [
+        ...new Set(marks.map((m) => `${m.laneCode} ${m.laneLabel}`)),
+      ].sort(),
+      kind: "",
+      status: "",
+      lead: "",
+      due: "",
+    };
   });
 
   const markers = useMemo(() => ganttMarkers(store), [store]);
   const win = storeWindow(store);
-  const tIdx = todayIdx(undefined, win.start);
 
   const scoped = useMemo(() => {
     let list = [...markers];
@@ -90,18 +104,13 @@ export function ObligationsTab({
           (m.bucket === "ongoing" || m.bucket === "overdue"),
       );
     } else if (sub === "Upcoming") {
-      list = list.filter(
-        (m) =>
-          m.kind !== "completed" &&
-          m.kind !== "notRequired" &&
-          m.bucket === "upcoming",
-      );
-      if (lookAhead > 0) {
-        list = list.filter((m) => m.displayDueIdx <= tIdx + lookAhead);
-      }
+      list = list.filter((m) => {
+        const due = idxDayToDate(m.displayDueIdx, m.dueDay, win.start);
+        return dueInLookahead(due, lookAhead);
+      });
     }
     return list;
-  }, [markers, sub, lookAhead, tIdx]);
+  }, [markers, sub, lookAhead, win.start]);
 
   const options = useMemo(() => {
     const dams = [...new Set(scoped.map((m) => m.damName))].sort();
@@ -120,8 +129,8 @@ export function ObligationsTab({
       const lead = fullDateLabel(m.leadStart, leadDay, win.start);
       const due = fullDateLabel(m.displayDueIdx, dueDay, win.start);
       const lane = `${m.laneCode} ${m.laneLabel}`;
-      if (filters.damName && m.damName !== filters.damName) return false;
-      if (filters.laneLabel && lane !== filters.laneLabel) return false;
+      if (!filters.damNames.includes(m.damName)) return false;
+      if (!filters.laneLabels.includes(lane)) return false;
       if (filters.kind && planStatusLabel(m.kind) !== filters.kind) return false;
       if (filters.status && rowStatus(m) !== filters.status) return false;
       if (
@@ -163,7 +172,7 @@ export function ObligationsTab({
     return sort.dir === "asc" ? " ▲" : " ▼";
   }
 
-  function setFilter(key: keyof typeof filters, value: string) {
+  function setFilter(key: "kind" | "status" | "lead" | "due", value: string) {
     setFilters((cur) => ({ ...cur, [key]: value }));
   }
 
@@ -203,7 +212,8 @@ export function ObligationsTab({
         <button
           type="button"
           className="mrt-btn-secondary"
-          onClick={() => setBaselineOpen(true)}
+          disabled
+          title="Parked — Baseline and Actuals capturing will be investigated together later"
         >
           Baseline {String(storeBaseline(store).d).padStart(2, "0")}-
           {MONTH_NAMES[storeBaseline(store).m - 1]}-
@@ -270,32 +280,22 @@ export function ObligationsTab({
             </tr>
             <tr className="mrt-filter-row">
               <th>
-                <select
-                  className="mrt-select"
-                  value={filters.damName}
-                  onChange={(e) => setFilter("damName", e.target.value)}
-                >
-                  <option value="">All</option>
-                  {options.dams.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <FilterChecklistField
+                  items={options.dams.map((d) => ({ id: d, label: d }))}
+                  selected={filters.damNames}
+                  onChange={(next) =>
+                    setFilters((cur) => ({ ...cur, damNames: next }))
+                  }
+                />
               </th>
               <th>
-                <select
-                  className="mrt-select"
-                  value={filters.laneLabel}
-                  onChange={(e) => setFilter("laneLabel", e.target.value)}
-                >
-                  <option value="">All</option>
-                  {options.lanes.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <FilterChecklistField
+                  items={options.lanes.map((d) => ({ id: d, label: d }))}
+                  selected={filters.laneLabels}
+                  onChange={(next) =>
+                    setFilters((cur) => ({ ...cur, laneLabels: next }))
+                  }
+                />
               </th>
               <th>
                 <select
@@ -390,6 +390,19 @@ export function ObligationsTab({
                     >
                       Edit
                     </button>
+                    <button
+                      type="button"
+                      className="mrt-btn-secondary ml-1 min-h-6 px-2 text-[11px]"
+                      onClick={() =>
+                        onGoToGantt?.({
+                          damId: m.damId,
+                          laneCode: m.laneCode,
+                          procDueIdx: m.procDueIdx,
+                        })
+                      }
+                    >
+                      Go to Gantt
+                    </button>
                   </td>
                 </tr>
               );
@@ -404,6 +417,7 @@ export function ObligationsTab({
           marker={open}
           onClose={() => setOpen(null)}
           onChange={onChange}
+          onGoToDefaults={onGoToDefaults}
         />
       ) : null}
       {baselineOpen ? (

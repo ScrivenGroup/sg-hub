@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -44,13 +45,35 @@ import {
   occurrenceStatus,
   recalculateRow,
   rowNeedsRecalc,
-  schedKey,
   type GanttMarker,
   type NextDueChip,
 } from "../logic/scheduling";
 import { nextDueChipClass, planStatusKind, planStatusLabel } from "../logic/status";
+import { occurrenceTailStartContinuous } from "../logic/assignment";
+import {
+  chartXToContinuous,
+  continuousToChartX,
+  makeGanttXScale,
+  monthStartX,
+  todayChartX,
+} from "../logic/gantt-x-scale";
+import {
+  aggregateResourceLoad,
+  occurrenceAllSpanContinuous,
+  type LoadContribution,
+  type LoadGrain,
+} from "../logic/resource-load";
+import {
+  loadOccurrenceEffortDemo,
+  writeOccurrenceEffortDemo,
+} from "../logic/occurrence-effort";
+import { setMilestoneDue } from "../logic/effort-gantt";
 import { OccurrenceModal } from "./OccurrenceModal";
 import { BaselineModal } from "./BaselineModal";
+import { FilterChecklist } from "./FilterChecklist";
+import { ResourceLoadPane } from "./ResourceLoadPane";
+import { StackedEffortModal } from "./StackedEffortModal";
+import { GanttTimescale, ganttTimescaleHeight, monthGridEdge, weekGridLine } from "./GanttTimescale";
 
 const ZOOM_X = [8, 11, 14, 18, 24, 32, 48, 72];
 const ZOOM_Y = [0.7, 0.85, 1, 1.2, 1.45, 1.8];
@@ -58,15 +81,31 @@ const BASE_MONTH_PX = 14;
 const BASE_LANE_H = 20;
 const BASE_HEADING_H = 24;
 const GROUP_GAP = 6;
-const HEADER_H = 52;
-const CORNER_H = 52;
 const DUE_COL_W = 108;
+const ALLOC_H_KEY = "mrt-alloc-h";
+const ALLOC_H_DEFAULT = 200;
+const ALLOC_H_MIN = 100;
+const ALLOC_H_MAX = 480;
+
+function loadAllocH() {
+  if (typeof window === "undefined") return ALLOC_H_DEFAULT;
+  const n = Number(window.localStorage.getItem(ALLOC_H_KEY));
+  if (!Number.isFinite(n)) return ALLOC_H_DEFAULT;
+  return Math.min(ALLOC_H_MAX, Math.max(ALLOC_H_MIN, n));
+}
 
 type PendingScroll =
   | { type: "idx-start"; idx: number }
   | { type: "idx-center"; idx: number }
   | { type: "frac"; frac: number }
-  | { type: "pct"; pct: number };
+  | { type: "pct"; pct: number }
+  | { type: "xy"; x: number; y: number };
+
+export type GanttOccurrenceFocus = {
+  damId: string;
+  laneCode: string;
+  procDueIdx: number;
+};
 
 function DueChip({ chip }: { chip: NextDueChip | null }) {
   if (!chip) {
@@ -87,32 +126,38 @@ function todayShort() {
   return `${String(now.getDate()).padStart(2, "0")}-${MONTH_NAMES[now.getMonth()]}-${String(now.getFullYear()).slice(2)}`;
 }
 
-function monthScaleEdge(m0: number) {
-  if (m0 === 0) return "var(--border)";
-  if (m0 === 3 || m0 === 6 || m0 === 9) {
-    return "color-mix(in srgb, var(--border) 50%, transparent)";
-  }
-  return "color-mix(in srgb, var(--border) 22%, transparent)";
+function monthScaleEdge(m0: number, grain: LoadGrain = "month") {
+  return monthGridEdge(m0, grain);
 }
 
 export function GanttTab({
   store,
   onChange,
   readOnly = false,
+  onGoToDefaults,
+  focusOccurrence,
+  onFocusConsumed,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
   readOnly?: boolean;
+  onGoToDefaults?: (laneCode: string) => void;
+  focusOccurrence?: GanttOccurrenceFocus | null;
+  onFocusConsumed?: () => void;
 }) {
   const [open, setOpen] = useState<GanttMarker | null>(null);
-  const [damFilter, setDamFilter] = useState<string[]>([]);
-  const [laneFilter, setLaneFilter] = useState<string[]>([]);
+  const [damFilter, setDamFilter] = useState<string[]>(() =>
+    store.dams.map((d) => d.id),
+  );
+  const [laneFilter, setLaneFilter] = useState<string[]>(() =>
+    store.lanes.map((l) => l.code),
+  );
   const [dueBeforeIdx, setDueBeforeIdx] = useState<number | null>(null);
   const [onlyOngoing, setOnlyOngoing] = useState(false);
   const [scheduleFilter, setScheduleFilter] = useState<
     null | "scheduled" | "predicted"
   >(null);
-  const [panel, setPanel] = useState<null | "dam" | "type" | "due">(null);
+  const [panel, setPanel] = useState<null | "dam" | "type" | "due" | "legend">(null);
   const [monthPx, setMonthPx] = useState(BASE_MONTH_PX);
   const [zoomY, setZoomY] = useState(1);
   const [groupMode, setGroupMode] = useState<Exclude<GroupMode, "flat">>(
@@ -124,8 +169,11 @@ export function GanttTab({
   const [showSummarised, setShowSummarised] = useState(true);
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [rowSort, setRowSort] = useState<GanttSort | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [fsTop, setFsTop] = useState(120);
+  const [pulseKey, setPulseKey] = useState<string | null>(null);
+  const [rebalance, setRebalance] = useState<{
+    contributions: LoadContribution[];
+    personId: string;
+  } | null>(null);
   const [minimap, setMinimap] = useState({ leftPct: 0, widthPct: 12 });
   const [todayLabelLeft, setTodayLabelLeft] = useState<number | null>(null);
 
@@ -133,7 +181,11 @@ export function GanttTab({
   const headerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const minimapWrapRef = useRef<HTMLDivElement>(null);
+  const allocScrollRef = useRef<HTMLDivElement>(null);
+  const syncingH = useRef(false);
+  const splitDragRef = useRef<{ startY: number; startH: number } | null>(null);
   const pendingScroll = useRef<PendingScroll | null>(null);
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragRef = useRef<{
     mode: "move" | "left" | "right";
     startX: number;
@@ -146,6 +198,22 @@ export function GanttTab({
   storeRef.current = store;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (!panel) return;
+    function onDown(e: PointerEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest("[data-mrt-overlay]")) return;
+      setPanel(null);
+    }
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [panel]);
   const panRef = useRef<{
     mode: "x" | "y" | "both";
     startX: number;
@@ -171,14 +239,27 @@ export function GanttTab({
     text: string;
   } | null>(null);
   const [panning, setPanning] = useState(false);
+  const [showGantt, setShowGantt] = useState(true);
+  const [showAlloc, setShowAlloc] = useState(false);
+  const [grain, setGrain] = useState<LoadGrain>("month");
+  const [allocH, setAllocH] = useState(loadAllocH);
+  const allocHRef = useRef(allocH);
+  allocHRef.current = allocH;
+  const allocPaneRef = useRef<HTMLDivElement>(null);
 
   const win = planningWindow(new Date(), clampHorizonYears(store.horizonYears));
   const winStartRef = useRef(win.start);
   winStartRef.current = win.start;
   const months = totalMonths(win.start, win.end);
   const tIdx = todayIdx(todayYm(), win.start);
-  const todayX = tIdx * monthPx;
-  const width = months * monthPx;
+  const scale = useMemo(
+    () => makeGanttXScale(win.start, months, monthPx, grain),
+    [win.start, months, monthPx, grain],
+  );
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+  const todayX = todayChartX(scale);
+  const width = scale.width;
   const laneH = BASE_LANE_H * zoomY;
   const headingH = BASE_HEADING_H * Math.max(0.85, Math.min(1.4, zoomY));
   const mode: GroupMode = flatMode ? "flat" : groupMode;
@@ -190,6 +271,35 @@ export function GanttTab({
       visiblePairs(store, damFilter, laneFilter, onlyOngoing, scheduleFilter),
     [store, damFilter, laneFilter, onlyOngoing, scheduleFilter],
   );
+
+  const hourBars = useMemo(() => {
+    const map = new Map<string, { startC: number; endC: number }>();
+    for (const m of markers) {
+      const span = occurrenceAllSpanContinuous(
+        store,
+        m.damId,
+        m.laneCode,
+        m.procDueIdx,
+        win.start,
+      );
+      if (span) map.set(`${m.damId}-${m.laneCode}-${m.procDueIdx}`, span);
+    }
+    return map;
+  }, [store, markers, win.start]);
+
+  const headerH = ganttTimescaleHeight(grain, "full");
+  const weekSlots = grain === "week" ? scale.slots : [];
+
+  const loadRows = useMemo(() => {
+    const pairSet = new Set(pairs.map((p) => `${p.dam.id}|${p.lane.code}`));
+    const visible = markers.filter((m) => {
+      if (m.kind === "completed" || m.kind === "notRequired") return false;
+      if (!pairSet.has(`${m.damId}|${m.laneCode}`)) return false;
+      if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) return false;
+      return true;
+    });
+    return aggregateResourceLoad(store, visible, win.start, months, grain);
+  }, [store, markers, pairs, dueBeforeIdx, months, win.start, grain]);
 
   const { items, totalHeight } = useMemo(
     () =>
@@ -242,18 +352,27 @@ export function GanttTab({
 
   const syncChrome = useCallback(() => {
     const bv = bodyRef.current;
-    if (!bv) return;
-    if (headerRef.current) headerRef.current.scrollLeft = bv.scrollLeft;
-    if (labelRef.current) labelRef.current.scrollTop = bv.scrollTop;
-    const bodyW = months * monthPxRef.current || 1;
-    const leftPct = Math.max(0, Math.min(100, (bv.scrollLeft / bodyW) * 100));
+    const alloc = allocScrollRef.current;
+    const scroller = bv || alloc;
+    if (!scroller) return;
+    if (bv) {
+      if (headerRef.current) headerRef.current.scrollLeft = bv.scrollLeft;
+      if (labelRef.current) labelRef.current.scrollTop = bv.scrollTop;
+      if (alloc && Math.abs(alloc.scrollLeft - bv.scrollLeft) > 0.5) {
+        syncingH.current = true;
+        alloc.scrollLeft = bv.scrollLeft;
+        syncingH.current = false;
+      }
+    }
+    const bodyW = scaleRef.current.width || 1;
+    const leftPct = Math.max(0, Math.min(100, (scroller.scrollLeft / bodyW) * 100));
     const widthPct = Math.max(
       1.5,
-      Math.min(100, (bv.clientWidth / bodyW) * 100),
+      Math.min(100, (scroller.clientWidth / bodyW) * 100),
     );
     setMinimap({ leftPct, widthPct });
-    const onScreenX = tIdx * monthPxRef.current - bv.scrollLeft;
-    const viewportW = bv.clientWidth || 0;
+    const onScreenX = todayChartX(scaleRef.current) - scroller.scrollLeft;
+    const viewportW = scroller.clientWidth || 0;
     if (onScreenX < -60 || onScreenX > viewportW + 60) {
       setTodayLabelLeft(null);
     } else {
@@ -266,38 +385,164 @@ export function GanttTab({
   }, [months, tIdx]);
 
   useLayoutEffect(() => {
+    if (!focusOccurrence) return;
+    if (!showGantt) {
+      setShowGantt(true);
+      return;
+    }
+    const headingKey =
+      mode === "flat"
+        ? null
+        : mode === "dam-obl"
+          ? `dam:${focusOccurrence.damId}`
+          : `lane:${focusOccurrence.laneCode}`;
+    if (headingKey && collapsed[headingKey]) {
+      setCollapsed((cur) => ({ ...cur, [headingKey]: false }));
+      setAllCollapsed(false);
+      return;
+    }
+    const pairVisible = pairs.some(
+      (p) =>
+        p.dam.id === focusOccurrence.damId &&
+        p.lane.code === focusOccurrence.laneCode,
+    );
+    const filtersClear =
+      damFilter.length === store.dams.length &&
+      laneFilter.length === store.lanes.length &&
+      !onlyOngoing &&
+      scheduleFilter === null &&
+      dueBeforeIdx === null;
+    if (!pairVisible) {
+      if (!filtersClear) {
+        setDamFilter(store.dams.map((d) => d.id));
+        setLaneFilter(store.lanes.map((l) => l.code));
+        setOnlyOngoing(false);
+        setScheduleFilter(null);
+        setDueBeforeIdx(null);
+        return;
+      }
+      onFocusConsumed?.();
+      return;
+    }
+    let top = 0;
+    let found = false;
+    for (const it of items) {
+      if (
+        it.type === "row" &&
+        it.damId === focusOccurrence.damId &&
+        it.laneCode === focusOccurrence.laneCode
+      ) {
+        found = true;
+        break;
+      }
+      top += it.h;
+    }
+    if (!found) {
+      onFocusConsumed?.();
+      return;
+    }
+    const marker = markers.find(
+      (m) =>
+        m.damId === focusOccurrence.damId &&
+        m.laneCode === focusOccurrence.laneCode &&
+        m.procDueIdx === focusOccurrence.procDueIdx,
+    );
+    const span = occurrenceAllSpanContinuous(
+      store,
+      focusOccurrence.damId,
+      focusOccurrence.laneCode,
+      focusOccurrence.procDueIdx,
+      win.start,
+    );
+    let cx = 0;
+    if (span) {
+      cx =
+        (continuousToChartX(scale, span.startC) +
+          continuousToChartX(scale, span.endC)) /
+        2;
+    } else if (marker) {
+      cx = continuousToChartX(
+        scale,
+        idxDayToContinuous(marker.displayDueIdx, marker.dueDay, win.start),
+      );
+    }
+    pendingScroll.current = { type: "xy", x: cx, y: top + laneH / 2 };
     const bv = bodyRef.current;
+    if (bv) {
+      bv.scrollLeft = Math.max(0, cx - bv.clientWidth / 2);
+      bv.scrollTop = Math.max(0, top - bv.clientHeight / 2 + laneH / 2);
+    }
+    syncChrome();
+    const pulse = `${focusOccurrence.damId}-${focusOccurrence.laneCode}-${focusOccurrence.procDueIdx}`;
+    setPulseKey(pulse);
+    if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(() => setPulseKey(null), 2500);
+    onFocusConsumed?.();
+  }, [
+    focusOccurrence,
+    showGantt,
+    mode,
+    collapsed,
+    pairs,
+    items,
+    markers,
+    store,
+    win.start,
+    scale,
+    laneH,
+    damFilter.length,
+    laneFilter.length,
+    onlyOngoing,
+    scheduleFilter,
+    dueBeforeIdx,
+    syncChrome,
+    onFocusConsumed,
+  ]);
+
+  useLayoutEffect(() => {
+    const bv = bodyRef.current || allocScrollRef.current;
     const pending = pendingScroll.current;
     if (bv && pending) {
       pendingScroll.current = null;
-      const bodyW = months * monthPx;
-      if (pending.type === "idx-start") bv.scrollLeft = pending.idx * monthPx;
+      const bodyW = scale.width;
+      if (pending.type === "idx-start") bv.scrollLeft = monthStartX(scale, pending.idx);
       else if (pending.type === "idx-center") {
-        bv.scrollLeft = pending.idx * monthPx - bv.clientWidth / 2;
+        bv.scrollLeft = todayChartX(scale) - bv.clientWidth / 2;
       } else if (pending.type === "frac") {
         bv.scrollLeft = pending.frac * bodyW - bv.clientWidth / 2;
+      } else if (pending.type === "xy") {
+        bv.scrollLeft = Math.max(0, pending.x - bv.clientWidth / 2);
+        bv.scrollTop = Math.max(0, pending.y - bv.clientHeight / 2);
       } else {
         bv.scrollLeft = (pending.pct / 100) * bodyW;
       }
     }
     syncChrome();
-  }, [monthPx, months, items.length, totalHeight, fullscreen, syncChrome]);
+  }, [monthPx, months, items.length, totalHeight, showGantt, showAlloc, allocH, syncChrome]);
+
+  useLayoutEffect(() => {
+    function onResize() {
+      syncChrome();
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [syncChrome]);
 
   useLayoutEffect(() => {
     function onMove(e: PointerEvent) {
       const drag = dragRef.current;
       const wrap = minimapWrapRef.current;
-      const bv = bodyRef.current;
-      if (!drag || !wrap || !bv) return;
+      const scroller = bodyRef.current || allocScrollRef.current;
+      if (!drag || !wrap || !scroller) return;
       const rect = wrap.getBoundingClientRect();
       const deltaPct = ((e.clientX - drag.startX) / rect.width) * 100;
-      const bodyW = months * monthPxRef.current || 1;
+      const bodyW = scaleRef.current.width || 1;
       if (drag.mode === "move") {
         const newLeft = Math.max(
           0,
           Math.min(100 - drag.startWidthPct, drag.startLeftPct + deltaPct),
         );
-        bv.scrollLeft = (newLeft / 100) * bodyW;
+        scroller.scrollLeft = (newLeft / 100) * bodyW;
         syncChrome();
         return;
       }
@@ -319,7 +564,7 @@ export function GanttTab({
         newWidth = drag.startWidthPct + (drag.startLeftPct - newLeft);
       }
       const visibleMonths = (newWidth / 100) * months;
-      const nextPx = bv.clientWidth / Math.max(1, visibleMonths);
+      const nextPx = scroller.clientWidth / Math.max(1, visibleMonths);
       pendingScroll.current = { type: "pct", pct: newLeft };
       setMonthPx(Math.max(6, Math.min(96, nextPx)));
     }
@@ -336,6 +581,39 @@ export function GanttTab({
 
   useLayoutEffect(() => {
     function onMove(e: PointerEvent) {
+      const drag = splitDragRef.current;
+      if (!drag) return;
+      const next = Math.min(
+        ALLOC_H_MAX,
+        Math.max(ALLOC_H_MIN, drag.startH + (drag.startY - e.clientY)),
+      );
+      allocHRef.current = next;
+      const el = allocPaneRef.current;
+      if (el) {
+        el.style.height = `${next}px`;
+        el.style.flex = "0 0 auto";
+      }
+    }
+    function onUp() {
+      if (!splitDragRef.current) return;
+      splitDragRef.current = null;
+      setAllocH(allocHRef.current);
+      try {
+        window.localStorage.setItem(ALLOC_H_KEY, String(allocHRef.current));
+      } catch {
+        /* ignore quota */
+      }
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    function onMove(e: PointerEvent) {
       const md = markerDragRef.current;
       if (md) {
         if (!md.canDrag) return;
@@ -347,8 +625,10 @@ export function GanttTab({
         }
         const windowStart = winStartRef.current;
         const maxIdx = months - 1;
+        const sc = scaleRef.current;
         const baseC = idxDayToContinuous(md.baseIdx, md.baseDay, windowStart);
-        let raw = baseC + deltaX / monthPxRef.current;
+        const baseX = continuousToChartX(sc, baseC);
+        let raw = chartXToContinuous(sc, baseX + deltaX);
         raw = Math.max(0, Math.min(maxIdx, raw));
         const rawIdx = Math.min(maxIdx, Math.floor(raw));
         const { y, m0 } = idxToYm(rawIdx, windowStart);
@@ -367,7 +647,7 @@ export function GanttTab({
         );
         setDragPreview({
           key: `${md.marker.damId}-${md.marker.laneCode}-${md.marker.procDueIdx}`,
-          pxShift: (snappedC - baseC) * monthPxRef.current,
+          pxShift: continuousToChartX(sc, snappedC) - baseX,
           x: e.clientX,
           y: e.clientY,
           text: `Due: Week ending ${idxDayToShortDateLabel(snapped.idx, snapped.day, windowStart)}`,
@@ -397,20 +677,28 @@ export function GanttTab({
           md.candidateDay !== null
         ) {
           const current = storeRef.current;
-          const next = JSON.parse(JSON.stringify(current)) as ScheduleStore;
-          const key = schedKey(
+          const windowStart = winStartRef.current;
+          const { y, m0 } = idxToYm(md.candidateIdx, windowStart);
+          const demo = loadOccurrenceEffortDemo(
+            current,
             md.marker.damId,
             md.marker.laneCode,
             md.marker.procDueIdx,
           );
-          const existing = next.scheduledDetails[key] || {};
-          next.scheduledDetails[key] = {
-            ...existing,
-            dueIdxOverride: md.candidateIdx,
-            dueDayOverride: md.candidateDay,
-            actualised: true,
-          };
-          onChangeRef.current(next);
+          const shifted = setMilestoneDue(
+            demo,
+            { y, m: m0 + 1, d: md.candidateDay },
+            { alwaysShift: true },
+          );
+          onChangeRef.current(
+            writeOccurrenceEffortDemo(
+              current,
+              md.marker.damId,
+              md.marker.laneCode,
+              md.marker.procDueIdx,
+              shifted,
+            ),
+          );
         } else if (!md.dragging) {
           setOpen(md.marker);
         }
@@ -430,23 +718,12 @@ export function GanttTab({
     };
   }, [months, syncChrome]);
 
-  function enterFullscreen() {
-    const bar = document.querySelector(
-      '[aria-label="Milestone Resourcing Tracker"]',
-    );
-    const top = bar
-      ? Math.round(bar.getBoundingClientRect().bottom + 8)
-      : 120;
-    setFsTop(top);
-    setFullscreen(true);
-  }
-
   function jumpToday() {
     pendingScroll.current = { type: "idx-center", idx: tIdx };
     syncChrome();
     const bv = bodyRef.current;
     if (bv) {
-      bv.scrollLeft = tIdx * monthPx - bv.clientWidth / 2;
+      bv.scrollLeft = todayChartX(scaleRef.current) - bv.clientWidth / 2;
       syncChrome();
     }
   }
@@ -466,7 +743,7 @@ export function GanttTab({
 
   function zoomXBy(dir: number) {
     const bv = bodyRef.current;
-    const oldW = months * monthPx || 1;
+    const oldW = scaleRef.current.width || 1;
     const frac = bv
       ? (bv.scrollLeft + bv.clientWidth / 2) / oldW
       : 0;
@@ -490,8 +767,8 @@ export function GanttTab({
   }
 
   function resetView() {
-    setDamFilter([]);
-    setLaneFilter([]);
+    setDamFilter(store.dams.map((d) => d.id));
+    setLaneFilter(store.lanes.map((l) => l.code));
     setDueBeforeIdx(null);
     setOnlyOngoing(false);
     setScheduleFilter(null);
@@ -610,9 +887,19 @@ export function GanttTab({
   }
 
   function renderGanttMarker(m: GanttMarker) {
-    const dueX =
-      idxDayToContinuous(m.displayDueIdx, m.dueDay, win.start) * monthPx;
-    const left = Math.max(0, m.leadStart) * monthPx;
+    const dueC = idxDayToContinuous(m.displayDueIdx, m.dueDay, win.start);
+    const dueX = continuousToChartX(scale, dueC);
+    const tailC = occurrenceTailStartContinuous(
+      store,
+      m.damId,
+      m.laneCode,
+      m.procDueIdx,
+      win.start,
+    );
+    const left =
+      tailC !== null
+        ? Math.max(0, continuousToChartX(scale, tailC))
+        : Math.max(0, continuousToChartX(scale, m.leadStart));
     const tailW = Math.max(4, dueX - left);
     const done = m.kind === "completed";
     const notReq = m.kind === "notRequired";
@@ -625,13 +912,19 @@ export function GanttTab({
     const key = `${m.damId}-${m.laneCode}-${m.procDueIdx}`;
     const preview = dragPreview?.key === key ? dragPreview.pxShift : 0;
     const full = fullDateLabel(m.displayDueIdx, m.dueDay, win.start);
+    const allBar = hourBars.get(key);
+    const allLeft = allBar ? continuousToChartX(scale, allBar.startC) : 0;
+    const allW = allBar
+      ? continuousToChartX(scale, allBar.endC) - allLeft
+      : 0;
+    const pulsing = pulseKey === key;
     return (
       <button
         key={key}
         type="button"
         data-gantt-marker
         data-locked={done ? "true" : undefined}
-        className="absolute top-1/2"
+        className={`absolute top-1/2${pulsing ? " is-gantt-pulse" : ""}`}
         style={{
           left: dueX - 4,
           opacity: m.inputOff || notReq ? 0.45 : 1,
@@ -658,15 +951,29 @@ export function GanttTab({
           style={{
             width: tailW,
             height: 0,
-            marginRight: 2,
+            marginRight: 0,
             borderTop: predicted
-              ? `1.5px dashed ${color}`
-              : `1.5px solid ${color}`,
+              ? `2.5px dashed ${color}`
+              : `2.5px solid ${color}`,
             opacity: 0.7,
           }}
         />
+        {allBar && allW > 1 ? (
+          <span
+            className="pointer-events-none absolute"
+            style={{
+              left: allLeft - (dueX - 4),
+              top: "calc(50% + 1.25px)",
+              width: allW,
+              height: 2,
+              background: "#6a6a6a",
+              opacity: 0.95,
+            }}
+          />
+        ) : null}
+        {pulsing ? <span className="mrt-gantt-pulse-ring" /> : null}
         <span
-          className="block h-2 w-2 rounded-full"
+          className="mrt-gantt-dot block h-2 w-2 rounded-full"
           style={{
             background: done
               ? "var(--rag-green)"
@@ -750,14 +1057,66 @@ export function GanttTab({
     const target = e.target as HTMLElement;
     if (target.closest("[data-minimap-window]")) return;
     const wrap = minimapWrapRef.current;
-    const bv = bodyRef.current;
-    if (!wrap || !bv) return;
+    const scroller = bodyRef.current || allocScrollRef.current;
+    if (!wrap || !scroller) return;
     const rect = wrap.getBoundingClientRect();
     const clickPct = ((e.clientX - rect.left) / rect.width) * 100;
     const w = minimap.widthPct;
     const newLeft = Math.max(0, Math.min(100 - w, clickPct - w / 2));
-    bv.scrollLeft = (newLeft / 100) * width;
+    scroller.scrollLeft = (newLeft / 100) * width;
     syncChrome();
+  }
+
+  function onAllocScrollLeft(left: number) {
+    if (syncingH.current) return;
+    const bv = bodyRef.current;
+    if (bv) {
+      if (Math.abs(bv.scrollLeft - left) > 0.5) {
+        syncingH.current = true;
+        bv.scrollLeft = left;
+        syncingH.current = false;
+      }
+      return;
+    }
+    const el = allocScrollRef.current;
+    if (!el) return;
+    const bodyW = scaleRef.current.width || 1;
+    setMinimap({
+      leftPct: Math.max(0, Math.min(100, (left / bodyW) * 100)),
+      widthPct: Math.max(1.5, Math.min(100, (el.clientWidth / bodyW) * 100)),
+    });
+  }
+
+  function toggleSplitscreen() {
+    if (showGantt && showAlloc) {
+      setShowAlloc(false);
+      return;
+    }
+    if (showGantt && !showAlloc) {
+      setShowAlloc(true);
+      return;
+    }
+    setShowGantt(true);
+  }
+
+  function openContribution(c: LoadContribution) {
+    const marker = markers.find(
+      (m) =>
+        m.damId === c.damId &&
+        m.laneCode === c.laneCode &&
+        m.procDueIdx === c.procDueIdx,
+    );
+    if (marker) setOpen(marker);
+  }
+
+  function openRebalance(contributions: LoadContribution[], personId: string) {
+    setRebalance({ contributions, personId });
+  }
+
+  function startSplitDrag(e: ReactPointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    splitDragRef.current = { startY: e.clientY, startH: allocHRef.current };
   }
 
   const grouped = !flatMode;
@@ -774,289 +1133,221 @@ export function GanttTab({
     return rowSort.dir === 1 ? " ▲" : " ▼";
   }
 
-  const chartHeight = fullscreen
-    ? `calc(100dvh - ${fsTop}px - 168px)`
-    : "calc(100dvh - 320px)";
+  const bothPanes = showGantt && showAlloc;
 
   return (
-    <div
-      className={
-        fullscreen
-          ? "fixed right-0 bottom-0 left-0 z-30 bg-[var(--page)] px-4 pt-2"
-          : ""
-      }
-      style={fullscreen ? { top: fsTop } : undefined}
-    >
-      <div className="mb-2 flex flex-wrap items-center gap-1 text-sm">
-        <button
-          type="button"
-          className="sg-btn-secondary min-h-9 px-3 text-sm"
-          onClick={() =>
-            fullscreen ? setFullscreen(false) : enterFullscreen()
-          }
-        >
-          {fullscreen ? "Exit full screen" : "Full screen"}
-        </button>
-        <button
-          type="button"
-          className="sg-btn-secondary min-h-9 px-3 text-sm"
-          onClick={resetView}
-        >
-          Reset view
-        </button>
-        <button
-          type="button"
-          className="sg-btn-secondary min-h-9 px-3 text-sm"
-          onClick={jumpToday}
-        >
-          Jump to today
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-panel ${panel === "dam" ? "open" : ""}`}
-          onClick={() => setPanel(panel === "dam" ? null : "dam")}
-        >
-          Asset filter {damFilter.length ? `(${damFilter.length})` : "(all)"} ▾
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-panel ${panel === "type" ? "open" : ""}`}
-          onClick={() => setPanel(panel === "type" ? null : "type")}
-        >
-          Type filter {laneFilter.length ? `(${laneFilter.length})` : "(all)"} ▾
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-panel ${panel === "due" || dueBeforeIdx !== null ? "open" : ""}`}
-          onClick={() => setPanel(panel === "due" ? null : "due")}
-        >
-          Due before{dueBeforeIdx !== null ? " (set)" : ""} ▾
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-toggle ${onlyOngoing ? "on" : ""}`}
-          onClick={() => setOnlyOngoing((v) => !v)}
-        >
-          Show only ongoing
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-toggle ${scheduleFilter === "scheduled" ? "on" : ""}`}
-          onClick={() =>
-            setScheduleFilter((v) => (v === "scheduled" ? null : "scheduled"))
-          }
-        >
-          Scheduled only
-        </button>
-        <button
-          type="button"
-          className={`mrt-filter-toggle ${scheduleFilter === "predicted" ? "on" : ""}`}
-          onClick={() =>
-            setScheduleFilter((v) => (v === "predicted" ? null : "predicted"))
-          }
-        >
-          Predicted only
-        </button>
-        <button
-          type="button"
-          className="mrt-filter-panel"
-          onClick={() => setBaselineOpen(true)}
-          title="Ignore predicted cycles before this date"
-        >
-          Baseline {String(storeBaseline(store).d).padStart(2, "0")}-
-          {MONTH_NAMES[storeBaseline(store).m - 1]}-
-          {String(storeBaseline(store).y).slice(2)}
-        </button>
-      </div>
-
-      {panel === "dam" ? (
-        <div className="sg-card mb-2 flex max-w-md flex-wrap gap-2 py-2">
-          {store.dams.map((d) => (
-            <label key={d.id} className="flex items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={damFilter.includes(d.id)}
-                onChange={(e) =>
-                  setDamFilter((cur) =>
-                    e.target.checked
-                      ? [...cur, d.id]
-                      : cur.filter((id) => id !== d.id),
-                  )
-                }
-              />
-              {d.name}
-            </label>
-          ))}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mrt-chrome-row mb-1 text-sm" data-mrt-overlay>
+        <div className="mrt-chrome-group">
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${bothPanes ? "on" : ""}`}
+            onClick={toggleSplitscreen}
+            title={
+              bothPanes
+                ? "Hide hours heatmap"
+                : showAlloc
+                  ? "Show Gantt again"
+                  : "Show hours heatmap under the Gantt"
+            }
+          >
+            <span className="mrt-chrome-ico" aria-hidden>⧉</span>
+            Split
+          </button>
+          <button
+            type="button"
+            className="mrt-chrome-btn"
+            onClick={jumpToday}
+            title="Jump to today"
+          >
+            <span className="mrt-chrome-ico" aria-hidden>●</span>
+            Today
+          </button>
+          <button
+            type="button"
+            className="mrt-chrome-btn"
+            onClick={resetView}
+            title="Reset view"
+          >
+            <span className="mrt-chrome-ico" aria-hidden>↺</span>
+            Reset
+          </button>
         </div>
-      ) : null}
-      {panel === "type" ? (
-        <div className="sg-card mb-2 flex max-w-md flex-wrap gap-2 py-2">
-          {store.lanes.map((l) => (
-            <label key={l.code} className="flex items-center gap-1 text-xs">
-              <input
-                type="checkbox"
-                checked={laneFilter.includes(l.code)}
-                onChange={(e) =>
-                  setLaneFilter((cur) =>
-                    e.target.checked
-                      ? [...cur, l.code]
-                      : cur.filter((c) => c !== l.code),
-                  )
-                }
-              />
-              {l.code} {l.label}
-            </label>
-          ))}
+        <div className="mrt-chrome-group">
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${grain === "week" ? "on" : ""}`}
+            onClick={() => setGrain("week")}
+            title="Week cells"
+          >
+            Weeks
+          </button>
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${grain === "month" ? "on" : ""}`}
+            onClick={() => setGrain("month")}
+            title="Month cells"
+          >
+            Months
+          </button>
         </div>
-      ) : null}
-      {panel === "due" ? (
-        <DueBeforePanel
-          months={months}
-          winStart={win.start}
-          dueBeforeIdx={dueBeforeIdx}
-          onChange={setDueBeforeIdx}
-        />
-      ) : null}
-
-      <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-[var(--muted)]">
-        {store.lanes.map((l) => (
-          <span key={l.code} className="inline-flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: l.color }}
-            />
-            {l.code}
-          </span>
-        ))}
-        <span className="inline-flex items-center gap-1">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--surface)]"
-            style={{ border: "1px dashed var(--ink)" }}
-          />
-          Predicted
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--ink)] bg-[var(--ink)]" />
-          Scheduled
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--muted)] bg-[var(--muted)]" />
-          Completed
-        </span>
-      </div>
-
-      <div
-        className="mb-2 grid items-center gap-x-2.5 gap-y-1"
-        style={{ gridTemplateColumns: "auto 1fr" }}
-      >
-        <div />
-        <div className="relative h-[15px]">
-          {fys.map((fy) => (
+        <div className="mrt-chrome-group">
+          <div className="mrt-overlay-anchor">
             <button
-              key={fy.endYear}
               type="button"
-              className="absolute top-px -translate-x-1/2 border-0 bg-transparent p-0 text-[9px] text-[var(--muted)] hover:underline"
-              style={{ left: `${fy.centerPct}%` }}
-              title={`Zoom to FY${fy.endYear} (1 Jul ${fy.endYear - 1} – 30 Jun ${fy.endYear})`}
-              onClick={() => jumpToFY(fy.endYear)}
+              className={`mrt-chrome-btn ${panel === "dam" || damFilter.length !== store.dams.length ? "open" : ""}`}
+              onClick={() => setPanel(panel === "dam" ? null : "dam")}
+              title="Filter assets"
             >
-              FY{String(fy.endYear).slice(2)}
+              <span className="mrt-chrome-ico" aria-hidden>⌂</span>
+              Asset{damFilter.length !== store.dams.length ? ` (${damFilter.length})` : ""}
             </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
-          <span>Timescale</span>
-          <button
-            type="button"
-            className="sg-btn-ghost min-h-7 px-2 text-xs"
-            onClick={() => zoomXBy(-1)}
-          >
-            −
-          </button>
-          <span className="min-w-8 text-center">
-            {Math.round((monthPx / BASE_MONTH_PX) * 100)}%
-          </span>
-          <button
-            type="button"
-            className="sg-btn-ghost min-h-7 px-2 text-xs"
-            onClick={() => zoomXBy(1)}
-          >
-            +
-          </button>
-          <span className="ml-1">Row height</span>
-          <button
-            type="button"
-            className="sg-btn-ghost min-h-7 px-2 text-xs"
-            onClick={() => zoomYBy(-1)}
-          >
-            −
-          </button>
-          <span className="min-w-8 text-center">
-            {Math.round(zoomY * 100)}%
-          </span>
-          <button
-            type="button"
-            className="sg-btn-ghost min-h-7 px-2 text-xs"
-            onClick={() => zoomYBy(1)}
-          >
-            +
-          </button>
-        </div>
-        <div
-          ref={minimapWrapRef}
-          className="relative h-10 overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-muted)]"
-          onPointerDown={clickMinimap}
-        >
-          {yearTicks.map((tick) => (
-            <div key={tick.y}>
-              <div
-                className="absolute top-0 bottom-0 w-px bg-[var(--border)]"
-                style={{ left: `${tick.pct}%` }}
-              />
-              <div
-                className="absolute top-1 text-[10px] whitespace-nowrap text-[var(--muted)]"
-                style={{ left: `calc(${tick.pct}% + 3px)` }}
-              >
-                {tick.y}
+            {panel === "dam" ? (
+              <div className="mrt-overlay-pop">
+                <FilterChecklist
+                  items={store.dams.map((d) => ({ id: d.id, label: d.name }))}
+                  selected={damFilter}
+                  onChange={setDamFilter}
+                />
               </div>
-            </div>
-          ))}
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-[var(--rag-red)]"
-            style={{ left: `${(tIdx / months) * 100}%` }}
-          />
-          <div
-            data-minimap-window
-            className="absolute top-0 bottom-0 cursor-grab border-[1.5px] border-[#1f4e78] bg-[rgba(31,78,120,0.18)] active:cursor-grabbing"
-            style={{
-              left: `${minimap.leftPct}%`,
-              width: `${minimap.widthPct}%`,
-            }}
-            onPointerDown={(e) => startMinimapDrag("move", e)}
-          >
-            <div
-              className="absolute top-0 bottom-0 -left-0.5 w-2 cursor-ew-resize bg-[#1f4e78] opacity-75"
-              onPointerDown={(e) => startMinimapDrag("left", e)}
-            />
-            <div
-              className="absolute top-0 bottom-0 -right-0.5 w-2 cursor-ew-resize bg-[#1f4e78] opacity-75"
-              onPointerDown={(e) => startMinimapDrag("right", e)}
-            />
+            ) : null}
+          </div>
+          <div className="mrt-overlay-anchor">
+            <button
+              type="button"
+              className={`mrt-chrome-btn ${panel === "type" || laneFilter.length !== store.lanes.length ? "open" : ""}`}
+              onClick={() => setPanel(panel === "type" ? null : "type")}
+              title="Filter obligation types"
+            >
+              <span className="mrt-chrome-ico" aria-hidden>#</span>
+              Type{laneFilter.length !== store.lanes.length ? ` (${laneFilter.length})` : ""}
+            </button>
+            {panel === "type" ? (
+              <div className="mrt-overlay-pop">
+                <FilterChecklist
+                  items={store.lanes.map((l) => ({
+                    id: l.code,
+                    label: `${l.code} ${l.label}`,
+                  }))}
+                  selected={laneFilter}
+                  onChange={setLaneFilter}
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="mrt-overlay-anchor">
+            <button
+              type="button"
+              className={`mrt-chrome-btn ${panel === "due" || dueBeforeIdx !== null ? "open" : ""}`}
+              onClick={() => setPanel(panel === "due" ? null : "due")}
+              title="Show incomplete occurrences due on or before a month"
+            >
+              <span className="mrt-chrome-ico" aria-hidden>▾</span>
+              Due{dueBeforeIdx !== null ? " · set" : ""}
+            </button>
+            {panel === "due" ? (
+              <div className="mrt-overlay-pop">
+                <DueBeforePanel
+                  months={months}
+                  winStart={win.start}
+                  dueBeforeIdx={dueBeforeIdx}
+                  onChange={setDueBeforeIdx}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
+        <div className="mrt-chrome-group">
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${onlyOngoing ? "on" : ""}`}
+            onClick={() => setOnlyOngoing((v) => !v)}
+            title="Show only ongoing"
+          >
+            Ongoing
+          </button>
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${scheduleFilter === "scheduled" ? "on" : ""}`}
+            onClick={() =>
+              setScheduleFilter((v) => (v === "scheduled" ? null : "scheduled"))
+            }
+            title="Scheduled only"
+          >
+            Sched
+          </button>
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${scheduleFilter === "predicted" ? "on" : ""}`}
+            onClick={() =>
+              setScheduleFilter((v) => (v === "predicted" ? null : "predicted"))
+            }
+            title="Predicted only"
+          >
+            Pred
+          </button>
+        </div>
+        <div className="mrt-chrome-group">
+          <div className="mrt-overlay-anchor">
+            <button
+              type="button"
+              className={`mrt-chrome-btn ${panel === "legend" ? "open" : ""}`}
+              onClick={() => setPanel(panel === "legend" ? null : "legend")}
+              title="Obligation types and marker styles"
+            >
+              <span className="mrt-chrome-ico" aria-hidden>■</span>
+              Legend
+            </button>
+            {panel === "legend" ? (
+              <div className="mrt-overlay-pop is-legend">
+                <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
+                  {store.lanes.map((l) => (
+                    <span key={l.code} className="inline-flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: l.color }}
+                      />
+                      <span className="truncate" title={l.label}>
+                        {l.code} · {l.label}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3 border-t border-[var(--border)] pt-2 text-[11px] text-[var(--muted)]">
+                  <span className="inline-flex items-center gap-1">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--surface)]"
+                      style={{ border: "1px dashed var(--ink)" }}
+                    />
+                    Predicted
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--ink)] bg-[var(--ink)]" />
+                    Scheduled
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--muted)] bg-[var(--muted)]" />
+                    Completed
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="mrt-chrome-btn"
+            disabled
+            title="Parked — Baseline and Actuals capturing will be investigated together later"
+          >
+            Base {String(storeBaseline(store).d).padStart(2, "0")}-
+            {MONTH_NAMES[storeBaseline(store).m - 1]}-
+            {String(storeBaseline(store).y).slice(2)}
+          </button>
+        </div>
       </div>
 
-      <div
-        className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]"
-        style={{
-          display: "grid",
-          gridTemplateColumns: `${labelW}px 1fr`,
-          gridTemplateRows: `${CORNER_H}px ${HEADER_H}px 1fr`,
-          height: chartHeight,
-          minHeight: 320,
-        }}
-      >
-        <div className="mrt-gantt-tools border-r border-b border-[var(--border)] bg-[var(--surface-muted)]">
+      <div className="mrt-gantt-top mb-1">
+        <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
           <button
             type="button"
             className="mrt-gantt-tool"
@@ -1093,25 +1384,141 @@ export function GanttTab({
             Summarised
           </button>
         </div>
-        <div className="border-b border-[var(--border)] bg-[var(--surface)]" />
+        <div className="mrt-zoom-chip" title="Horizontal zoom">
+          <div className="mrt-zoom-chip-title">Timescale</div>
+          <div className="mrt-zoom-chip-row">
+            <button type="button" aria-label="Zoom out timescale" onClick={() => zoomXBy(-1)}>
+              −
+            </button>
+            <span className="mrt-zoom-chip-val">
+              {Math.round((monthPx / BASE_MONTH_PX) * 100)}%
+            </span>
+            <button type="button" aria-label="Zoom in timescale" onClick={() => zoomXBy(1)}>
+              +
+            </button>
+          </div>
+        </div>
+        <div className="mrt-zoom-chip" title="Row height">
+          <div className="mrt-zoom-chip-title">Rows</div>
+          <div className="mrt-zoom-chip-row">
+            <button type="button" aria-label="Decrease row height" onClick={() => zoomYBy(-1)}>
+              −
+            </button>
+            <span className="mrt-zoom-chip-val">
+              {Math.round(zoomY * 100)}%
+            </span>
+            <button type="button" aria-label="Increase row height" onClick={() => zoomYBy(1)}>
+              +
+            </button>
+          </div>
+        </div>
+        <div className="relative min-h-9 min-w-0 flex-1">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-3">
+            {fys.map((fy) => (
+              <button
+                key={fy.endYear}
+                type="button"
+                className="pointer-events-auto absolute top-0 -translate-x-1/2 border-0 bg-transparent p-0 text-[9px] text-[var(--muted)] hover:underline"
+                style={{ left: `${fy.centerPct}%` }}
+                title={`Zoom to FY${fy.endYear} (1 Jul ${fy.endYear - 1} – 30 Jun ${fy.endYear})`}
+                onClick={() => jumpToFY(fy.endYear)}
+              >
+                FY{String(fy.endYear).slice(2)}
+              </button>
+            ))}
+          </div>
+          <div
+            ref={minimapWrapRef}
+            className="relative mt-3 h-7 overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-muted)]"
+            onPointerDown={clickMinimap}
+          >
+            {yearTicks.map((tick) => (
+              <div key={tick.y}>
+                <div
+                  className="absolute top-0 bottom-0 w-px bg-[var(--border)]"
+                  style={{ left: `${tick.pct}%` }}
+                />
+                <div
+                  className="absolute top-0.5 text-[9px] whitespace-nowrap text-[var(--muted)]"
+                  style={{ left: `calc(${tick.pct}% + 3px)` }}
+                >
+                  {tick.y}
+                </div>
+              </div>
+            ))}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-[var(--rag-red)]"
+              style={{ left: `${(tIdx / months) * 100}%` }}
+            />
+            <div
+              data-minimap-window
+              className="absolute top-0 bottom-0 cursor-grab border-[1.5px] border-[#1f4e78] bg-[rgba(31,78,120,0.18)] active:cursor-grabbing"
+              style={{
+                left: `${minimap.leftPct}%`,
+                width: `${minimap.widthPct}%`,
+              }}
+              onPointerDown={(e) => startMinimapDrag("move", e)}
+            >
+              <div
+                className="absolute top-0 bottom-0 -left-0.5 w-2 cursor-ew-resize bg-[#1f4e78] opacity-75"
+                onPointerDown={(e) => startMinimapDrag("left", e)}
+              />
+              <div
+                className="absolute top-0 bottom-0 -right-0.5 w-2 cursor-ew-resize bg-[#1f4e78] opacity-75"
+                onPointerDown={(e) => startMinimapDrag("right", e)}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]"
+        style={{ minHeight: 280 }}
+      >
+        {showGantt ? (
+        <div
+          className="relative flex-1 overflow-hidden"
+          style={{
+            display: "grid",
+            gridTemplateColumns: `${labelW}px 1fr`,
+            gridTemplateRows: `${headerH}px 1fr`,
+            minHeight: 200,
+          }}
+        >
         <div className="flex border-r border-b border-[var(--border)] bg-[var(--surface-muted)] text-[11px] font-semibold">
+          {flatMode ? (
+            <>
+              <button
+                type="button"
+                className="flex flex-1 cursor-pointer items-center px-2 text-left"
+                onClick={() => toggleRowSort("dam")}
+              >
+                Dam{sortMark("dam")}
+              </button>
+              <button
+                type="button"
+                className="flex flex-1 cursor-pointer items-center px-2 text-left"
+                onClick={() => toggleRowSort("obligation")}
+              >
+                Obligation{sortMark("obligation")}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 cursor-pointer items-center px-2 text-left"
+              onClick={() =>
+                toggleRowSort(groupMode === "dam-obl" ? "dam" : "obligation")
+              }
+            >
+              {groupMode === "dam-obl" ? "Dam > Obligation" : "Obligation > Dam"}
+              {sortMark(groupMode === "dam-obl" ? "dam" : "obligation")}
+            </button>
+          )}
           <button
             type="button"
-            className="flex flex-1 items-center px-2 text-left"
-            onClick={() => toggleRowSort("dam")}
-          >
-            Dam{sortMark("dam")}
-          </button>
-          <button
-            type="button"
-            className="flex flex-1 items-center px-2 text-left"
-            onClick={() => toggleRowSort("obligation")}
-          >
-            Obligation{sortMark("obligation")}
-          </button>
-          <button
-            type="button"
-            className="flex items-center justify-end px-2 text-right"
+            className="flex cursor-pointer items-center justify-end px-2 text-right"
             style={{ width: DUE_COL_W }}
             onClick={() => toggleRowSort("due")}
           >
@@ -1119,6 +1526,16 @@ export function GanttTab({
           </button>
         </div>
         <div className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
+          {bothPanes ? (
+            <button
+              type="button"
+              className="mrt-pane-x"
+              title="Hide Gantt"
+              onClick={() => setShowGantt(false)}
+            >
+              ×
+            </button>
+          ) : null}
           {todayLabelLeft !== null ? (
             <span
               className="pointer-events-none absolute top-0.5 z-20 text-center text-[9px] font-bold leading-tight text-[var(--rag-red)]"
@@ -1135,64 +1552,15 @@ export function GanttTab({
             onPointerDown={(e) => startPan(e, "x")}
           >
           <div style={{ width }} className="relative">
-            <div className="flex text-[10px] font-medium">
-              {years.map((yr) => (
-                <div
-                  key={yr.y}
-                  className="border-r border-[var(--border)] px-1 pt-0.5"
-                  style={{ width: yr.span * monthPx }}
-                >
-                  {yr.y}
-                </div>
-              ))}
-            </div>
-            <div className="flex text-[8px] text-[var(--muted)]">
-              {Array.from({ length: months }, (_, i) => {
-                const { m0 } = idxToYm(i, win.start);
-                const q =
-                  m0 === 0
-                    ? "Q1"
-                    : m0 === 3
-                      ? "Q2"
-                      : m0 === 6
-                        ? "Q3"
-                        : m0 === 9
-                          ? "Q4"
-                          : "";
-                return (
-                  <div
-                    key={i}
-                    className="shrink-0 pl-0.5"
-                    style={{
-                      width: monthPx,
-                      borderLeft: `1px solid ${monthScaleEdge(m0)}`,
-                    }}
-                  >
-                    {monthPx >= 10 ? q : ""}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex text-[8px] leading-4 text-[var(--muted)]">
-              {Array.from({ length: months }, (_, i) => {
-                const { m0 } = idxToYm(i, win.start);
-                return (
-                  <div
-                    key={i}
-                    className="shrink-0 pl-0.5"
-                    style={{
-                      width: monthPx,
-                      borderLeft: `1px solid ${monthScaleEdge(m0)}`,
-                    }}
-                  >
-                    {MONTH_NAMES[m0][0]}
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 border-l-2 border-dashed border-[var(--rag-red)]"
-              style={{ left: todayX }}
+            <GanttTimescale
+              months={months}
+              monthPx={monthPx}
+              winStart={win.start}
+              todayX={todayX}
+              grain={grain}
+              density="full"
+              years={years}
+              scale={scale}
             />
           </div>
           </div>
@@ -1209,8 +1577,6 @@ export function GanttTab({
                 return <div key={it.key} style={{ height: it.h }} />;
               }
               if (it.type === "heading") {
-                const damText = groupMode === "dam-obl" ? it.text : "";
-                const oblText = groupMode === "obl-dam" ? it.text : "";
                 return (
                   <div
                     key={it.key}
@@ -1219,29 +1585,10 @@ export function GanttTab({
                   >
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 items-center truncate px-2 text-left"
+                      className="flex min-w-0 flex-1 cursor-pointer items-center truncate px-2 text-left"
                       onClick={() => toggleHeading(it.key)}
                     >
-                      {groupMode === "dam-obl" ? (
-                        <>
-                          {it.collapsed ? "▸" : "▾"} {damText}
-                        </>
-                      ) : (
-                        <span className="truncate text-[var(--muted)]">—</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 items-center truncate px-2 text-left"
-                      onClick={() => toggleHeading(it.key)}
-                    >
-                      {groupMode === "obl-dam" ? (
-                        <>
-                          {it.collapsed ? "▸" : "▾"} {oblText}
-                        </>
-                      ) : (
-                        <span className="truncate text-[var(--muted)]">—</span>
-                      )}
+                      {it.collapsed ? "▸" : "▾"} {it.text}
                     </button>
                     <span
                       className="flex justify-end px-2"
@@ -1290,31 +1637,12 @@ export function GanttTab({
                   style={{ height: it.h }}
                   onDoubleClick={() => openLeaf(it)}
                 >
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 pl-5">
-                    {groupMode === "obl-dam" ? (
-                      <>
-                        <span
-                          className="inline-block h-2 w-2 shrink-0 rounded-full"
-                          style={{ background: it.color }}
-                        />
-                        {it.damName}
-                      </>
-                    ) : (
-                      <span className="truncate text-[var(--muted)]">—</span>
-                    )}
-                  </span>
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2">
-                    {groupMode === "dam-obl" ? (
-                      <>
-                        <span
-                          className="inline-block h-2 w-2 shrink-0 rounded-full"
-                          style={{ background: it.color }}
-                        />
-                        {it.laneLabel}
-                      </>
-                    ) : (
-                      <span className="truncate text-[var(--muted)]">—</span>
-                    )}
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 pl-6">
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: it.color }}
+                    />
+                    {groupMode === "dam-obl" ? it.laneLabel : it.damName}
                   </span>
                   <span
                     className="flex items-center justify-end gap-1 px-2"
@@ -1341,7 +1669,22 @@ export function GanttTab({
           onPointerDown={(e) => startPan(e, "both")}
         >
           <div className="relative" style={{ width, height: Math.max(totalHeight, 1) }}>
-            {Array.from({ length: months }, (_, i) => {
+            {grain === "week"
+              ? Array.from({ length: months }, (_, i) => {
+                  const { m0 } = idxToYm(i, win.start);
+                  return (
+                    <div
+                      key={`m-${i}`}
+                      className="absolute top-0 bottom-0"
+                      style={{
+                        left: monthStartX(scale, i),
+                        width: 1,
+                        background: monthScaleEdge(m0, grain),
+                      }}
+                    />
+                  );
+                })
+              : Array.from({ length: months }, (_, i) => {
               const { m0 } = idxToYm(i, win.start);
               return (
                 <div
@@ -1350,11 +1693,24 @@ export function GanttTab({
                   style={{
                     left: i * monthPx,
                     width: 1,
-                    background: monthScaleEdge(m0),
+                    background: monthScaleEdge(m0, grain),
                   }}
                 />
               );
             })}
+            {grain === "week"
+              ? weekSlots.map((slot, i) => (
+                    <div
+                      key={slot.key}
+                      className="absolute top-0 bottom-0"
+                      style={{
+                        left: i * scale.weekPx,
+                        width: 1,
+                        background: weekGridLine(),
+                      }}
+                    />
+                  ))
+              : null}
             <div
               className="pointer-events-none absolute top-0 z-10 h-full w-0.5 border-l-2 border-dashed border-[var(--rag-red)]"
               style={{ left: todayX }}
@@ -1409,6 +1765,49 @@ export function GanttTab({
             })}
           </div>
         </div>
+        </div>
+        ) : null}
+        {bothPanes ? (
+            <div
+              className="mrt-alloc-split"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize resource heatmap"
+              onPointerDown={startSplitDrag}
+            />
+        ) : null}
+        {showAlloc ? (
+          <div
+            ref={allocPaneRef}
+            className="min-h-0"
+            style={{
+              flex: showGantt ? "0 0 auto" : "1 1 auto",
+              height: showGantt ? allocH : undefined,
+              minHeight: showGantt ? undefined : 0,
+            }}
+          >
+            <ResourceLoadPane
+              rows={loadRows.filter((r) => r.chunkStart >= 0)}
+              months={months}
+              monthPx={monthPx}
+              winStart={win.start}
+              labelW={labelW}
+              todayX={todayX}
+              height={showGantt ? "100%" : "100%"}
+              rowH={laneH}
+              grain={grain}
+              timescale={showGantt ? "compact" : "full"}
+              years={years}
+              scale={scale}
+              scrollRef={allocScrollRef}
+              onScrollLeft={onAllocScrollLeft}
+              onOpenContribution={openContribution}
+              onRebalanceAll={openRebalance}
+              showClose={bothPanes}
+              onClosePane={() => setShowAlloc(false)}
+            />
+          </div>
+        ) : null}
       </div>
       <p className="mt-1 text-[10px] text-[var(--muted)]">
         {win.start.y}–{win.end.y} · click an FY label to fill
@@ -1428,6 +1827,17 @@ export function GanttTab({
           store={store}
           marker={open}
           onClose={() => setOpen(null)}
+          onChange={onChange}
+          readOnly={readOnly}
+          onGoToDefaults={onGoToDefaults}
+        />
+      ) : null}
+      {rebalance ? (
+        <StackedEffortModal
+          store={store}
+          contributions={rebalance.contributions}
+          personId={rebalance.personId}
+          onClose={() => setRebalance(null)}
           onChange={onChange}
           readOnly={readOnly}
         />
@@ -1462,7 +1872,7 @@ function DueBeforePanel({
   for (let y = winStart.y; y <= endYm.y; y++) years.push(y);
 
   return (
-    <div className="sg-card mb-2 max-w-xs py-2">
+    <div className="max-w-xs py-0.5">
       <p className="mb-2 text-[11px] text-[var(--muted)]">
         Shows only incomplete occurrences due on or before this month.
       </p>

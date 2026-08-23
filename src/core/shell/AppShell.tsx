@@ -9,10 +9,12 @@ export async function AppShell({
   children,
   currentHref,
   mainClassName,
+  title,
 }: {
   children: React.ReactNode;
   currentHref: string;
   mainClassName?: string;
+  title?: React.ReactNode;
 }) {
   const session = await auth();
   const hubs = getHubs();
@@ -28,15 +30,15 @@ export async function AppShell({
       .toUpperCase() ?? "?";
 
   return (
-    <div className="min-h-dvh bg-[var(--page)] text-[var(--ink)]">
+    <div className="flex min-h-dvh flex-col bg-[var(--page)] text-[var(--ink)]">
       <a href="#main" className="sg-skip">
         Skip to content
       </a>
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
+        <div className="flex items-center gap-3 px-4 py-2">
           <Link
             href="/home"
-            className="flex items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
+            className="flex shrink-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
           >
             <Image
               src="/logo.png"
@@ -50,7 +52,20 @@ export async function AppShell({
               Scriven Group
             </span>
           </Link>
-          <nav className="ml-auto flex items-center gap-2" aria-label="App">
+          {title ? (
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+              {typeof title === "string" ? (
+                <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                  {title}
+                </h1>
+              ) : (
+                title
+              )}
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
+          <nav className="ml-auto flex shrink-0 items-center gap-2" aria-label="App">
             <Link href="/home" className="sg-btn-ghost">
               Home
             </Link>

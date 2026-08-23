@@ -2,10 +2,13 @@ import { z } from "zod";
 import { CATALOG_DAMS } from "./catalog/dams";
 import { CATALOG_LANES } from "./catalog/lanes";
 import {
+  DEFAULT_EXTERNAL_RATE_PERCENT,
   DEFAULT_OVERRUN_PERCENT,
   DEFAULT_PEOPLE,
   DEFAULT_RESOURCE_ROLES,
   DEFAULT_WEEKLY_CAPACITY_HOURS,
+  defaultExternalRate,
+  defaultInternalRateForRole,
 } from "./catalog/roster";
 
 export const frequencyUnitSchema = z.enum(["year", "month", "week"]);
@@ -32,8 +35,21 @@ export const personSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
-  email: z.string().optional(),
+  email: z.string().optional().default(""),
   weeklyCapacityHours: z.number(),
+  internalRate: z.number().optional().default(0),
+  externalRate: z.number().optional().default(0),
+});
+
+export const taskStatusSchema = z.enum([
+  "not-started",
+  "in-progress",
+  "complete",
+]);
+
+export const planTaskActualSchema = z.object({
+  hours: z.number().optional(),
+  cost: z.number().optional(),
 });
 
 export const planTaskSchema = z.object({
@@ -44,6 +60,8 @@ export const planTaskSchema = z.object({
   start: z.number().optional(),
   dur: z.number().optional(),
   assign: z.record(z.string(), z.array(z.number())).optional(),
+  status: taskStatusSchema.optional(),
+  actual: z.record(z.string(), planTaskActualSchema).optional(),
 });
 
 export const assignmentPlanSchema = z.object({
@@ -52,10 +70,22 @@ export const assignmentPlanSchema = z.object({
   seededFromLane: z.boolean().optional(),
 });
 
+const weDateSchema = z.object({
+  y: z.number(),
+  m: z.number(),
+  d: z.number(),
+});
+
+export const effortStickSchema = z.enum(["tail-start", "tail-end", "unstick"]);
+
 export const scheduledDetailSchema = z.object({
   dueIdxOverride: z.number().optional(),
   dueDayOverride: z.number().optional(),
   leadInOverrideMonths: z.number().optional(),
+  tailWeeks: z.number().optional(),
+  stick: effortStickSchema.optional(),
+  windowStart: weDateSchema.optional(),
+  hoursOrigin: weDateSchema.optional(),
   actualised: z.boolean().optional(),
   completed: z.boolean().optional(),
   notRequired: z.boolean().optional(),
@@ -77,25 +107,26 @@ export const damMetaSchema = z.object({
   ownerName: z.string().optional(),
 });
 
-export const effortStickSchema = z.enum(["tail-start", "tail-end", "unstick"]);
-
 export const effortResourceSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
   role: z.string().default(""),
   personId: z.string().optional(),
   hours: z.array(z.number()),
+  actualHours: z.number().optional(),
+  actualCost: z.number().optional(),
 });
 
 export const effortTaskSchema = z.object({
   id: z.string(),
   name: z.string(),
   resources: z.array(effortResourceSchema),
+  status: taskStatusSchema.optional(),
 });
 
 export const effortDemoSchema = z.object({
   weekCount: z.number().default(8),
-  stick: effortStickSchema.default("unstick"),
+  stick: effortStickSchema.default("tail-start"),
   windowStart: z
     .object({
       y: z.number(),
@@ -126,6 +157,7 @@ export const scheduleStoreSchema = z.object({
   version: z.literal(1),
   updatedAt: z.string().nullable(),
   overrunPercent: z.number(),
+  externalRatePercent: z.number().default(DEFAULT_EXTERNAL_RATE_PERCENT),
   dams: z.array(damSchema),
   lanes: z.array(laneSchema),
   laneApplicability: z.record(z.string(), z.record(z.string(), z.boolean())),
@@ -165,9 +197,10 @@ export const scheduleStoreSchema = z.object({
       m: z.number(),
     })
     .optional(),
+  projectManagement: z.boolean().optional().default(false),
   effortDemo: effortDemoSchema.default({
     weekCount: 8,
-    stick: "unstick",
+    stick: "tail-start",
     milestone: {
       label: "Milestone",
       due: { y: 2027, m: 6, d: 30 },
@@ -183,6 +216,7 @@ export type Lane = z.infer<typeof laneSchema>;
 export type Person = z.infer<typeof personSchema>;
 export type AssignmentPlan = z.infer<typeof assignmentPlanSchema>;
 export type PlanTask = z.infer<typeof planTaskSchema>;
+export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ScheduledDetail = z.infer<typeof scheduledDetailSchema>;
 export type ScheduleStore = z.infer<typeof scheduleStoreSchema>;
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>;
@@ -215,7 +249,7 @@ export function samePersonName(a: string, b: string) {
 export function emptyEffortDemo(): EffortDemo {
   return {
     weekCount: 8,
-    stick: "unstick",
+    stick: "tail-start",
     milestone: {
       label: "Milestone",
       due: { y: 2027, m: 6, d: 30 },
@@ -245,13 +279,18 @@ export function emptyScheduleStore(): ScheduleStore {
     leadGeneral[lane.code] = lane.defLead;
     leadOverrides[lane.code] = {};
   }
-  const people: Person[] = DEFAULT_PEOPLE.map((p, i) => ({
-    id: personIdFromName(p.name, i),
-    name: p.name,
-    role: p.role,
-    email: "",
-    weeklyCapacityHours: DEFAULT_WEEKLY_CAPACITY_HOURS,
-  }));
+  const people: Person[] = DEFAULT_PEOPLE.map((p, i) => {
+    const internalRate = defaultInternalRateForRole(p.role);
+    return {
+      id: personIdFromName(p.name, i),
+      name: p.name,
+      role: p.role,
+      email: "",
+      weeklyCapacityHours: DEFAULT_WEEKLY_CAPACITY_HOURS,
+      internalRate,
+      externalRate: defaultExternalRate(internalRate),
+    };
+  });
   const roleEligibility: ScheduleStore["roleEligibility"] = {};
   for (const role of DEFAULT_RESOURCE_ROLES) roleEligibility[role] = {};
   for (const person of people) {
@@ -266,6 +305,7 @@ export function emptyScheduleStore(): ScheduleStore {
     version: 1,
     updatedAt: null,
     overrunPercent: DEFAULT_OVERRUN_PERCENT,
+    externalRatePercent: DEFAULT_EXTERNAL_RATE_PERCENT,
     dams,
     lanes,
     laneApplicability,
@@ -282,6 +322,7 @@ export function emptyScheduleStore(): ScheduleStore {
     horizonYears: 25,
     laneCycleAnchors: {},
     baselineDate: { y: 2026, m: 7, d: 1 },
+    projectManagement: false,
     effortDemo: emptyEffortDemo(),
     openNotes: "",
   };

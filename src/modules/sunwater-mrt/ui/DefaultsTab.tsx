@@ -9,18 +9,30 @@ import {
   effortDemoToAssignmentPlan,
 } from "../logic/plan-effort-bridge";
 import { EffortGantt } from "./EffortGantt";
-import { SubTabs } from "./SubTabs";
+import type { InputsSub } from "./InputsTab";
+import { CrossLinks, SubTabs } from "./SubTabs";
+import { parseDecimal } from "../logic/numbers";
 
 const SUBS = ["Lead-in time per dam", "Task+Resource Effort"] as const;
 
 export function DefaultsTab({
   store,
   onChange,
+  focusLane,
+  onGoToInputs,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  focusLane?: string | null;
+  onGoToInputs?: (sub: InputsSub) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]>("Lead-in time per dam");
+  const [sub, setSub] = useState<(typeof SUBS)[number]>(
+    focusLane ? "Task+Resource Effort" : "Lead-in time per dam",
+  );
+
+  useEffect(() => {
+    if (focusLane) setSub("Task+Resource Effort");
+  }, [focusLane]);
 
   function update(mut: (next: ScheduleStore) => void) {
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
@@ -32,9 +44,38 @@ export function DefaultsTab({
     <div>
       <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
       {sub === "Lead-in time per dam" ? (
-        <LeadMatrix store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              { label: "Go to Assets", onClick: () => onGoToInputs?.("Assets") },
+              {
+                label: "Go to Obligation Types",
+                onClick: () => onGoToInputs?.("Obligation Types"),
+              },
+            ]}
+          />
+          <LeadMatrix store={store} update={update} />
+        </>
       ) : (
-        <DefaultsEffort store={store} onChange={onChange} />
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Obligation Types",
+                onClick: () => onGoToInputs?.("Obligation Types"),
+              },
+              {
+                label: "Go to Resource Roles",
+                onClick: () => onGoToInputs?.("Resource Roles"),
+              },
+            ]}
+          />
+          <DefaultsEffort
+            store={store}
+            onChange={onChange}
+            focusLane={focusLane}
+          />
+        </>
       )}
     </div>
   );
@@ -50,12 +91,24 @@ function planForLane(store: ScheduleStore, laneCode: string) {
 function DefaultsEffort({
   store,
   onChange,
+  focusLane,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  focusLane?: string | null;
 }) {
   const lanes = store.lanes;
-  const [laneCode, setLaneCode] = useState(lanes[0]?.code || "");
+  const [laneCode, setLaneCode] = useState(
+    focusLane && lanes.some((l) => l.code === focusLane)
+      ? focusLane
+      : lanes[0]?.code || "",
+  );
+
+  useEffect(() => {
+    if (focusLane && lanes.some((l) => l.code === focusLane)) {
+      setLaneCode(focusLane);
+    }
+  }, [focusLane, lanes]);
   const lane = lanes.find((l) => l.code === laneCode) || lanes[0];
   const [demo, setDemo] = useState<EffortDemo>(() =>
     assignmentPlanToEffortDemo(planForLane(store, lane?.code || ""), {
@@ -183,11 +236,12 @@ function LeadMatrix({
                     <input
                       type="number"
                       min={0}
+                      step={1}
                       className="mrt-input w-16 text-center"
                       value={store.leadGeneral[lane.code] ?? lane.defLead}
                       onChange={(e) =>
                         update((n) => {
-                          n.leadGeneral[lane.code] = Number(e.target.value) || 0;
+                          n.leadGeneral[lane.code] = parseDecimal(e.target.value);
                         })
                       }
                     />
@@ -202,6 +256,7 @@ function LeadMatrix({
                       <input
                         type="number"
                         min={0}
+                        step={1}
                         className={`mrt-input w-16 text-center ${
                           store.leadOverrides[lane.code]?.[dam.id] != null
                             ? "overridden"
@@ -216,7 +271,7 @@ function LeadMatrix({
                               delete n.leadOverrides[lane.code][dam.id];
                             } else {
                               n.leadOverrides[lane.code][dam.id] =
-                                Number(e.target.value) || 0;
+                                parseDecimal(e.target.value);
                             }
                           })
                         }
@@ -250,11 +305,12 @@ function LeadMatrix({
                     <input
                       type="number"
                       min={0}
+                      step={1}
                       className="mrt-input w-16 text-center"
                       value={store.leadGeneral[lane.code] ?? lane.defLead}
                       onChange={(e) =>
                         update((n) => {
-                          n.leadGeneral[lane.code] = Number(e.target.value) || 0;
+                          n.leadGeneral[lane.code] = parseDecimal(e.target.value);
                         })
                       }
                     />
@@ -264,6 +320,7 @@ function LeadMatrix({
                       <input
                         type="number"
                         min={0}
+                        step={1}
                         className={`mrt-input w-16 text-center ${
                           store.leadOverrides[lane.code]?.[dam.id] != null
                             ? "overridden"
@@ -278,7 +335,7 @@ function LeadMatrix({
                               delete n.leadOverrides[lane.code][dam.id];
                             } else {
                               n.leadOverrides[lane.code][dam.id] =
-                                Number(e.target.value) || 0;
+                                parseDecimal(e.target.value);
                             }
                           })
                         }

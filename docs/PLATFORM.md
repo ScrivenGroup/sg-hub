@@ -37,6 +37,7 @@ Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site networ
 - Page trail: [`PageNav`](../src/core/shell/PageNav.tsx) (Back + breadcrumbs).
 - Sketched products: [`SubHubShell`](../src/core/shell/SubHubShell.tsx) + changelog plan — no fake feature UI while `sketched`.
 - Tokens: System → Appearance (`--ink`, `--page`, surfaces, Manrope). Hex codes colour the **badge only** unless an explicit ThemeContract override is added for that sub-hub.
+- **Viewport-capped dialogs:** Overlay is `position: fixed; inset: 0; display: grid; grid-template-rows/columns: minmax(0, 1fr); overflow: hidden` (not a flex `items-center` wrapper). Dialog is `display: flex; flex-direction: column; max-height: 100%; min-height: 0; overflow: hidden` and must beat `.sg-card { display: block }` (use `.sg-card.mrt-effort-popup`). The scrollport is `flex: 1 1 0%; min-height: 0; overflow-y: auto`. Header/toolbar/footer stay `shrink-0`. `max-height` plus `height: auto` (or `min(max-content, …)`) is not enough — the card grows with content and clips without a scrollbar. See [`EffortPopupShell`](../src/modules/sunwater-mrt/ui/EffortPopupShell.tsx).
 
 ## Modules (how to extend)
 

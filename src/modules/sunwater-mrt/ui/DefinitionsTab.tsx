@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ScheduleStore } from "../schema";
-import { getEffectiveDamOwnership } from "../logic/assignment";
 import { laneApplies } from "../logic/applicability";
 import { removeOwnershipColumn } from "../logic/cascade";
 import { MONTH_NAMES } from "../logic/dates";
 import { pairHasActualised } from "../logic/scheduling";
 import { ensureEffortDemo, outOfRoleKeys } from "../logic/effort-gantt";
-import { SubTabs } from "./SubTabs";
+import { CrossLinks, SubTabs } from "./SubTabs";
+import type { InputsSub } from "./InputsTab";
 
 const SUBS = [
   "Asset × Obligation",
@@ -16,14 +16,26 @@ const SUBS = [
   "Asset × Resource Role",
 ] as const;
 
+export type DefinitionsSub = (typeof SUBS)[number];
+
 export function DefinitionsTab({
   store,
   onChange,
+  focusSub,
+  onGoToInputs,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  focusSub?: DefinitionsSub | null;
+  onGoToInputs?: (sub: InputsSub) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]>("Asset × Obligation");
+  const [sub, setSub] = useState<(typeof SUBS)[number]>(
+    focusSub && SUBS.includes(focusSub) ? focusSub : "Asset × Obligation",
+  );
+
+  useEffect(() => {
+    if (focusSub && SUBS.includes(focusSub)) setSub(focusSub);
+  }, [focusSub]);
 
   function update(mut: (next: ScheduleStore) => void) {
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
@@ -35,13 +47,49 @@ export function DefinitionsTab({
     <div>
       <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
       {sub === "Asset × Obligation" ? (
-        <ApplyMatrix store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              { label: "Go to Assets", onClick: () => onGoToInputs?.("Assets") },
+              {
+                label: "Go to Obligation Types",
+                onClick: () => onGoToInputs?.("Obligation Types"),
+              },
+            ]}
+          />
+          <ApplyMatrix store={store} update={update} />
+        </>
       ) : null}
       {sub === "Resource × Role" ? (
-        <EligibilityMatrix store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Resource Roles",
+                onClick: () => onGoToInputs?.("Resource Roles"),
+              },
+              {
+                label: "Go to Resource Names",
+                onClick: () => onGoToInputs?.("Resource Names"),
+              },
+            ]}
+          />
+          <EligibilityMatrix store={store} update={update} />
+        </>
       ) : null}
       {sub === "Asset × Resource Role" ? (
-        <OwnershipMatrix store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              { label: "Go to Assets", onClick: () => onGoToInputs?.("Assets") },
+              {
+                label: "Go to Resource Names",
+                onClick: () => onGoToInputs?.("Resource Names"),
+              },
+            ]}
+          />
+          <OwnershipMatrix store={store} update={update} />
+        </>
       ) : null}
     </div>
   );
@@ -397,10 +445,10 @@ function OwnershipMatrix({
             </button>
           ))}
       </div>
-      <table className="mrt-table">
+      <table className="mrt-table mrt-own-table">
         <thead>
           <tr>
-            <th>Context</th>
+            <th>Hierarchy</th>
             {cols.map((c) => (
               <th key={c}>
                 {c}{" "}
@@ -420,10 +468,10 @@ function OwnershipMatrix({
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-[var(--border)] bg-[var(--surface-muted)]">
-            <td className="px-2 py-1 font-medium">All assets</td>
+          <tr className="mrt-own-l0">
+            <td className="mrt-own-label">All dams</td>
             {cols.map((role) => (
-              <td key={role} className="px-1">
+              <td key={role}>
                 <PersonSelect
                   store={store}
                   role={role}
@@ -462,34 +510,34 @@ function RegionBlock({
   const dams = store.dams.filter((d) => (d.region || "Unassigned") === region);
   return (
     <>
-      <tr className="border-t border-[var(--border)]">
-        <td className="px-2 py-1 font-medium">{region}</td>
+      <tr className="mrt-own-l1">
+        <td className="mrt-own-label">{region}</td>
         {cols.map((role) => (
-          <td key={role} className="px-1">
+          <td key={role}>
             <PersonSelect
               store={store}
               role={role}
               value={store.damOwnership[role]?.[`region:${region}`] || ""}
-              placeholder="inherit"
+              inherited={store.damOwnership[role]?.ALL || ""}
               onChange={(v) => setOwnership(`region:${region}`, role, v)}
             />
           </td>
         ))}
       </tr>
       {dams.map((dam) => (
-        <tr key={dam.id} className="border-t border-[var(--border)]">
-          <td className="px-2 py-1 pl-6">{dam.name}</td>
+        <tr key={dam.id} className="mrt-own-l2">
+          <td className="mrt-own-label mrt-own-asset">{dam.name}</td>
           {cols.map((role) => {
             const explicit = store.damOwnership[role]?.[`dam:${dam.id}`] || "";
-            const effective = getEffectiveDamOwnership(store, dam.id, role);
+            const regionVal = store.damOwnership[role]?.[`region:${region}`] || "";
+            const allVal = store.damOwnership[role]?.ALL || "";
             return (
-              <td key={role} className="px-1">
+              <td key={role}>
                 <PersonSelect
                   store={store}
                   role={role}
                   value={explicit}
-                  displayValue={effective}
-                  placeholder="inherit"
+                  inherited={regionVal || allVal}
                   onChange={(v) => setOwnership(`dam:${dam.id}`, role, v)}
                 />
               </td>
@@ -505,36 +553,40 @@ function PersonSelect({
   store,
   role,
   value,
-  displayValue,
-  placeholder,
+  inherited,
   onChange,
 }: {
   store: ScheduleStore;
   role: string;
   value: string;
-  displayValue?: string;
-  placeholder?: string;
+  inherited?: string;
   onChange: (value: string) => void;
 }) {
   const shown = value || "";
   const { people, keptId } = peopleForRoleSelect(store, role, shown);
+  const inheritedName =
+    inherited && store.people.find((p) => p.name === inherited || p.id === inherited)?.name
+      || inherited
+      || "";
   return (
-    <select
-      className="mrt-select"
-      value={shown}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">{placeholder || "—"}</option>
-      {!shown && displayValue ? (
-        <option value="" disabled>
-          {displayValue} (inherited)
-        </option>
-      ) : null}
-      {people.map((p) => (
-        <option key={p.id} value={p.name}>
-          {p.id === keptId ? `${p.name} (kept)` : p.name}
-        </option>
-      ))}
-    </select>
+    <div className="mrt-own-cell">
+      <select
+        className={`mrt-select${shown ? " is-explicit" : ""}`}
+        value={shown}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">-- inherit --</option>
+        {people.map((p) => (
+          <option key={p.id} value={p.name}>
+            {p.id === keptId ? `${p.name} (kept)` : p.name}
+          </option>
+        ))}
+      </select>
+      {shown ? null : inheritedName ? (
+        <span className="mrt-own-inherit">→ {inheritedName}</span>
+      ) : (
+        <span className="mrt-own-unassigned">unassigned</span>
+      )}
+    </div>
   );
 }

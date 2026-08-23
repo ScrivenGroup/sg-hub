@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dam, FrequencyUnit, Lane, Person, ScheduleStore } from "../schema";
 import { joinPersonName, samePersonName, splitPersonName } from "../schema";
-import { DEFAULT_WEEKLY_CAPACITY_HOURS } from "../catalog/roster";
+import { DEFAULT_WEEKLY_CAPACITY_HOURS, defaultExternalRate, defaultInternalRateForRole, externalRateDotKind, externalRateIsCustom } from "../catalog/roster";
 import { newAssignmentId, weekCountFromLeadMonths } from "../logic/assignment";
 import { prepareInspectReportPlan } from "../logic/default-plan";
 import { removeDam, removeLane, removePerson, removeRole } from "../logic/cascade";
-import { SubTabs } from "./SubTabs";
+import { CrossLinks, SubTabs } from "./SubTabs";
+import { parseDecimal } from "../logic/numbers";
 
 const SUBS = [
   "Assets",
@@ -16,16 +17,32 @@ const SUBS = [
   "Resource Names",
 ] as const;
 
+export type InputsSub = (typeof SUBS)[number];
+export type DefinitionsTarget =
+  | "Asset × Obligation"
+  | "Resource × Role"
+  | "Asset × Resource Role";
+
 const UNITS: FrequencyUnit[] = ["year", "month", "week"];
 
 export function InputsTab({
   store,
   onChange,
+  focusSub,
+  onGoToDefinitions,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  focusSub?: InputsSub | null;
+  onGoToDefinitions?: (sub: DefinitionsTarget) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]>("Assets");
+  const [sub, setSub] = useState<(typeof SUBS)[number]>(
+    focusSub && SUBS.includes(focusSub) ? focusSub : "Assets",
+  );
+
+  useEffect(() => {
+    if (focusSub && SUBS.includes(focusSub)) setSub(focusSub);
+  }, [focusSub]);
 
   function update(mut: (next: ScheduleStore) => void) {
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
@@ -36,15 +53,61 @@ export function InputsTab({
   return (
     <div>
       <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
-      {sub === "Assets" ? <AssetsTable store={store} update={update} /> : null}
+      {sub === "Assets" ? (
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Asset × Obligation",
+                onClick: () => onGoToDefinitions?.("Asset × Obligation"),
+              },
+              {
+                label: "Go to Asset × Resource Role",
+                onClick: () => onGoToDefinitions?.("Asset × Resource Role"),
+              },
+            ]}
+          />
+          <AssetsTable store={store} update={update} />
+        </>
+      ) : null}
       {sub === "Obligation Types" ? (
-        <TypesTable store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Asset × Obligation",
+                onClick: () => onGoToDefinitions?.("Asset × Obligation"),
+              },
+            ]}
+          />
+          <TypesTable store={store} update={update} />
+        </>
       ) : null}
       {sub === "Resource Roles" ? (
-        <RolesTable store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Resource × Role",
+                onClick: () => onGoToDefinitions?.("Resource × Role"),
+              },
+            ]}
+          />
+          <RolesTable store={store} update={update} />
+        </>
       ) : null}
       {sub === "Resource Names" ? (
-        <NamesTable store={store} update={update} />
+        <>
+          <CrossLinks
+            links={[
+              {
+                label: "Go to Resource × Role",
+                onClick: () => onGoToDefinitions?.("Resource × Role"),
+              },
+            ]}
+          />
+          <NamesTable store={store} update={update} />
+        </>
       ) : null}
     </div>
   );
@@ -312,7 +375,7 @@ function RolesTable({
         </thead>
         <tbody>
           {store.resourceRoles.map((role, i) => (
-            <tr key={`${role}-${i}`}>
+            <tr key={i}>
               <td>
                 <input
                   className="mrt-input"
@@ -372,6 +435,9 @@ function NamesTable({
   const [draftFirst, setDraftFirst] = useState("");
   const [draftLast, setDraftLast] = useState("");
   const [draftHours, setDraftHours] = useState(DEFAULT_WEEKLY_CAPACITY_HOURS);
+  const [draftEmail, setDraftEmail] = useState("");
+  const [draftInternal, setDraftInternal] = useState(0);
+  const [draftExternal, setDraftExternal] = useState(0);
 
   function setParts(index: number, first: string, last: string) {
     const name = joinPersonName(first, last);
@@ -404,11 +470,19 @@ function NamesTable({
       return;
     }
     update((n) => {
+      const role = n.resourceRoles[0] || "Lead";
+      const extPct = n.externalRatePercent || 150;
+      const internal =
+        draftInternal || defaultInternalRateForRole(role);
+      const external = draftExternal || defaultExternalRate(internal, extPct);
       const person: Person = {
         id: newAssignmentId("res-"),
         name,
-        role: n.resourceRoles[0] || "Lead",
+        role,
         weeklyCapacityHours: draftHours || DEFAULT_WEEKLY_CAPACITY_HOURS,
+        email: draftEmail.trim(),
+        internalRate: internal,
+        externalRate: external,
       };
       n.people.push(person);
       if (!n.roleEligibility[person.role]) n.roleEligibility[person.role] = {};
@@ -417,31 +491,80 @@ function NamesTable({
     setDraftFirst("");
     setDraftLast("");
     setDraftHours(DEFAULT_WEEKLY_CAPACITY_HOURS);
+    setDraftEmail("");
+    setDraftInternal(0);
+    setDraftExternal(0);
   }
+
+  const extPct = store.externalRatePercent || 150;
 
   return (
     <div>
-      <label className="mb-3 block text-sm">
-        Overrun %
-        <input
-          type="number"
-          min={100}
-          className="mrt-input mt-1"
-          style={{ width: 80 }}
-          value={store.overrunPercent}
-          onChange={(e) =>
-            update((n) => {
-              n.overrunPercent = Number(e.target.value) || 125;
-            })
-          }
-        />
-      </label>
       <table className="mrt-table">
         <thead>
           <tr>
             <th>First name</th>
             <th>Last name</th>
-            <th>Available hours / week</th>
+            <th>Email</th>
+            <th>
+              <div className="mrt-th-stack">
+                <label className="mrt-th-control">
+                  Overrun Hours %
+                  <input
+                    type="number"
+                    min={100}
+                    className="mrt-input"
+                    style={{ width: 72 }}
+                    value={store.overrunPercent}
+                    step={1}
+                    onChange={(e) =>
+                      update((n) => {
+                        n.overrunPercent = parseDecimal(e.target.value) || 125;
+                      })
+                    }
+                  />
+                </label>
+                <span>Available hours / week</span>
+              </div>
+            </th>
+            <th>Internal $/h</th>
+            <th>
+              <div className="mrt-th-stack">
+                <label className="mrt-th-control">
+                  External $/h %
+                  <input
+                    type="number"
+                    min={100}
+                    className="mrt-input"
+                    style={{ width: 72 }}
+                    value={extPct}
+                    step={1}
+                    onChange={(e) =>
+                      update((n) => {
+                        const prev = n.externalRatePercent || 150;
+                        const nextPct = parseDecimal(e.target.value) || 150;
+                        n.externalRatePercent = nextPct;
+                        for (const person of n.people) {
+                          if (
+                            !externalRateIsCustom(
+                              person.internalRate || 0,
+                              person.externalRate || 0,
+                              prev,
+                            )
+                          ) {
+                            person.externalRate = defaultExternalRate(
+                              person.internalRate || 0,
+                              nextPct,
+                            );
+                          }
+                        }
+                      })
+                    }
+                  />
+                </label>
+                <span>External $/h</span>
+              </div>
+            </th>
             <th />
           </tr>
         </thead>
@@ -466,17 +589,77 @@ function NamesTable({
                 </td>
                 <td>
                   <input
+                    className="mrt-input"
+                    type="email"
+                    value={p.email || ""}
+                    onChange={(e) =>
+                      update((n) => {
+                        n.people[i].email = e.target.value;
+                      })
+                    }
+                  />
+                </td>
+                <td>
+                  <input
                     type="number"
                     min={0}
                     className="mrt-input"
                     style={{ width: 80 }}
                     value={p.weeklyCapacityHours}
+                    step={1}
                     onChange={(e) =>
                       update((n) => {
-                        n.people[i].weeklyCapacityHours = Number(e.target.value) || 0;
+                        n.people[i].weeklyCapacityHours = parseDecimal(e.target.value);
                       })
                     }
                   />
+                </td>
+                <td>
+                  <DollarRateInput
+                    value={p.internalRate || 0}
+                    onChange={(next) =>
+                      update((n) => {
+                        const prev = n.people[i].internalRate || 0;
+                        const keep = externalRateIsCustom(
+                          prev,
+                          n.people[i].externalRate || 0,
+                          n.externalRatePercent || 150,
+                        );
+                        n.people[i].internalRate = next;
+                        if (!keep) {
+                          n.people[i].externalRate = defaultExternalRate(
+                            next,
+                            n.externalRatePercent || 150,
+                          );
+                        }
+                      })
+                    }
+                  />
+                </td>
+                <td>
+                  <span className="inline-flex items-center gap-1">
+                    <DollarRateInput
+                      value={p.externalRate || 0}
+                      onChange={(next) =>
+                        update((n) => {
+                          n.people[i].externalRate = next;
+                        })
+                      }
+                    />
+                    <RateDot
+                      internal={p.internalRate || 0}
+                      external={p.externalRate || 0}
+                      percent={extPct}
+                      onReset={() =>
+                        update((n) => {
+                          n.people[i].externalRate = defaultExternalRate(
+                            n.people[i].internalRate || 0,
+                            n.externalRatePercent || 150,
+                          );
+                        })
+                      }
+                    />
+                  </span>
                 </td>
                 <td>
                   <button
@@ -513,13 +696,53 @@ function NamesTable({
             </td>
             <td>
               <input
+                className="mrt-input"
+                type="email"
+                placeholder="Email"
+                value={draftEmail}
+                onChange={(e) => setDraftEmail(e.target.value)}
+              />
+            </td>
+            <td>
+              <input
                 type="number"
                 min={0}
                 className="mrt-input"
                 style={{ width: 80 }}
                 value={draftHours}
-                onChange={(e) => setDraftHours(Number(e.target.value) || 0)}
+                step={1}
+                onChange={(e) => setDraftHours(parseDecimal(e.target.value))}
               />
+            </td>
+            <td>
+              <DollarRateInput
+                value={draftInternal}
+                onChange={(next) => {
+                  const keep = externalRateIsCustom(
+                    draftInternal,
+                    draftExternal,
+                    extPct,
+                  );
+                  setDraftInternal(next);
+                  if (!keep) setDraftExternal(defaultExternalRate(next, extPct));
+                }}
+              />
+            </td>
+            <td>
+              <span className="inline-flex items-center gap-1">
+                <DollarRateInput
+                  value={draftExternal}
+                  onChange={setDraftExternal}
+                />
+                <RateDot
+                  internal={draftInternal}
+                  external={draftExternal}
+                  percent={extPct}
+                  onReset={() =>
+                    setDraftExternal(defaultExternalRate(draftInternal, extPct))
+                  }
+                />
+              </span>
             </td>
             <td />
           </tr>
@@ -529,5 +752,51 @@ function NamesTable({
         + Person
       </button>
     </div>
+  );
+}
+
+function DollarRateInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <span className="mrt-dollar">
+      <span className="mrt-dollar-prefix">$</span>
+      <input
+        type="number"
+        min={0}
+        step={1}
+        className="mrt-input"
+        style={{ width: 80 }}
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) => onChange(parseDecimal(e.target.value))}
+      />
+    </span>
+  );
+}
+
+function RateDot({
+  internal,
+  external,
+  percent,
+  onReset,
+}: {
+  internal: number;
+  external: number;
+  percent: number;
+  onReset: () => void;
+}) {
+  const kind = externalRateDotKind(internal, external, percent);
+  if (!kind) return null;
+  return (
+    <button
+      type="button"
+      className={`mrt-rate-dot is-${kind}`}
+      title={`Reset to ${percent}% of internal`}
+      onClick={onReset}
+    />
   );
 }

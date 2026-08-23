@@ -1,4 +1,5 @@
 import { AI_COLOR, AI_LEGACY_GREEN } from "../catalog/lanes";
+import { defaultExternalRate, defaultInternalRateForRole, externalRateIsCustom } from "../catalog/roster";
 import type { ScheduleStore, ScheduledDetail } from "../schema";
 import { laneTemplateWeekWindow } from "./assignment";
 import { fyStartYm, monthIndex, todayYm } from "./dates";
@@ -71,6 +72,34 @@ export function normalizeScheduleStore(store: ScheduleStore): {
   if (next.openNotes === undefined) {
     next.openNotes = "";
     changed = true;
+  }
+
+  if (
+    next.externalRatePercent === undefined ||
+    !Number.isFinite(next.externalRatePercent)
+  ) {
+    next.externalRatePercent = 150;
+    changed = true;
+  }
+
+  for (const p of next.people) {
+    if (!p.internalRate) {
+      p.internalRate = defaultInternalRateForRole(p.role);
+      if (
+        !p.externalRate ||
+        !externalRateIsCustom(
+          p.internalRate,
+          p.externalRate,
+          next.externalRatePercent,
+        )
+      ) {
+        p.externalRate = defaultExternalRate(
+          p.internalRate,
+          next.externalRatePercent,
+        );
+      }
+      changed = true;
+    }
   }
 
   const desiredEpoch = fyStartYm();

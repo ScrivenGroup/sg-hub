@@ -26,18 +26,15 @@ export default async function SunwaterMrtPage() {
   return (
     <AppShell
       currentHref={HREF}
-      mainClassName="px-4 pb-8 pt-3"
-    >
-      <header className="mb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            {node.title}
-          </h1>
+      mainClassName="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3 pt-0"
+      title={
+        <h1 className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
+          <span className="truncate">{node.title}</span>
           <CodeBadge node={node} />
           <StatusPill status={node.status} />
-        </div>
-      </header>
-
+        </h1>
+      }
+    >
       <MrtWorkspace
         initialStore={store}
         changelogs={changelogs}

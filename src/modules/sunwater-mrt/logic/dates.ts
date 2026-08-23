@@ -92,6 +92,51 @@ export function weekEndingSunday(y: number, m1: number, d: number) {
   return { y: dt.getFullYear(), m1: dt.getMonth() + 1, d: dt.getDate() };
 }
 
+/** Monday of the week that ends on this Sunday. */
+export function weekSpanStartFromEndingSunday(y: number, m1: number, d: number) {
+  const dt = new Date(y, m1 - 1, d);
+  dt.setDate(dt.getDate() - 6);
+  return { y: dt.getFullYear(), m1: dt.getMonth() + 1, d: dt.getDate() };
+}
+
+/** 1-based count of Sundays in `y` up to and including this week-ending Sunday. */
+export function sundayWeekOfYear(y: number, m1: number, d: number) {
+  const we = weekEndingSunday(y, m1, d);
+  const first = new Date(we.y, 0, 1);
+  const firstDow = first.getDay();
+  const firstSunday = new Date(we.y, 0, 1 + ((7 - firstDow) % 7));
+  const weDt = new Date(we.y, we.m1 - 1, we.d);
+  if (weDt < firstSunday) return 52;
+  const diff = Math.round((weDt.getTime() - firstSunday.getTime()) / 86400000);
+  return Math.floor(diff / 7) + 1;
+}
+
+export function calendarToday(now = new Date()) {
+  return {
+    y: now.getFullYear(),
+    m1: now.getMonth() + 1,
+    d: now.getDate(),
+  };
+}
+
+export function ymdTime(y: number, m1: number, d: number) {
+  return Date.UTC(y, m1 - 1, d);
+}
+
+export function dueInLookahead(
+  due: { y: number; m1: number; d: number },
+  lookaheadMonths: number,
+  today = calendarToday(),
+) {
+  const dueT = ymdTime(due.y, due.m1, due.d);
+  const todayT = ymdTime(today.y, today.m1, today.d);
+  if (dueT <= todayT) return false;
+  if (!lookaheadMonths) return true;
+  const end = addMonths(today.y, today.m1, lookaheadMonths);
+  const endT = ymdTime(end.y, end.m, daysInMonth(end.y, end.m));
+  return dueT <= endT;
+}
+
 export function idxDayToDate(
   idx: number,
   day: number,

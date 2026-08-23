@@ -25,6 +25,8 @@ export function assignmentPlanToEffortDemo(
     due?: { y: number; m: number; d: number };
     tailWeeks?: number;
     windowStart?: { y: number; m: number; d: number };
+    hoursOrigin?: { y: number; m: number; d: number };
+    stick?: EffortDemo["stick"];
     people?: ScheduleStore["people"];
   } = {},
 ): EffortDemo {
@@ -38,9 +40,14 @@ export function assignmentPlanToEffortDemo(
     if (!isLeafTask(t)) continue;
     const start = t.start ?? 0;
     const resources: EffortResource[] = [];
-    for (const [key, hours] of Object.entries(t.assign || {})) {
+    const keys = new Set([
+      ...Object.keys(t.assign || {}),
+      ...Object.keys(t.actual || {}),
+    ]);
+    for (const key of keys) {
+      const hours = t.assign?.[key] || [];
       const global = Array.from({ length: weekCount }, () => 0);
-      (hours || []).forEach((h, i) => {
+      hours.forEach((h, i) => {
         const idx = start + i;
         if (idx >= 0 && idx < weekCount) global[idx] = Number(h) || 0;
       });
@@ -59,20 +66,23 @@ export function assignmentPlanToEffortDemo(
         role,
         personId,
         hours: global,
+        actualHours: t.actual?.[key]?.hours,
+        actualCost: t.actual?.[key]?.cost,
       });
     }
     tasks.push({
       id: t.id || effortId("t-"),
       name: t.name || "Task",
+      status: t.status || "not-started",
       resources,
     });
   }
 
   return ensureEffortDemo({
     weekCount,
-    stick: "unstick",
+    stick: opts.stick ?? "tail-start",
     windowStart: opts.windowStart,
-    hoursOrigin: opts.windowStart,
+    hoursOrigin: opts.hoursOrigin ?? opts.windowStart,
     milestone: {
       label: "Milestone",
       due,
@@ -90,6 +100,7 @@ export function effortDemoToAssignmentPlan(
   const { n } = calendarWindow(d);
   const tasks: PlanTask[] = d.tasks.map((task) => {
     const assign: Record<string, number[]> = {};
+    const actual: Record<string, { hours?: number; cost?: number }> = {};
     const windowed = task.resources.map((res) => ({
       res,
       hours: windowHours(d, res.hours),
@@ -99,15 +110,26 @@ export function effortDemoToAssignmentPlan(
     const dur = Math.max(1, merged.dur || 1);
     for (const { res, hours } of windowed) {
       const slice = hours.slice(start, start + dur);
-      if (!slice.some((h) => (Number(h) || 0) > 0)) continue;
       const key =
         opts.assignMode === "people"
           ? res.personId || (res.role ? `role:${res.role}` : res.id)
           : res.role || "Lead";
-      if (assign[key]) {
-        assign[key] = assign[key].map((h, i) => (Number(h) || 0) + (Number(slice[i]) || 0));
-      } else {
-        assign[key] = slice;
+      const hasHours = slice.some((h) => (Number(h) || 0) > 0);
+      if (hasHours) {
+        if (assign[key]) {
+          assign[key] = assign[key].map((h, i) => (Number(h) || 0) + (Number(slice[i]) || 0));
+        } else {
+          assign[key] = slice;
+        }
+      }
+      const ah = Number(res.actualHours) || 0;
+      const ac = Number(res.actualCost) || 0;
+      if (ah || ac) {
+        const prev = actual[key] || {};
+        actual[key] = {
+          hours: (Number(prev.hours) || 0) + ah || undefined,
+          cost: (Number(prev.cost) || 0) + ac || undefined,
+        };
       }
     }
     return {
@@ -118,6 +140,8 @@ export function effortDemoToAssignmentPlan(
       start,
       dur,
       assign,
+      status: task.status || "not-started",
+      actual: Object.keys(actual).length ? actual : undefined,
     };
   });
   return { tasks, weekCount: n };

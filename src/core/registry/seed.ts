@@ -84,7 +84,7 @@ export const seedNodes: RegistryNode[] = [
     parentId: "hub-work",
     href: "/w/sunwater-mrt",
     accessMode: "shared",
-    status: "building",
+    status: "live",
     hasNetworkMap: false,
     description:
       "Sunwater client — dam-safety obligation cycles with frequency-based predicted milestones.",
@@ -252,7 +252,7 @@ export const seedChangelogs: ChangelogEntry[] = [
 **Surfaces:** Gantt | Obligations (apply / types / dams / lead times / ownership) | People | Defaults. Occurrence is a modal. Followups, Assumptions, and non-resource/intangibles costing are out of v1.
 
 ### Status
-- building
+- live
 `,
   },
   {
@@ -317,14 +317,126 @@ export const seedChangelogs: ChangelogEntry[] = [
 - Development drops Product plan and Future Planning; WIP lives in 0.9.`,
   },
   {
-    id: "cl-sunwater-mrt-0.9",
+    id: "cl-sunwater-mrt-0.9-rel",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "0.9",
+    createdAt: "2026-08-19T10:20:00.000Z",
+    title: "Resource allocation split-view",
+    body: `- Gantt tab splits horizontally: milestone chart on top, people hours vs monthly capacity below on the same timescale.
+- Yellow and red cells list contributing dam × obligation; click through to the occurrence popup.
+- Heatmap only — no auto-leveling. Resources toggle restores a full-height Gantt.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.10",
     nodeId: "w-sunwater-mrt",
     kind: "plan",
-    version: "0.9",
-    createdAt: "2026-08-19T09:05:00.000Z",
-    title: "WIP",
-    body: `- Gantt split-view: people hours vs weekly capacity on the same timescale as the MS Gantt; click an overage to open contributing occurrences (heatmap only, no leveling).
+    version: "0.10",
+    createdAt: "2026-08-19T16:00:00.000Z",
+    title: "Grouped Gantt, rates, and split panes",
+    body: `- Grouped Gantt uses nested Dam/Obligation labels; the combined header sorts parent groups.
+- Ongoing means the milestone tail crosses today (due RAG yellow). Overdue is due before today and not complete. Upcoming is a due-date lookahead of every status.
+- Definitions Asset × Role shows L0/L1/L2 hierarchy with inherit and unassigned captions. Resource Names include email plus internal/external rates (150% autofill; blue dot when custom).
+- Occurrence popup: type opens Defaults for that lane; Save and Close; save does not actualise unchanged predicted dates; columns popover is no longer clipped.
+- Gantt tab Splitscreen/X panes (default Gantt only). Heatmap shows hours inside each person's chunk, including zeros. Week cells when few months fit, with lightened month lines.
+- Dark grey bar under the milestone tail matches the Effort Gantt All-row span.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.11",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.11",
+    createdAt: "2026-08-20T03:30:00.000Z",
+    title: "Week tails, seed rates, and resource summary",
+    body: `- MS Gantt tails follow saved Effort popup \`tailWeeks\` (week-accurate), not month columns.
+- Effort popup: darker live tail; pan no longer grows the calendar; Centre around Gantt; default stick to tail start.
+- Resource Names seed rates (Lead $250, Engineer $200, Support $150) and a full draft row. Heatmap zeros between obligations stay blank.
+- Resource hours title bar holds the close control. Heatmap-only keeps a timescale; split uses a compact header.
+- Week cutoff and Force weeks apply to the MS Gantt (W1–W52, Sunday week-end) as well as the heatmap.
+- Effort Gantt shows over-capacity week tint on named people plus a filterable resource summary (this occurrence only).
+- Baseline stays visible but disabled — parked with Actuals capturing for a later pass.
 - Public hub share: read-only URL, optional password, no Entra account (feedback \`fb-public-hub-share\`).`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.12",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.12",
+    createdAt: "2026-08-20T05:00:00.000Z",
+    title: "Infinite pan, cost columns, and equal week scale",
+    body: `- Effort popup pans infinitely again (calendar grows at the edges without jumping dates) and pads weeks so the chart fills the popup.
+- Predicted stick defaults to tail start; scheduled occurrences keep the last stick, window start, and hours origin so dragging All no longer shifts on reopen.
+- Columns: Availability (remaining hours on named people) and Total Cost (external rate, hidden by default). Resource summary sits under the week columns with Total hours, Total Cost, and a totals row.
+- Resource Names: Overrun Hours % above hours, External $/h % above external; dollar-formatted rates; blue/orange dots when external is under/over the %.
+- MS Gantt and heatmap week columns are equal width (months/years overlay). Month lines are stronger than week lines. Tail hours bar is lighter, ~80% of tail thickness, and flush.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.13",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.13",
+    createdAt: "2026-08-20T05:40:00.000Z",
+    title: "Hours origin, restore, and Gantt jump",
+    body: `- Effort hours map to the saved calendar window (All-shadow and heatmap no longer clip to the lead-in). Pad/save/load keep hoursOrigin on windowStart so Save and Close does not slip weeks.
+- Restore Effort Gantt snaps hours onto the tail start. Availability sits on the toolbar; resource summary highlights names without filtering. Placeholder Actual hours / Actual $ columns.
+- Compact heatmap shows month letters above week numbers. Resource Names rate-dot resets external to the %; Resource Roles keep focus while typing.
+- Inputs and Definitions cross-link; Obligations Go to Gantt centres that occurrence.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.14",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.14",
+    createdAt: "2026-08-20T06:30:00.000Z",
+    title: "Actuals, restore pulse, and stacked rebalance",
+    body: `- Defaults Lead-in and Task+Resource Effort cross-link to Inputs (Assets, Obligation Types, Resource Roles).
+- Obligations Go to Gantt pulses the centred marker. Effort role change keeps the name and warns when they will show *.
+- Occurrence Effort: per-task status and editable Actual hours / Actual $ totals. Defaults stay plan-only. Heatmap remains planned hours.
+- Heatmap Rebalance all stacks contributing occurrence Effort charts on a shared week axis for manual hour edits. No leveling.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.9",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "0.15",
+    createdAt: "2026-08-21T01:30:00.000Z",
+    title: "Popup shell, grain toggle, and filter checklists",
+    body: `- Hours, rates, and money commit at 2 d.p.; steppers move by 1. Splitscreen drag updates height in the DOM until mouse up.
+- Columns popover closes on outside click. Restore Effort / Milestone keeps the week window. Milestone, All, and Resource summary headings are larger.
+- Resource summary: Name/Role stay in the name pane; Role lists assigned roles with *; Start/Finish dates; This milestone vs Everywhere; Total vs Available/over.
+- Enable Project Management (off by default) shows status, actuals, FAC, and VAC. FAC is actuals plus planned from today; VAC is FAC minus budget.
+- Rebalance popup: one toolbar, stacked Milestone→resource charts, one summary, body scroll, Centre at timeline start, red-cell hover table. Heatmap stays planned hours.
+- Stacked charts share one week axis and scrollLeft; the popup body scrolls vertically so Close stays on screen. Obligation text sits on the Milestone row; Reset icons on Milestone and All restore due/tail or hours to Defaults without snapping to the tail.
+- Enable Project Management is a checkbox in its own group. Resource summary uses This milestone | Everywhere and Total | Available/over segments.
+- Site header is full width (logo left, MRT title centre, Home / Site network / Feedback / Profile right). Product tabs stick at the top of the MRT body.
+- Gantt chrome: grouped slim filter row with overlay Asset / Type / Due / Legend; Dam↔Obl, Flatten, zoom, and FY timeline share one row above the chart.
+- Occurrence and Rebalance share one popup shell (Close top-right, Esc, in-popup vertical scroll, one table). Rebalance only adds extra obligation rows. Red-cell hover shows all/available with RAG colour and highlights the hovered week.
+- Effort popup uses a definite height with a visible Y-scrollbar on the table; Task/Role/Name stay frozen while only the week columns H-scroll. Collapsed obligations no longer leave empty 280px gaps. MS Gantt Timescale and Rows are bordered zoom chips.
+- Effort popup is a grid-capped overlay (never taller than the window). The table Y-scrolls; Save/Close stay pinned. Rebalance has Save assignment / Save and Close; stacked hour edits draft until Save.
+- Red-cell hover portals above frozen Task/Role/Name labels.
+- MS Gantt milestone drag moves All Tasks with the diamond (tail-end shift, stick unchanged).
+- Timescale grain is a Weeks/Months toggle; the Wks cutoff is gone.
+- Asset and Type filters (Gantt and Obligations) have Select all / Clear all.
+- Rows zoom sizes Resource hours; Name and Role sit on one line.`,
+  },
+  {
+    id: "cl-sunwater-mrt-1.0",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "1.0",
+    createdAt: "2026-08-23T04:00:00.000Z",
+    title: "Milestone Resourcing Tracker",
+    body: `Sunwater dam-safety obligations as regulator cycles (each dam × requirement type × due date), not named project milestones. Shared Work hub for Scriven Group staff (Microsoft sign-in).
+
+What you can do
+- Gantt: predicted and scheduled occurrences on a cyclical timeline. Filter by asset, type, and due; Weeks or Months; zoom timescale and rows. Resource-hours pane shows planned load (blank under capacity, yellow over 100%, red over the overrun threshold). Drag a milestone diamond to move its due and the attached task hours.
+- Occurrence popup: set due and lead-in/tail, assign people, and plan hours on the Effort chart. Rebalance stacks several obligations for one person when they are over. Save / Save and Close; Close discards unsaved hour edits.
+- Obligations: table of occurrences with plan status, due, and lead-in. Filter assets and obligation types (Select all / Clear all).
+- Inputs: assets, obligation types, which types apply to which dams, named people, roles, weekly available hours, overrun threshold (default 125%).
+- Definitions and Defaults: catalog labels plus role-hour templates that seed an occurrence once (later Defaults edits do not overwrite a saved plan).
+
+Out of this version
+- Followups, Assumptions, non-resource costing, and automatic leveling. Heatmap is planned hours only. No client logins.`,
   },
 ];
 

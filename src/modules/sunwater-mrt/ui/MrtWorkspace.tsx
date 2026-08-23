@@ -5,10 +5,10 @@ import type { ChangelogEntry } from "@/core/contracts/types";
 import { saveSunwaterMrtStoreAction } from "../actions";
 import type { ScheduleStore } from "../schema";
 import { DefaultsTab } from "./DefaultsTab";
-import { DefinitionsTab } from "./DefinitionsTab";
+import { DefinitionsTab, type DefinitionsSub } from "./DefinitionsTab";
 import { DevelopmentTab } from "./DevelopmentTab";
-import { GanttTab } from "./GanttTab";
-import { InputsTab } from "./InputsTab";
+import { GanttTab, type GanttOccurrenceFocus } from "./GanttTab";
+import { InputsTab, type InputsSub } from "./InputsTab";
 import { ObligationsTab } from "./ObligationsTab";
 import "./mrt-tables.css";
 
@@ -35,6 +35,10 @@ export function MrtWorkspace({
     ? ([...BASE_TABS, "Development"] as const)
     : BASE_TABS;
   const [tab, setTab] = useState<string>("Gantt");
+  const [defaultsLane, setDefaultsLane] = useState<string | null>(null);
+  const [inputsSub, setInputsSub] = useState<InputsSub | null>(null);
+  const [defsSub, setDefsSub] = useState<DefinitionsSub | null>(null);
+  const [ganttFocus, setGanttFocus] = useState<GanttOccurrenceFocus | null>(null);
   const [store, setStore] = useState(initialStore);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
@@ -62,12 +66,12 @@ export function MrtWorkspace({
   }, []);
 
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--page)] pt-1">
         <div
           role="tablist"
           aria-label="Milestone Resourcing Tracker"
-          className="flex flex-wrap gap-1 border-b border-[var(--border)]"
+          className="flex flex-wrap gap-1"
         >
           {tabs.map((id) => {
             const selected = id === tab;
@@ -100,18 +104,70 @@ export function MrtWorkspace({
         </p>
       </div>
 
+      <div
+        className={`flex min-h-0 flex-1 flex-col pt-2 ${
+          tab === "Gantt" ? "overflow-hidden" : "overflow-auto"
+        }`}
+      >
       {tab === "Gantt" ? (
-        <GanttTab store={store} onChange={persist} readOnly={readOnly} />
+        <GanttTab
+          store={store}
+          onChange={persist}
+          readOnly={readOnly}
+          focusOccurrence={ganttFocus}
+          onFocusConsumed={() => setGanttFocus(null)}
+          onGoToDefaults={(laneCode) => {
+            setDefaultsLane(laneCode);
+            setTab("Defaults");
+          }}
+        />
       ) : null}
       {tab === "Obligations" ? (
-        <ObligationsTab store={store} onChange={persist} />
+        <ObligationsTab
+          store={store}
+          onChange={persist}
+          onGoToDefaults={(laneCode) => {
+            setDefaultsLane(laneCode);
+            setTab("Defaults");
+          }}
+          onGoToGantt={(focus) => {
+            setGanttFocus(focus);
+            setTab("Gantt");
+          }}
+        />
       ) : null}
-      {tab === "Inputs" ? <InputsTab store={store} onChange={persist} /> : null}
+      {tab === "Inputs" ? (
+        <InputsTab
+          store={store}
+          onChange={persist}
+          focusSub={inputsSub}
+          onGoToDefinitions={(sub) => {
+            setDefsSub(sub);
+            setTab("Definitions");
+          }}
+        />
+      ) : null}
       {tab === "Definitions" ? (
-        <DefinitionsTab store={store} onChange={persist} />
+        <DefinitionsTab
+          store={store}
+          onChange={persist}
+          focusSub={defsSub}
+          onGoToInputs={(sub) => {
+            setInputsSub(sub);
+            setTab("Inputs");
+          }}
+        />
       ) : null}
       {tab === "Defaults" ? (
-        <DefaultsTab store={store} onChange={persist} />
+        <DefaultsTab
+          store={store}
+          onChange={persist}
+          focusLane={defaultsLane}
+          onGoToInputs={(sub) => {
+            setInputsSub(sub);
+            setTab("Inputs");
+          }}
+        />
       ) : null}
       {tab === "Development" ? (
         <DevelopmentTab
@@ -120,6 +176,7 @@ export function MrtWorkspace({
           onChange={persist}
         />
       ) : null}
+      </div>
     </div>
   );
 }

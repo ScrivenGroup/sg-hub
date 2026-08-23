@@ -14,6 +14,10 @@ import {
   monthIndex,
 } from "../logic/dates";
 import {
+  ensureEffortDemo,
+  syncHoursOriginToWindow,
+} from "../logic/effort-gantt";
+import {
   assignmentPlanToEffortDemo,
   effortDemoToAssignmentPlan,
 } from "../logic/plan-effort-bridge";
@@ -28,6 +32,7 @@ import {
 } from "../logic/scheduling";
 import { planStatusKind, planStatusLabel } from "../logic/status";
 import { EffortGantt } from "./EffortGantt";
+import { EffortPopupShell } from "./EffortPopupShell";
 
 function dueYmd(
   dueIdx: number,
@@ -58,13 +63,18 @@ function demoFromPlan(
   plan: ScheduleStore["scheduledDetails"][string]["plan"],
   due: { y: number; m: number; d: number },
   weeks: { length: number; 0?: { y?: number; m1?: number; d?: number } },
+  tailWeeks?: number,
+  saved?: ScheduleStore["scheduledDetails"][string],
 ) {
+  const origin = weekOrigin(weeks as { y?: number; m1?: number; d?: number }[]);
   return assignmentPlanToEffortDemo(
     plan || seedPlanFromDefaults(store, laneCode, weeks.length, damId),
     {
       due,
-      tailWeeks: Math.max(1, weeks.length),
-      windowStart: weekOrigin(weeks as { y?: number; m1?: number; d?: number }[]),
+      tailWeeks: Math.max(1, tailWeeks ?? weeks.length),
+      windowStart: saved?.windowStart || origin,
+      hoursOrigin: saved?.windowStart || origin,
+      stick: saved?.stick || "tail-start",
       people: store.people,
     },
   );
@@ -76,12 +86,14 @@ export function OccurrenceModal({
   onClose,
   onChange,
   readOnly = false,
+  onGoToDefaults,
 }: {
   store: ScheduleStore;
   marker: GanttMarker;
   onClose: () => void;
   onChange: (store: ScheduleStore) => void;
   readOnly?: boolean;
+  onGoToDefaults?: (laneCode: string) => void;
 }) {
   const dam = store.dams.find((d) => d.id === marker.damId)!;
   const lane = store.lanes.find((l) => l.code === marker.laneCode)!;
@@ -131,6 +143,8 @@ export function OccurrenceModal({
       sd.plan,
       due,
       weeks,
+      sd.tailWeeks,
+      sd,
     ),
   );
 
@@ -151,48 +165,49 @@ export function OccurrenceModal({
   function savePlan() {
     if (readOnly) return;
     const ms = demo.milestone;
-    patchDetail({
-      plan: effortDemoToAssignmentPlan(demo, { assignMode: "people" }),
-      dueIdxOverride: monthIndex(ms.due.y, ms.due.m, winStart),
-      dueDayOverride: ms.due.d,
-      leadInOverrideMonths: leadMonthsFromTailWeeks(
+    const base = baselineDemo.milestone;
+    const dueIdx = monthIndex(ms.due.y, ms.due.m, winStart);
+    const baseDueIdx = monthIndex(base.due.y, base.due.m, winStart);
+    const datesDiffer =
+      dueIdx !== baseDueIdx ||
+      ms.due.d !== base.due.d ||
+      ms.tailWeeks !== base.tailWeeks;
+    const synced = ensureEffortDemo(demo);
+    syncHoursOriginToWindow(synced);
+    setDemo(synced);
+    const plan = effortDemoToAssignmentPlan(synced, { assignMode: "people" });
+    const basePlan = effortDemoToAssignmentPlan(baselineDemo, {
+      assignMode: "people",
+    });
+    const planDiffer = JSON.stringify(plan) !== JSON.stringify(basePlan);
+    const next: ScheduleStore = JSON.parse(JSON.stringify(store));
+    const existing = next.scheduledDetails[key] || {};
+    const saved: ScheduleStore["scheduledDetails"][string] = {
+      ...existing,
+      plan,
+      stick: synced.stick,
+      windowStart: synced.windowStart,
+      hoursOrigin: synced.windowStart,
+    };
+    if (datesDiffer) {
+      saved.dueIdxOverride = dueIdx;
+      saved.dueDayOverride = ms.due.d;
+      saved.tailWeeks = Math.max(1, Math.round(ms.tailWeeks) || 1);
+      saved.leadInOverrideMonths = leadMonthsFromTailWeeks(
         ms.due.y,
         ms.due.m,
         ms.due.d,
         ms.tailWeeks,
-      ),
-    });
-  }
-
-  function restoreEffortGantt() {
-    if (readOnly) return;
-    setDemo(baselineDemo);
-    const next: ScheduleStore = JSON.parse(JSON.stringify(store));
-    const existing = next.scheduledDetails[key] || {};
-    next.scheduledDetails[key] = {
-      history: existing.history,
-      completed: existing.completed,
-      plan: effortDemoToAssignmentPlan(baselineDemo, { assignMode: "people" }),
-    };
-    onChange(next);
-  }
-
-  function restoreMilestoneAndTail() {
-    if (readOnly) return;
-    const next: ScheduleStore = JSON.parse(JSON.stringify(store));
-    const existing = next.scheduledDetails[key] || {};
-    const { dueIdxOverride: _d, dueDayOverride: _dd, leadInOverrideMonths: _l, ...rest } =
-      existing;
-    next.scheduledDetails[key] = rest;
-    setDemo((cur) => ({
-      ...cur,
-      milestone: {
-        ...cur.milestone,
-        due: baselineDemo.milestone.due,
-        tailWeeks: baselineDemo.milestone.tailWeeks,
-      },
-      windowStart: baselineDemo.windowStart || cur.windowStart,
-    }));
+      );
+    } else {
+      delete saved.dueIdxOverride;
+      delete saved.dueDayOverride;
+      delete saved.leadInOverrideMonths;
+      delete saved.tailWeeks;
+    }
+    if (datesDiffer || planDiffer) saved.actualised = true;
+    else delete saved.actualised;
+    next.scheduledDetails[key] = saved;
     onChange(next);
   }
 
@@ -223,92 +238,94 @@ export function OccurrenceModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
-      <div className="sg-card flex max-h-[calc(100vh-1.5rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden">
-        <div className="mb-3 flex shrink-0 flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold">
-              <span>
-                {dam.name} · {lane.code}
-              </span>
-              <span className={statusChipClass(kind)}>{planStatusLabel(kind)}</span>
-            </h2>
-            <p className="text-sm text-[var(--muted)]">
-              {lane.label} · due {fullDateLabel(dueIdx, dueDay, winStart)} ·
-              procedural {fullDateLabel(marker.procDueIdx, procDay, winStart)}
-            </p>
-          </div>
-          <button type="button" className="sg-btn-ghost" onClick={onClose}>
-            Close
+    <EffortPopupShell
+      onClose={onClose}
+      title={
+        <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold">
+          <span>{dam.name}</span>
+          <button
+            type="button"
+            className="mrt-type-link"
+            title="Open Defaults for this obligation type"
+            onClick={() => {
+              onGoToDefaults?.(lane.code);
+              onClose();
+            }}
+          >
+            {lane.code} {lane.label}
           </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-auto pb-6">
-          <EffortGantt
-            store={store}
-            onChange={onChange}
-            demo={demo}
-            onDemoChange={setDemo}
-            lockedPlace="milestone"
-            readOnly={readOnly}
-            toolbarNote={null}
-            baselineDemo={baselineDemo}
-          />
-        </div>
-
-        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="sg-btn-secondary"
-              disabled={readOnly}
-              onClick={restoreMilestoneAndTail}
-            >
-              Restore to Default — Milestone and Tail
-            </button>
-            <button
-              type="button"
-              className="sg-btn-secondary"
-              disabled={readOnly}
-              onClick={restoreEffortGantt}
-            >
-              Restore to Default — Effort Gantt
-            </button>
-            {readOnly || kind === "completed" ? null : (
+          <span className={statusChipClass(kind)}>{planStatusLabel(kind)}</span>
+        </h2>
+      }
+      subtitle={
+        <p className="text-sm text-[var(--muted)]">
+          Due {fullDateLabel(dueIdx, dueDay, winStart)} ·
+          procedural {fullDateLabel(marker.procDueIdx, procDay, winStart)}
+        </p>
+      }
+      footer={
+        <>
+          <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {readOnly || kind === "completed" ? null : (
+                <button
+                  type="button"
+                  className="mrt-btn-remove"
+                  onClick={removeMilestone}
+                >
+                  Remove this milestone
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={readOnly}
+                  checked={!!sd.completed}
+                  onChange={(e) => patchDetail({ completed: e.target.checked })}
+                />
+                Completed
+              </label>
               <button
                 type="button"
-                className="mrt-btn-remove"
-                onClick={removeMilestone}
-              >
-                Remove this milestone
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+                className="sg-btn-primary"
                 disabled={readOnly}
-                checked={!!sd.completed}
-                onChange={(e) => patchDetail({ completed: e.target.checked })}
-              />
-              Completed
-            </label>
-            <button
-              type="button"
-              className="sg-btn-primary"
-              disabled={readOnly}
-              onClick={savePlan}
-            >
-              Save assignment
-            </button>
+                onClick={savePlan}
+              >
+                Save assignment
+              </button>
+              <button
+                type="button"
+                className="sg-btn-primary"
+                disabled={readOnly}
+                onClick={() => {
+                  savePlan();
+                  onClose();
+                }}
+              >
+                Save and Close
+              </button>
+            </div>
           </div>
-        </div>
-        <p className="mt-2 shrink-0 text-xs text-[var(--muted)]">
-          Seeded once from Defaults. Changing Defaults later does not overwrite
-          this occurrence until you restore.
-        </p>
-      </div>
-    </div>
+          <p className="mt-2 shrink-0 text-xs text-[var(--muted)]">
+            Seeded once from Defaults. Changing Defaults later does not overwrite
+            this occurrence until you restore.
+          </p>
+        </>
+      }
+    >
+      <EffortGantt
+        store={store}
+        onChange={onChange}
+        demo={demo}
+        onDemoChange={setDemo}
+        lockedPlace="milestone"
+        readOnly={readOnly}
+        toolbarNote={null}
+        baselineDemo={baselineDemo}
+        redHover
+      />
+    </EffortPopupShell>
   );
 }

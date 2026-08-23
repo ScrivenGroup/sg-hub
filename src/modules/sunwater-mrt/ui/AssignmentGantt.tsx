@@ -10,6 +10,7 @@ import {
   setTaskHour,
 } from "../logic/assignment";
 import { ragClass } from "../logic/status";
+import { parseDecimal } from "../logic/numbers";
 
 type Week = { idx: number; label: string };
 
@@ -112,11 +113,11 @@ export function AssignmentGantt({
                           <input
                             type="number"
                             min={0}
-                            step={0.5}
+                            step={1}
                             className="h-8 w-12 rounded border border-[var(--border)] bg-[var(--surface)] text-center"
                             value={hours || ""}
                             onChange={(e) => {
-                              const v = Number(e.target.value);
+                              const v = parseDecimal(e.target.value);
                               update((p) => {
                                 const t = p.tasks.find((x) => x.id === task.id);
                                 if (!t) return;
@@ -124,7 +125,7 @@ export function AssignmentGantt({
                                   t,
                                   rid,
                                   w.idx,
-                                  Number.isFinite(v) ? v : 0,
+                                  v,
                                   weekCount,
                                 );
                               });

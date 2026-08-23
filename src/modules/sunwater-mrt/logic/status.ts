@@ -37,12 +37,10 @@ export function ragClass(kind: ReturnType<typeof ragStatus>) {
 }
 
 export function nextDueRag(
-  displayDueIdx: number,
-  overdue: boolean,
-  tIdx: number,
+  status: "overdue" | "ongoing" | "upcoming",
 ): "red" | "yellow" | "none" {
-  if (overdue || displayDueIdx < tIdx) return "red";
-  if (displayDueIdx - tIdx <= 3) return "yellow";
+  if (status === "overdue") return "red";
+  if (status === "ongoing") return "yellow";
   return "none";
 }
 

@@ -2,8 +2,11 @@ import type { AssignmentPlan, PlanTask, ScheduleStore } from "../schema";
 import { emptyPlan } from "../schema";
 import {
   defaultDueDayForIdx,
+  idxDayToContinuous,
   idxDayToDate,
+  monthIndex,
   weekEndingSunday,
+  weekSpanStartFromEndingSunday,
 } from "./dates";
 import { effectiveDueIdx, effectiveLead, schedKey } from "./scheduling";
 import { ragStatus } from "./status";
@@ -161,6 +164,30 @@ export function laneTemplateWeekWindow(store: ScheduleStore, laneCode: string) {
   return relativeWeekWindow(weekCountFromLeadMonths(lead));
 }
 
+export function weeksCoveringTailWeeks(
+  dueY: number,
+  dueM1: number,
+  dueD: number,
+  tailWeeks: number,
+) {
+  const n = Math.max(1, Math.round(tailWeeks) || 1);
+  const dueWE = weekEndingSunday(dueY, dueM1, dueD);
+  const weeks: { idx: number; y: number; m1: number; d: number; label: string; relative?: boolean }[] = [];
+  const cur = new Date(dueWE.y, dueWE.m1 - 1, dueWE.d);
+  cur.setDate(cur.getDate() - (n - 1) * 7);
+  for (let i = 0; i < n; i++) {
+    weeks.push({
+      idx: i,
+      y: cur.getFullYear(),
+      m1: cur.getMonth() + 1,
+      d: cur.getDate(),
+      label: weekEndingLabel(cur.getFullYear(), cur.getMonth() + 1, cur.getDate()),
+    });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}
+
 export function occurrenceWeekWindow(
   store: ScheduleStore,
   damId: string,
@@ -176,6 +203,78 @@ export function occurrenceWeekWindow(
   const lead = effectiveLead(store, dam, lane, procDueIdx);
   const due = idxDayToDate(dueIdx, dueDay);
   return weeksCoveringLeadIn(due.y, due.m1, due.d, lead);
+}
+
+export function weeksFromSunday(
+  start: { y: number; m?: number; m1?: number; d: number },
+  count: number,
+) {
+  const m1 = start.m1 || start.m || 1;
+  const n = Math.max(1, Math.round(count) || 1);
+  const weeks: {
+    idx: number;
+    y: number;
+    m1: number;
+    d: number;
+    label: string;
+    relative?: boolean;
+  }[] = [];
+  const cur = new Date(start.y, m1 - 1, start.d);
+  for (let i = 0; i < n; i++) {
+    weeks.push({
+      idx: i,
+      y: cur.getFullYear(),
+      m1: cur.getMonth() + 1,
+      d: cur.getDate(),
+      label: weekEndingLabel(cur.getFullYear(), cur.getMonth() + 1, cur.getDate()),
+    });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}
+
+/** Calendar Sundays covering a saved plan (or the lead-in window). Not clipped to due. */
+export function occurrencePlanWeeks(
+  store: ScheduleStore,
+  damId: string,
+  laneCode: string,
+  procDueIdx: number,
+) {
+  const occ = occurrenceWeekWindow(store, damId, laneCode, procDueIdx);
+  const key = schedKey(damId, laneCode, procDueIdx);
+  const sd = store.scheduledDetails[key];
+  const weekCount = Math.max(1, sd?.plan?.weekCount || occ.length);
+  if (sd?.windowStart) return weeksFromSunday(sd.windowStart, weekCount);
+  const origin = occ[0] as { y?: number; m1?: number; d?: number } | undefined;
+  if (origin?.y && origin.m1 && origin.d) {
+    return weeksFromSunday({ y: origin.y, m1: origin.m1, d: origin.d }, weekCount);
+  }
+  return occ;
+}
+
+export function occurrenceTailStartContinuous(
+  store: ScheduleStore,
+  damId: string,
+  laneCode: string,
+  procDueIdx: number,
+  windowStart: { y: number; m: number },
+): number | null {
+  const dam = store.dams.find((d) => d.id === damId);
+  const lane = store.lanes.find((l) => l.code === laneCode);
+  if (!dam || !lane) return null;
+  const dueIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
+  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
+  const dueDay = sd?.dueDayOverride ?? defaultDueDayForIdx(dueIdx);
+  const due = idxDayToDate(dueIdx, dueDay);
+  const weeks = sd?.tailWeeks
+    ? weeksCoveringTailWeeks(due.y, due.m1, due.d, sd.tailWeeks)
+    : occurrenceWeekWindow(store, damId, laneCode, procDueIdx);
+  const w0 = weeks[0] as { y?: number; m1?: number; d?: number } | undefined;
+  if (!w0?.y || !w0.m1 || !w0.d) return null;
+  const start = weekSpanStartFromEndingSunday(w0.y, w0.m1, w0.d);
+  const idx = monthIndex(start.y, start.m1, windowStart);
+  if (idx < 0) return 0;
+  return idxDayToContinuous(idx, start.d, windowStart);
 }
 
 export function coerceDefaultAssignToRoles(

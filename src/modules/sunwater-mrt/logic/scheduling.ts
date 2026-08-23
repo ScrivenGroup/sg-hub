@@ -3,12 +3,14 @@ import { laneApplies } from "./applicability";
 import { nextDueRag, planStatusKind } from "./status";
 import {
   addMonths,
+  calendarToday,
   clampHorizonYears,
   defaultDueDayForIdx,
   frequencyToMonths,
   fullDateLabel,
   fyEndYearFromIdx,
   idxDayOnOrAfterDate,
+  idxDayToDate,
   idxToShortLabel,
   idxToYm,
   monthIndex,
@@ -16,6 +18,8 @@ import {
   storeBaseline,
   todayIdx,
   todayYm,
+  weekEndingSunday,
+  ymdTime,
   ymOnOrAfter,
 } from "./dates";
 
@@ -287,15 +291,15 @@ export function nextDueChip(
   store: ScheduleStore,
   dam: Dam,
   lane: Lane,
-  tIdx = todayIdx(),
 ): NextDueChip | null {
   const info = nextDueInfo(store, dam, lane);
   if (!info) return null;
   const procDueIdx = Math.round(info.dueIdx);
   const displayIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
   const dueDay = effectiveDueDay(store, dam, lane, procDueIdx);
-  const overdue = info.overdue || displayIdx < tIdx;
-  const rag = nextDueRag(displayIdx, overdue, tIdx);
+  const st = occurrenceStatus(store, dam, lane, procDueIdx);
+  const overdue = st.status === "overdue";
+  const rag = nextDueRag(st.status);
   const short = idxToShortLabel(displayIdx);
   const full = fullDateLabel(displayIdx, dueDay);
   return {
@@ -328,17 +332,42 @@ export function occurrenceStatus(
   displayDueIdx: number;
   displayLeadStart: number;
 } {
-  const lead = effectiveLead(store, dam, lane, dueIdxRounded);
+  const winStart = storeWindow(store).start;
   const displayDueIdx = effectiveDueIdx(store, dam, lane, dueIdxRounded);
-  const displayLeadStart = displayDueIdx - lead;
-  const tIdx = todayIdx();
-  const leadStart = dueIdxRounded - lead;
-  const status =
-    displayDueIdx < tIdx
-      ? "overdue"
-      : displayLeadStart <= tIdx
-        ? "ongoing"
-        : "upcoming";
+  const dueDay = effectiveDueDay(store, dam, lane, dueIdxRounded, winStart);
+  const due = idxDayToDate(displayDueIdx, dueDay, winStart);
+  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, dueIdxRounded)];
+  const today = calendarToday();
+  const todayT = ymdTime(today.y, today.m1, today.d);
+  const dueT = ymdTime(due.y, due.m1, due.d);
+  let leadStartY: number;
+  let leadStartM1: number;
+  let leadStartD: number;
+  let displayLeadStart: number;
+  if (sd?.tailWeeks) {
+    const dueWE = weekEndingSunday(due.y, due.m1, due.d);
+    const start = new Date(dueWE.y, dueWE.m1 - 1, dueWE.d);
+    start.setDate(start.getDate() - (Math.max(1, Math.round(sd.tailWeeks)) - 1) * 7 - 6);
+    leadStartY = start.getFullYear();
+    leadStartM1 = start.getMonth() + 1;
+    leadStartD = start.getDate();
+    displayLeadStart = monthIndex(leadStartY, leadStartM1, winStart);
+  } else {
+    const lead = effectiveLead(store, dam, lane, dueIdxRounded);
+    displayLeadStart = displayDueIdx - lead;
+    const leadYm = idxToYm(displayLeadStart, winStart);
+    leadStartY = leadYm.y;
+    leadStartM1 = leadYm.m0 + 1;
+    leadStartD = 1;
+  }
+  const leadT = ymdTime(leadStartY, leadStartM1, leadStartD);
+  const closed =
+    isCompleted(store, dam, lane, dueIdxRounded) ||
+    isUserNotRequired(store, dam, lane, dueIdxRounded);
+  const leadStart = displayLeadStart;
+  let status: "overdue" | "ongoing" | "upcoming" = "upcoming";
+  if (!closed && dueT < todayT) status = "overdue";
+  else if (!closed && leadT <= todayT && todayT < dueT) status = "ongoing";
   return { status, dueIdx: dueIdxRounded, leadStart, displayDueIdx, displayLeadStart };
 }
 

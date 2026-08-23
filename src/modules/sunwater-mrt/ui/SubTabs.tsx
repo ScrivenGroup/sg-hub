@@ -28,3 +28,24 @@ export function SubTabs<T extends string>({
     </div>
   );
 }
+
+export function CrossLinks({
+  links,
+}: {
+  links: { label: string; onClick: () => void }[];
+}) {
+  return (
+    <p className="mb-3 flex flex-wrap items-center gap-2">
+      {links.map((l) => (
+        <button
+          key={l.label}
+          type="button"
+          className="mrt-type-link"
+          onClick={l.onClick}
+        >
+          {l.label}
+        </button>
+      ))}
+    </p>
+  );
+}

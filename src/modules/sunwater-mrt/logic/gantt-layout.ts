@@ -77,14 +77,8 @@ export function visiblePairs(
   onlyOngoing: boolean,
   scheduleFilter: null | "scheduled" | "predicted",
 ): LeafPair[] {
-  const dams =
-    damFilter.length === 0
-      ? store.dams
-      : store.dams.filter((d) => damFilter.includes(d.id));
-  const lanes =
-    laneFilter.length === 0
-      ? store.lanes
-      : store.lanes.filter((l) => laneFilter.includes(l.code));
+  const dams = store.dams.filter((d) => damFilter.includes(d.id));
+  const lanes = store.lanes.filter((l) => laneFilter.includes(l.code));
   const out: LeafPair[] = [];
   for (const dam of dams) {
     for (const lane of lanes) {
