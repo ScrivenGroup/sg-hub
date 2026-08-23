@@ -73,7 +73,7 @@ export function dateToChartX(
   const we = weekEndingSunday(y, m1, d);
   const mi = monthIndex(we.y, we.m1, scale.winStart);
   const key = `w:${mi}:${we.d}`;
-  let idx = scale.slots.findIndex((s) => s.key === key);
+  const idx = scale.slots.findIndex((s) => s.key === key);
   if (idx < 0) {
     const t = new Date(y, m1 - 1, d).getTime();
     const first = slotSunday(scale, 0);
