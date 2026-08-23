@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "crypto";
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
@@ -15,10 +14,10 @@ const sharePassword = process.env.MRT_SHARE_PASSWORD || "";
 const shareConfigured = sharePassword.length > 0;
 
 function secretsEqual(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 if (entraConfigured) {
