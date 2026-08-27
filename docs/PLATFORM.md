@@ -25,7 +25,7 @@ Do **not** start Vite, CRA, a second Next app, or a parallel theme/design system
 Login → Home
   ├── Work      /w     client-context (org only, no client logins)
   ├── Projects  /p     personal / spin-out capable
-  ├── Internal  /i     ScrivenGroup tools
+  ├── Internal  /i     ScrivenGroup tools (`/i/feedback`, `/i/dev-choices`, …)
   └── System    /s     Definition + Appearance
 ```
 
@@ -78,3 +78,7 @@ npm run deploy:azure
 ## Feedback → housekeeping
 
 Open bugs/housekeeping: Internal → Feedback, `docs/feedback-inbox.md`, `data/feedback.json`. See `.cursor/rules/feedback-register.mdc`.
+
+## Development choices
+
+Locked standards: Internal → Development choices (`/i/dev-choices`), `docs/DEV_CHOICES.md`, `data/dev-choices.json`. See `.cursor/rules/dev-choices.mdc`.

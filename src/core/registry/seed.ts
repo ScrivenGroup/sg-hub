@@ -1,6 +1,7 @@
 import type {
   ChangelogEntry,
   DependencyRecord,
+  DevChoiceRecord,
   IdeaRecord,
   NoteRecord,
   RegistryNode,
@@ -165,6 +166,21 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description: "Small web test pages.",
     order: 4,
+  },
+  {
+    id: "i-dev-choices",
+    hubPrefix: "i",
+    slug: "dev-choices",
+    title: "Development choices",
+    code: "5A72B8",
+    kind: "tool",
+    parentId: "hub-internal",
+    href: "/i/dev-choices",
+    accessMode: "shared",
+    status: "building",
+    hasNetworkMap: false,
+    description: "Locked development standards for humans and Cursor chats.",
+    order: 5,
   },
   {
     id: "s-definition",
@@ -492,5 +508,66 @@ export const seedNotes: NoteRecord[] = [
     title: "Phase 1 localhost",
     body: "Demo shell before Azure. Use Dev Login.",
     updatedAt: new Date().toISOString(),
+  },
+];
+
+const DEV_CHOICES_SEEDED_AT = "2026-08-26T00:00:00.000Z";
+
+export const seedDevChoices: DevChoiceRecord[] = [
+  {
+    id: "dc-sessions",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "sessions",
+    status: "locked",
+    decision:
+      "One chat = one job. Durable truth lives in repo files; harvest leftovers into canon; no transcript dumps; pin fat threads.",
+  },
+  {
+    id: "dc-w-studio",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "/w-studio",
+    status: "locked",
+    decision:
+      "Build and demo here. Do not host `/w/` apps as the client's production; packaging into their environment is a later job.",
+  },
+  {
+    id: "dc-guest-entra",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "auth",
+    status: "locked",
+    decision:
+      "Staff Entra already exists. DIY guest password is the cheap demo door. Client Entra on this studio is org-work; it does not replace a sandbox and does not buy packaging. No Entra for Sunwater client users on this host.",
+  },
+  {
+    id: "dc-guest-shape",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "reuse",
+    status: "locked",
+    decision:
+      "One product, two desks (live JSON vs sandbox). No guest fork of every function. Current code is MRT-named; the next `/w/` app reuses the pattern via later `fb-public-hub-share`, not a copy-paste of mrt-share.",
+  },
+  {
+    id: "dc-demo-artifact",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "packaging",
+    status: "locked",
+    decision:
+      "The demo artifact is a guest link, not a standalone `.html` of the Next app.",
+  },
+  {
+    id: "dc-janitor",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "janitor",
+    status: "locked",
+    decision:
+      "No folder reorg as a prelude to a feature. Structure is its own planned cycle.",
+  },
+  {
+    id: "dc-agent-intake",
+    createdAt: DEV_CHOICES_SEEDED_AT,
+    layer: "agents",
+    status: "locked",
+    decision:
+      "Before planning or building, read `docs/PLATFORM.md` and `docs/DEV_CHOICES.md`. Do not contradict locked rows.",
   },
 ];

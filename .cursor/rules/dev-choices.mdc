@@ -1,0 +1,8 @@
+---
+description: Read locked development choices before planning or building
+alwaysApply: true
+---
+
+# Development choices
+
+Before planning or building, read [`docs/DEV_CHOICES.md`](docs/DEV_CHOICES.md). Do not contradict locked rows.

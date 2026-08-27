@@ -3,12 +3,14 @@ import path from "path";
 import {
   seedChangelogs,
   seedDependencies,
+  seedDevChoices,
   seedIdeas,
   seedNotes,
 } from "@/core/registry/seed";
 import type {
   ChangelogEntry,
   DependencyRecord,
+  DevChoiceRecord,
   FeedbackRecord,
   IdeaRecord,
   NoteRecord,
@@ -22,6 +24,7 @@ import { normalizeScheduleStore } from "@/modules/sunwater-mrt/logic/normalize-s
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
+const devChoicesPath = path.join(process.cwd(), "docs", "DEV_CHOICES.md");
 
 async function ensureDir() {
   await fs.mkdir(dataDir, { recursive: true });
@@ -152,6 +155,55 @@ export async function getFeedback(): Promise<FeedbackRecord[]> {
   return readJson("feedback.json", [] as FeedbackRecord[]);
 }
 
+export async function getDevChoices(): Promise<DevChoiceRecord[]> {
+  const existing = await readJson("dev-choices.json", seedDevChoices);
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  let changed = false;
+  for (const seeded of seedDevChoices) {
+    const current = byId.get(seeded.id);
+    if (!current) {
+      byId.set(seeded.id, seeded);
+      changed = true;
+      continue;
+    }
+    if (
+      current.layer !== seeded.layer ||
+      current.status !== seeded.status ||
+      current.decision !== seeded.decision ||
+      current.why !== seeded.why
+    ) {
+      byId.set(seeded.id, {
+        ...current,
+        layer: seeded.layer,
+        status: seeded.status,
+        decision: seeded.decision,
+        why: seeded.why,
+      });
+      changed = true;
+    }
+  }
+  const out = Array.from(byId.values());
+  if (changed) {
+    await writeJson("dev-choices.json", out);
+  }
+  return out;
+}
+
+export async function addDevChoice(
+  entry: Omit<DevChoiceRecord, "id" | "createdAt">,
+): Promise<DevChoiceRecord> {
+  const all = await getDevChoices();
+  const record: DevChoiceRecord = {
+    ...entry,
+    id: `dc-${Date.now().toString(36)}`,
+    createdAt: new Date().toISOString(),
+  };
+  all.unshift(record);
+  await writeJson("dev-choices.json", all);
+  await appendDevChoicesDoc(record);
+  return record;
+}
+
 export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
   const fallback = emptyScheduleStore();
   const raw = await readJson("sunwater-mrt.json", fallback);
@@ -242,6 +294,36 @@ async function appendFeedbackInbox(record: FeedbackRecord) {
     } else {
       await fs.writeFile(inboxPath, `${existing}\n${block}`, "utf8");
     }
+  } catch {
+    // Azure ephemeral FS may block docs writes — register JSON still saved when possible
+  }
+}
+
+async function appendDevChoicesDoc(record: DevChoiceRecord) {
+  const lines = [
+    ``,
+    `### \`${record.id}\` — ${record.layer} (${record.status})`,
+    ``,
+    `**Decision:** ${record.decision}`,
+  ];
+  const why = record.why?.trim();
+  if (why) lines.push(``, `**Why:** ${why}`);
+  lines.push(``);
+  const block = lines.join("\n");
+
+  try {
+    await fs.mkdir(path.dirname(devChoicesPath), { recursive: true });
+    try {
+      await fs.access(devChoicesPath);
+    } catch {
+      await fs.writeFile(
+        devChoicesPath,
+        `# Development choices\n\nCanon for agents and humans. Do not contradict **locked** rows. In-app: Internal → Development choices (\`/i/dev-choices\`). Store: \`data/dev-choices.json\`.\n\n---\n`,
+        "utf8",
+      );
+    }
+    const existing = await fs.readFile(devChoicesPath, "utf8");
+    await fs.writeFile(devChoicesPath, `${existing.trimEnd()}\n${block}`, "utf8");
   } catch {
     // Azure ephemeral FS may block docs writes — register JSON still saved when possible
   }

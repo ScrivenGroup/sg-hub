@@ -72,3 +72,14 @@ export type FeedbackRecord = {
   message: string;
   submittedBy: string;
 };
+
+export type DevChoiceStatus = "locked" | "open";
+
+export type DevChoiceRecord = {
+  id: string;
+  createdAt: string;
+  layer: string;
+  status: DevChoiceStatus;
+  decision: string;
+  why?: string;
+};
