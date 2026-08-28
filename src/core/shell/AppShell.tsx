@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { auth, isMrtGuest, signOut } from "@/auth";
 import { getHubs, getChildren } from "@/core/registry";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
 import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
@@ -17,6 +17,8 @@ export async function AppShell({
   title?: React.ReactNode;
 }) {
   const session = await auth();
+  const guest = isMrtGuest(session);
+  const homeHref = guest ? "/w/sunwater-mrt" : "/home";
   const hubs = getHubs();
   const childrenByHub = Object.fromEntries(
     hubs.map((h) => [h.id, getChildren(h.id)]),
@@ -31,13 +33,13 @@ export async function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--page)] text-[var(--ink)]">
-      <a href="#main" className="sg-skip">
+      <a href="#main" className="sg-skip print:hidden">
         Skip to content
       </a>
-      <header className="sticky top-0 z-40 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur print:hidden">
         <div className="flex items-center gap-3 px-4 py-2">
           <Link
-            href="/home"
+            href={homeHref}
             className="flex shrink-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink)]"
           >
             <Image
@@ -66,15 +68,19 @@ export async function AppShell({
             <div className="min-w-0 flex-1" />
           )}
           <nav className="ml-auto flex shrink-0 items-center gap-2" aria-label="App">
-            <Link href="/home" className="sg-btn-ghost">
-              Home
-            </Link>
-            <SiteNetwork
-              hubs={hubs}
-              childrenByHub={childrenByHub}
-              currentHref={currentHref}
-            />
-            {session?.user?.role === "mrt-guest" ? null : <FeedbackCapture />}
+            {guest ? null : (
+              <Link href="/home" className="sg-btn-ghost">
+                Home
+              </Link>
+            )}
+            {guest ? null : (
+              <SiteNetwork
+                hubs={hubs}
+                childrenByHub={childrenByHub}
+                currentHref={currentHref}
+              />
+            )}
+            {guest ? null : <FeedbackCapture />}
             <details className="relative">
               <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold text-[var(--surface)]">
                 <span className="sr-only">Profile menu</span>
@@ -86,14 +92,20 @@ export async function AppShell({
                 </p>
                 <p className="truncate text-xs text-[var(--muted)]">
                   {session?.user?.role === "mrt-guest"
-                    ? "View session · demo copy"
+                    ? "View session · read-only"
                     : session?.user?.email}
                 </p>
                 <form
                   className="mt-3"
                   action={async () => {
                     "use server";
-                    await signOut({ redirectTo: "/login" });
+                    const dest =
+                      session?.user?.role === "mrt-guest"
+                        ? session.user.shareId
+                          ? `/w/sunwater-mrt/guest?s=${encodeURIComponent(session.user.shareId)}`
+                          : "/w/sunwater-mrt/guest"
+                        : "/login";
+                    await signOut({ redirectTo: dest });
                   }}
                 >
                   <button type="submit" className="sg-btn-secondary w-full">

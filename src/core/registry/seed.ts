@@ -454,6 +454,33 @@ What you can do
 Out of this version
 - Followups, Assumptions, non-resource costing, and automatic leveling. Heatmap is planned hours only. No client logins.`,
   },
+  {
+    id: "cl-sunwater-mrt-1.1",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "1.1",
+    createdAt: "2026-08-28T05:00:00.000Z",
+    title: "Audience shares and guest gate",
+    body: `Staff share a read-only live plan with named audiences. This is a guest door, not Microsoft logins for clients.
+
+- Site/Staff /login stays generic (Microsoft / Dev Login only). Viewers use a separate gate: /w/sunwater-mrt/guest?s=…
+- Admin → Sharing: one labelled link per audience, password and expiry set in the app. Copy the guest link; tell the password another way. Disable (or expiry) cuts that audience; others stay on.
+- Guests see the live plan read-only (Gantt, Obligations, Inputs, Definitions, Defaults). No Admin, Development, Home, or Feedback. They cannot save back to live.
+- Admin → Guest activity logs share-login name, audience, and IP on this instance (file-only; zip deploys may wipe it).
+- Admin → Guides → How to share is the staff how-to (HTML and PDF). Do not use Azure App Settings for the share password.
+- Zip deploy can clear data/mrt-share.json. Recreate audiences in Admin → Sharing if View stops working.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.16",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "0.16",
+    createdAt: "2026-08-28T06:00:00.000Z",
+    title: "Site userguide and guest click-drag prep",
+    body: `- Write a staff-facing site userguide for the tracker (beyond Admin → Guides → How to share).
+- Prepare guest click-drag via sandbox reconnect (not live writes): load getGuestMrtSandbox again, restore saveGuestMrtSandbox / Reset banner, undo readOnly / mrt-ro where guests should interact.
+- Later: pre-load the store from an external example dataset (provided separately).`,
+  },
 ];
 
 export const seedDependencies: DependencyRecord[] = [

@@ -1,3 +1,5 @@
+import { auth, isMrtGuest } from "@/auth";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
 import { getHubs, getChildren } from "@/core/registry";
@@ -7,6 +9,9 @@ import { RagDot } from "@/core/ui/RagDot";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 
 export default async function HomePage() {
+  const session = await auth();
+  if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
+
   const hubs = getHubs();
   const deps = await getDependencies();
   const systemRag = systemHubRag(deps);

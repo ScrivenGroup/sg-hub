@@ -1,3 +1,11 @@
+.mrt-ro input,
+.mrt-ro textarea,
+.mrt-ro select,
+.mrt-ro button {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
 .mrt-btn-secondary {
   display: inline-flex;
   align-items: center;

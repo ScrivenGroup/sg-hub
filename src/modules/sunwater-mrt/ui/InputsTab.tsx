@@ -28,11 +28,13 @@ const UNITS: FrequencyUnit[] = ["year", "month", "week"];
 export function InputsTab({
   store,
   onChange,
+  readOnly = false,
   focusSub,
   onGoToDefinitions,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
   focusSub?: InputsSub | null;
   onGoToDefinitions?: (sub: DefinitionsTarget) => void;
 }) {
@@ -45,6 +47,7 @@ export function InputsTab({
   }, [focusSub]);
 
   function update(mut: (next: ScheduleStore) => void) {
+    if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
     mut(next);
     onChange(next);
@@ -67,7 +70,9 @@ export function InputsTab({
               },
             ]}
           />
-          <AssetsTable store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <AssetsTable store={store} update={update} />
+          </div>
         </>
       ) : null}
       {sub === "Obligation Types" ? (
@@ -80,7 +85,9 @@ export function InputsTab({
               },
             ]}
           />
-          <TypesTable store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <TypesTable store={store} update={update} />
+          </div>
         </>
       ) : null}
       {sub === "Resource Roles" ? (
@@ -93,7 +100,9 @@ export function InputsTab({
               },
             ]}
           />
-          <RolesTable store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <RolesTable store={store} update={update} />
+          </div>
         </>
       ) : null}
       {sub === "Resource Names" ? (
@@ -106,7 +115,9 @@ export function InputsTab({
               },
             ]}
           />
-          <NamesTable store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <NamesTable store={store} update={update} />
+          </div>
         </>
       ) : null}
     </div>

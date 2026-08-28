@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
-import { saveSunwaterMrtStoreAction } from "../actions";
+import { saveSunwaterMrtStoreAction, resetMrtSandboxAction } from "../actions";
 import type { ScheduleStore } from "../schema";
+import { AdminTab } from "./AdminTab";
 import { DefaultsTab } from "./DefaultsTab";
 import { DefinitionsTab, type DefinitionsSub } from "./DefinitionsTab";
 import { DevelopmentTab } from "./DevelopmentTab";
@@ -34,7 +35,7 @@ export function MrtWorkspace({
   sandbox?: boolean;
 }) {
   const tabs = showDevelopment && !readOnly
-    ? ([...BASE_TABS, "Development"] as const)
+    ? ([...BASE_TABS, "Admin", "Development"] as const)
     : BASE_TABS;
   const [tab, setTab] = useState<string>("Gantt");
   const [defaultsLane, setDefaultsLane] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function MrtWorkspace({
     "idle",
   );
   const [, startTransition] = useTransition();
+  const [resetting, startReset] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function persist(next: ScheduleStore) {
@@ -67,15 +69,37 @@ export function MrtWorkspace({
     };
   }, []);
 
+  function resetToLive() {
+    startReset(async () => {
+      const result = await resetMrtSandboxAction();
+      if (result.ok) {
+        setStore(result.store);
+        setSaveState("idle");
+      } else {
+        setSaveState("error");
+      }
+    });
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {sandbox ? (
-        <p className="shrink-0 pb-1 text-[11px] text-[var(--muted)]">
-          Demo copy — click and drag as you like. Changes stay in this session
-          and do not update the live plan.
-        </p>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pb-1">
+          <p className="text-[11px] text-[var(--muted)]">
+            Demo copy keyed by your name and network. Changes do not update the
+            live plan.
+          </p>
+          <button
+            type="button"
+            className="sg-btn-ghost min-h-8 px-2 text-xs"
+            onClick={resetToLive}
+            disabled={resetting}
+          >
+            {resetting ? "Resetting…" : "Reset to live plan"}
+          </button>
+        </div>
       ) : null}
-      <div className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--page)] pt-1">
+      <div className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--page)] pt-1 print:hidden">
         <div
           role="tablist"
           aria-label="Milestone Resourcing Tracker"
@@ -101,15 +125,17 @@ export function MrtWorkspace({
             );
           })}
         </div>
-        <p className="text-xs text-[var(--muted)]">
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved"
-              ? "Saved"
-              : saveState === "error"
-                ? "Save failed"
-                : ""}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-[var(--muted)]">
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "saved"
+                ? "Saved"
+                : saveState === "error"
+                  ? "Save failed"
+                  : ""}
+          </p>
+        </div>
       </div>
 
       <div
@@ -134,6 +160,7 @@ export function MrtWorkspace({
         <ObligationsTab
           store={store}
           onChange={persist}
+          readOnly={readOnly}
           onGoToDefaults={(laneCode) => {
             setDefaultsLane(laneCode);
             setTab("Defaults");
@@ -148,6 +175,7 @@ export function MrtWorkspace({
         <InputsTab
           store={store}
           onChange={persist}
+          readOnly={readOnly}
           focusSub={inputsSub}
           onGoToDefinitions={(sub) => {
             setDefsSub(sub);
@@ -159,6 +187,7 @@ export function MrtWorkspace({
         <DefinitionsTab
           store={store}
           onChange={persist}
+          readOnly={readOnly}
           focusSub={defsSub}
           onGoToInputs={(sub) => {
             setInputsSub(sub);
@@ -170,6 +199,7 @@ export function MrtWorkspace({
         <DefaultsTab
           store={store}
           onChange={persist}
+          readOnly={readOnly}
           focusLane={defaultsLane}
           onGoToInputs={(sub) => {
             setInputsSub(sub);
@@ -177,6 +207,7 @@ export function MrtWorkspace({
           }}
         />
       ) : null}
+      {tab === "Admin" ? <AdminTab /> : null}
       {tab === "Development" ? (
         <DevelopmentTab
           changelogs={changelogs}

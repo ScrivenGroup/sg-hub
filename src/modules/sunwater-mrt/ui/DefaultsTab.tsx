@@ -18,11 +18,13 @@ const SUBS = ["Lead-in time per dam", "Task+Resource Effort"] as const;
 export function DefaultsTab({
   store,
   onChange,
+  readOnly = false,
   focusLane,
   onGoToInputs,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
   focusLane?: string | null;
   onGoToInputs?: (sub: InputsSub) => void;
 }) {
@@ -35,6 +37,7 @@ export function DefaultsTab({
   }, [focusLane]);
 
   function update(mut: (next: ScheduleStore) => void) {
+    if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
     mut(next);
     onChange(next);
@@ -54,7 +57,9 @@ export function DefaultsTab({
               },
             ]}
           />
-          <LeadMatrix store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <LeadMatrix store={store} update={update} />
+          </div>
         </>
       ) : (
         <>
@@ -73,6 +78,7 @@ export function DefaultsTab({
           <DefaultsEffort
             store={store}
             onChange={onChange}
+            readOnly={readOnly}
             focusLane={focusLane}
           />
         </>
@@ -91,10 +97,12 @@ function planForLane(store: ScheduleStore, laneCode: string) {
 function DefaultsEffort({
   store,
   onChange,
+  readOnly = false,
   focusLane,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
   focusLane?: string | null;
 }) {
   const lanes = store.lanes;
@@ -128,7 +136,7 @@ function DefaultsEffort({
   }, [laneCode]);
 
   function writeDemo(nextDemo: EffortDemo) {
-    if (!lane) return;
+    if (readOnly || !lane) return;
     setDemo(nextDemo);
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
     next.defaultPlansByLane[lane.code] = effortDemoToAssignmentPlan(nextDemo, {
@@ -171,6 +179,7 @@ function DefaultsEffort({
         onChange={onChange}
         demo={demo}
         onDemoChange={writeDemo}
+        readOnly={readOnly}
         applyDemoToStore={(s, d) => {
           s.defaultPlansByLane[lane.code] = effortDemoToAssignmentPlan(d, {
             assignMode: "roles",

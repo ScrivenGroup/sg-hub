@@ -42,7 +42,7 @@ export function DevelopmentTab({
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]>("Effort Gantt");
+  const [sub, setSub] = useState<(typeof SUBS)[number]>("Changelog");
   const wip = changelogs
     .filter((c) => c.kind === "plan" && c.version)
     .sort(releaseSort);

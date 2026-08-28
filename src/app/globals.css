@@ -123,3 +123,16 @@ body {
   line-height: 1.55;
   font-size: 0.95rem;
 }
+
+@media print {
+  .mrt-guide-downloads {
+    display: none !important;
+  }
+  .mrt-how-to-share {
+    max-width: none !important;
+  }
+  .mrt-how-to-share img {
+    max-width: 100%;
+    break-inside: avoid;
+  }
+}

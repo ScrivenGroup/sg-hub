@@ -56,11 +56,13 @@ function statusChipClass(m: GanttMarker) {
 export function ObligationsTab({
   store,
   onChange,
+  readOnly = false,
   onGoToDefaults,
   onGoToGantt,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
   onGoToDefaults?: (laneCode: string) => void;
   onGoToGantt?: (focus: {
     damId: string;
@@ -177,6 +179,7 @@ export function ObligationsTab({
   }
 
   function recalculate() {
+    if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
     next.horizonYears = clampHorizonYears(dial);
     onChange(next);
@@ -195,6 +198,7 @@ export function ObligationsTab({
               max={40}
               className="mrt-input w-16"
               value={dial}
+              disabled={readOnly}
               onChange={(e) =>
                 setDial(clampHorizonYears(Number(e.target.value)))
               }
@@ -206,6 +210,7 @@ export function ObligationsTab({
           type="button"
           className="mrt-btn-secondary"
           onClick={recalculate}
+          disabled={readOnly}
         >
           Recalculate
         </button>
@@ -388,7 +393,7 @@ export function ObligationsTab({
                       className="mrt-btn-secondary min-h-6 px-2 text-[11px]"
                       onClick={() => setOpen(m)}
                     >
-                      Edit
+                      {readOnly ? "View" : "Edit"}
                     </button>
                     <button
                       type="button"
@@ -418,6 +423,7 @@ export function ObligationsTab({
           onClose={() => setOpen(null)}
           onChange={onChange}
           onGoToDefaults={onGoToDefaults}
+          readOnly={readOnly}
         />
       ) : null}
       {baselineOpen ? (

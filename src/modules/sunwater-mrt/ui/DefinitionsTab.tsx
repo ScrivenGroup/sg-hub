@@ -21,11 +21,13 @@ export type DefinitionsSub = (typeof SUBS)[number];
 export function DefinitionsTab({
   store,
   onChange,
+  readOnly = false,
   focusSub,
   onGoToInputs,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
+  readOnly?: boolean;
   focusSub?: DefinitionsSub | null;
   onGoToInputs?: (sub: InputsSub) => void;
 }) {
@@ -38,6 +40,7 @@ export function DefinitionsTab({
   }, [focusSub]);
 
   function update(mut: (next: ScheduleStore) => void) {
+    if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
     mut(next);
     onChange(next);
@@ -57,7 +60,9 @@ export function DefinitionsTab({
               },
             ]}
           />
-          <ApplyMatrix store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <ApplyMatrix store={store} update={update} />
+          </div>
         </>
       ) : null}
       {sub === "Resource × Role" ? (
@@ -74,7 +79,9 @@ export function DefinitionsTab({
               },
             ]}
           />
-          <EligibilityMatrix store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <EligibilityMatrix store={store} update={update} />
+          </div>
         </>
       ) : null}
       {sub === "Asset × Resource Role" ? (
@@ -88,7 +95,9 @@ export function DefinitionsTab({
               },
             ]}
           />
-          <OwnershipMatrix store={store} update={update} />
+          <div className={readOnly ? "mrt-ro" : undefined}>
+            <OwnershipMatrix store={store} update={update} />
+          </div>
         </>
       ) : null}
     </div>

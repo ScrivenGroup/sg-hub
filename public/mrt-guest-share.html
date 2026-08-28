@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How to share — Milestone Resourcing Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #3c3c3b;
+        --page: #f5f5f4;
+        --surface: #ffffff;
+        --border: #d4d4d2;
+        --muted: #6b6b69;
+        --radius: 10px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--ink);
+        font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+        line-height: 1.55;
+        font-size: 15px;
+      }
+      main {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      .kicker {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 0.35rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.5rem;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+        max-width: 40rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 1.75rem 0 0.5rem;
+      }
+      p {
+        margin: 0 0 0.75rem;
+      }
+      figure {
+        margin: 1rem 0 1.25rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      figure img {
+        display: block;
+        width: 100%;
+      }
+      figcaption {
+        border-top: 1px solid var(--border);
+        padding: 0.5rem 0.85rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.86em;
+        background: var(--surface);
+        padding: 0.08em 0.35em;
+        border-radius: 4px;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin-top: 2rem;
+      }
+      @media print {
+        body {
+          background: #fff;
+        }
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        figure {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Milestone Resourcing Tracker · Staff guide</p>
+      <h1>How to share</h1>
+      <p class="lede">
+        Give an external audience a read-only view of the live plan. They do not
+        use the site staff login. You create a labelled link in this app and
+        send the password separately.
+      </p>
+
+      <h2>1. Open Admin → Sharing</h2>
+      <p>
+        Sign in as staff (Microsoft or Dev Login). In the tracker, open
+        <strong>Admin</strong>, then <strong>Sharing</strong>. Do not send
+        people to <code>/login</code> — that door is for staff only.
+      </p>
+
+      <h2>2. Add an audience</h2>
+      <p>
+        Use a label you will remember (for example Board pack). Set a password
+        and how long the link should last, then create the share.
+      </p>
+      <figure>
+        <img
+          src="/mrt-guide/admin-sharing.png"
+          alt="Admin Sharing: add audience row and audience table"
+        />
+        <figcaption>
+          Admin → Sharing. Add an audience on one row; the table lists each
+          link.
+        </figcaption>
+      </figure>
+
+      <h2>3. Send the link and the password</h2>
+      <p>
+        <strong>Copy link</strong> and send that URL. Tell them the password
+        <strong>another way</strong> — not in the URL and not in the same
+        message if you can avoid it.
+      </p>
+
+      <h2>4. What the viewer sees</h2>
+      <p>
+        They open the guest page, enter their name and that password, and see a
+        <strong>read-only</strong> live plan. Site/Staff login will not open
+        this view.
+      </p>
+      <figure>
+        <img
+          src="/mrt-guide/guest-gate.png"
+          alt="Guest sign-in page for the Milestone Resourcing Tracker"
+        />
+        <figcaption>
+          Guest gate. Name and share password only — no Microsoft button.
+        </figcaption>
+      </figure>
+      <figure>
+        <img
+          src="/mrt-guide/guest-readonly.png"
+          alt="Read-only tracker Gantt for a guest session"
+        />
+        <figcaption>
+          After sign-in they can browse the live plan. They cannot save changes.
+        </figcaption>
+      </figure>
+
+      <h2>5. Cut access</h2>
+      <p>
+        Disable that audience (or let it expire) to cut that link. Other
+        audiences stay on. Replace password on a row if you need to rotate one
+        audience without touching the others.
+      </p>
+
+      <h2>6. If View stops working</h2>
+      <p>
+        A zip deploy can clear shares stored on disk. Recreate the audience in
+        <strong>Admin → Sharing</strong> — not in Azure. Guest activity on this
+        instance is a file log, not an audit archive.
+      </p>
+
+      <footer>
+        Scriven Group · Admin → Guides → How to share · Download PDF from the
+        in-app guide (Print → Save as PDF).
+      </footer>
+    </main>
+  </body>
+</html>

@@ -21,6 +21,7 @@ import {
   type ScheduleStore,
 } from "@/modules/sunwater-mrt/schema";
 import { normalizeScheduleStore } from "@/modules/sunwater-mrt/logic/normalize-store";
+import type { MrtGuestActivity } from "@/modules/sunwater-mrt/share-public";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -54,10 +55,47 @@ function sandboxFile(guestId: string) {
   return path.join("mrt-sandboxes", `${key}.json`);
 }
 
+const DEFAULT_SANDBOX_TTL_HOURS = 168;
+
+function sandboxTtlMs(): number {
+  const raw = process.env.MRT_SANDBOX_TTL_HOURS;
+  const hours = raw ? Number(raw) : DEFAULT_SANDBOX_TTL_HOURS;
+  if (!Number.isFinite(hours) || hours <= 0) {
+    return DEFAULT_SANDBOX_TTL_HOURS * 3600 * 1000;
+  }
+  return hours * 3600 * 1000;
+}
+
+function cloneStore(store: ScheduleStore): ScheduleStore {
+  return JSON.parse(JSON.stringify(store)) as ScheduleStore;
+}
+
+async function liveMrtClone(): Promise<ScheduleStore> {
+  return cloneStore(await getSunwaterMrtStore());
+}
+
 export async function getGuestMrtSandbox(guestId: string): Promise<ScheduleStore> {
-  const fallback = await getSunwaterMrtStore();
-  const clone = JSON.parse(JSON.stringify(fallback)) as ScheduleStore;
-  const raw = await readJson(sandboxFile(guestId), clone);
+  const rel = sandboxFile(guestId);
+  const full = path.join(dataDir, rel);
+  const clone = await liveMrtClone();
+
+  await ensureDir();
+  await fs.mkdir(path.dirname(full), { recursive: true });
+
+  let stale = true;
+  try {
+    const stat = await fs.stat(full);
+    stale = Date.now() - stat.mtimeMs > sandboxTtlMs();
+  } catch {
+    stale = true;
+  }
+
+  if (stale) {
+    await writeJson(rel, clone);
+    return normalizeScheduleStore(clone).store;
+  }
+
+  const raw = await readJson(rel, clone);
   const parsed = scheduleStoreSchema.safeParse(raw);
   if (parsed.success) return normalizeScheduleStore(parsed.data).store;
   return normalizeScheduleStore(clone).store;
@@ -71,13 +109,16 @@ export async function saveGuestMrtSandbox(
   await writeJson(sandboxFile(guestId), parsed);
 }
 
-export type MrtGuestActivity = {
-  at: string;
-  name: string;
-  ip: string;
-  userAgent: string;
-  action: string;
-};
+export async function resetGuestMrtSandbox(
+  guestId: string,
+): Promise<ScheduleStore> {
+  const clone = await liveMrtClone();
+  const parsed = scheduleStoreSchema.parse(clone);
+  await writeJson(sandboxFile(guestId), parsed);
+  return normalizeScheduleStore(parsed).store;
+}
+
+export type { MrtGuestActivity } from "@/modules/sunwater-mrt/share-public";
 
 export async function logMrtGuestActivity(
   entry: Omit<MrtGuestActivity, "at">,
@@ -85,6 +126,10 @@ export async function logMrtGuestActivity(
   const all = await readJson("mrt-guest-activity.json", [] as MrtGuestActivity[]);
   all.unshift({ ...entry, at: new Date().toISOString() });
   await writeJson("mrt-guest-activity.json", all.slice(0, 500));
+}
+
+export async function getMrtGuestActivity(): Promise<MrtGuestActivity[]> {
+  return readJson("mrt-guest-activity.json", [] as MrtGuestActivity[]);
 }
 
 export async function getDependencies(): Promise<DependencyRecord[]> {

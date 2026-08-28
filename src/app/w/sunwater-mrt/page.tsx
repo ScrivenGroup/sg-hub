@@ -5,9 +5,11 @@ import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
 import {
   getChangelogsForNode,
-  getGuestMrtSandbox,
   getSunwaterMrtStore,
 } from "@/core/store/json-store";
+import {
+  assertGuestShareOrSignOut,
+} from "@/modules/sunwater-mrt/actions";
 import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
 
 const HREF = "/w/sunwater-mrt";
@@ -15,10 +17,10 @@ const HREF = "/w/sunwater-mrt";
 export default async function SunwaterMrtPage() {
   const session = await auth();
   const guest = isMrtGuest(session);
+  if (guest) await assertGuestShareOrSignOut();
+
   const node = getNodeByHref(HREF);
-  const store = guest && session?.user?.id
-    ? await getGuestMrtSandbox(session.user.id)
-    : await getSunwaterMrtStore();
+  const store = await getSunwaterMrtStore();
   const changelogs = await getChangelogsForNode("w-sunwater-mrt");
 
   if (!node) {
@@ -44,8 +46,9 @@ export default async function SunwaterMrtPage() {
       <MrtWorkspace
         initialStore={store}
         changelogs={changelogs}
-        showDevelopment={node.status === "building"}
-        sandbox={guest}
+        showDevelopment={!guest}
+        readOnly={guest}
+        sandbox={false}
       />
     </AppShell>
   );
