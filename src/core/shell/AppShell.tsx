@@ -19,6 +19,10 @@ export async function AppShell({
 }) {
   const session = await auth();
   const guest = isMrtGuest(session);
+  const hideShellBack =
+    guest ||
+    currentHref === "/w/sunwater-mrt" ||
+    currentHref.startsWith("/w/sunwater-mrt/");
   const homeHref = guest ? "/w/sunwater-mrt" : "/home";
   const hubs = getHubs();
   const childrenByHub = Object.fromEntries(
@@ -69,7 +73,7 @@ export async function AppShell({
             <div className="min-w-0 flex-1" />
           )}
           <nav className="ml-auto flex shrink-0 items-center gap-2" aria-label="App">
-            {guest ? null : <BackButton />}
+            {hideShellBack ? null : <BackButton />}
             {guest ? null : (
               <Link href="/home" className="sg-btn-ghost">
                 Home
@@ -94,7 +98,7 @@ export async function AppShell({
                 </p>
                 <p className="truncate text-xs text-[var(--muted)]">
                   {session?.user?.role === "mrt-guest"
-                    ? "View session · read-only"
+                    ? "View session · personal copy"
                     : session?.user?.email}
                 </p>
                 <form

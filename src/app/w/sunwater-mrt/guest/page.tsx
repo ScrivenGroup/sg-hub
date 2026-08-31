@@ -38,7 +38,7 @@ export default async function MrtGuestPage({
             v{MRT_VERSION}
           </p>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Shared view. Read-only live plan.
+            Shared view. Personal copy of the live plan.
           </p>
         </div>
 

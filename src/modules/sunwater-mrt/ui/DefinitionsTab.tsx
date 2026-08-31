@@ -6,7 +6,7 @@ import { laneApplies } from "../logic/applicability";
 import { removeOwnershipColumn } from "../logic/cascade";
 import { MONTH_NAMES } from "../logic/dates";
 import { pairHasActualised } from "../logic/scheduling";
-import { ensureEffortDemo, outOfRoleKeys } from "../logic/effort-gantt";
+import { outOfRoleKeysFromScheduled } from "../logic/effort-gantt";
 import { CrossLinks, SubTabs } from "./SubTabs";
 import type { InputsSub } from "./InputsTab";
 
@@ -335,7 +335,7 @@ function EligibilityMatrix({
   const [flipped, setFlipped] = useState(false);
   const roles = store.resourceRoles;
   const people = store.people;
-  const outOfRole = outOfRoleKeys(ensureEffortDemo(store.effortDemo), store.roleEligibility);
+  const outOfRole = outOfRoleKeysFromScheduled(store);
 
   return (
     <div>

@@ -8,7 +8,6 @@ import {
   weekSpanStartFromEndingSunday,
 } from "./dates";
 import { effectiveDueDay, effectiveDueIdx, effectiveLead, schedKey } from "./scheduling";
-import { ragStatus } from "./status";
 
 const SHORT_MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -364,20 +363,6 @@ export function seedPlanFromDefaults(
   return plan;
 }
 
-export function newLeafTask(name: string, weekCount: number): PlanTask {
-  const task: PlanTask = {
-    id: newAssignmentId("t-"),
-    name: name || "New task",
-    level: 1,
-    parent: null,
-    start: 0,
-    dur: Math.max(1, Math.min(4, weekCount || 1)),
-    assign: {},
-  };
-  clampTaskToWindow(task, weekCount || 1);
-  return task;
-}
-
 export function ensureAssignArray(task: PlanTask, resourceId: string) {
   if (!task.assign) task.assign = {};
   const dur = Math.max(1, task.dur || 1);
@@ -445,45 +430,4 @@ export function assignedResourceIds(plan: AssignmentPlan) {
     for (const k of Object.keys(t.assign || {})) ids.add(k);
   }
   return [...ids];
-}
-
-export function addAssigneeToTask(
-  task: PlanTask,
-  key: string,
-) {
-  ensureAssignArray(task, key);
-}
-
-export function personCapacity(store: ScheduleStore, personId: string) {
-  const p = store.people.find((x) => x.id === personId);
-  return p?.weeklyCapacityHours ?? 0;
-}
-
-export function heatmapForPlan(
-  store: ScheduleStore,
-  plan: AssignmentPlan,
-  mode: "roles" | "people",
-) {
-  const weekCount = plan.weekCount;
-  const ids = assignedResourceIds(plan);
-  return ids.map((id) => {
-    const hours = resourceHoursByWeek(plan, id, weekCount);
-    const cap =
-      mode === "people" ? personCapacity(store, id) : 0;
-    const rag = hours.map((h) =>
-      mode === "people" ? ragStatus(h, cap, store.overrunPercent) : h ? "ok" : "empty",
-    );
-    return { id, hours, cap, rag };
-  });
-}
-
-export function assigneeLabel(
-  store: ScheduleStore,
-  key: string,
-  mode: "roles" | "people",
-) {
-  if (mode === "roles") return key.startsWith("role:") ? key.slice(5) : key;
-  if (key.startsWith("role:")) return `${key.slice(5)} (unassigned)`;
-  const p = store.people.find((x) => x.id === key);
-  return p?.name || key;
 }

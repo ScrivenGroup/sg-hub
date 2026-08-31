@@ -185,7 +185,7 @@ export function GanttTimescale({
         <div
           className={`flex text-[var(--muted)] ${compact ? "text-[7px] leading-3" : "text-[8px] leading-3"}`}
         >
-          {scale.slots.map((slot, i) => {
+          {scale.slots.map((slot) => {
             const { y } = idxToYm(slot.monthIdx, winStart);
             const w = slot.sundayDay
               ? sundayWeekOfYear(y, idxToYm(slot.monthIdx, winStart).m0 + 1, slot.sundayDay)

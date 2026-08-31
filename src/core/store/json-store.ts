@@ -148,13 +148,20 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
       continue;
     }
     if (seeded.kind === "release") {
-      if (current.kind !== "release" || current.version !== seeded.version) {
+      if (
+        current.kind !== "release" ||
+        current.version !== seeded.version ||
+        current.title !== seeded.title ||
+        current.body !== seeded.body ||
+        current.createdAt !== seeded.createdAt
+      ) {
         byId.set(seeded.id, {
           ...current,
           kind: "release",
           version: seeded.version ?? current.version,
           title: seeded.title,
           body: seeded.body,
+          createdAt: seeded.createdAt,
         });
         changed = true;
       }
@@ -164,7 +171,8 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
       current.title !== seeded.title ||
       current.body !== seeded.body ||
       current.kind !== seeded.kind ||
-      current.version !== seeded.version
+      current.version !== seeded.version ||
+      current.createdAt !== seeded.createdAt
     ) {
       byId.set(seeded.id, {
         ...current,
@@ -172,6 +180,7 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
         body: seeded.body,
         kind: seeded.kind,
         version: seeded.version,
+        createdAt: seeded.createdAt,
       });
       changed = true;
     }

@@ -1,4 +1,10 @@
-import type { EffortDemo, EffortResource, EffortStick, EffortTask } from "../schema";
+import type {
+  EffortDemo,
+  EffortResource,
+  EffortStick,
+  EffortTask,
+  ScheduleStore,
+} from "../schema";
 import { emptyEffortDemo } from "../schema";
 import { MONTH_NAMES, weekEndingSunday } from "./dates";
 import { round2 } from "./numbers";
@@ -650,6 +656,28 @@ export function outOfRoleKeys(
     if (!role || !pid) return;
     if (!eligibility?.[role]?.[pid]) keys.add(`${role}::${pid}`);
   });
+  return keys;
+}
+
+/** People on saved occurrence plans whose Inputs role is not ticked. */
+export function outOfRoleKeysFromScheduled(store: ScheduleStore) {
+  const eligibility = store.roleEligibility;
+  const keys = new Set<string>();
+  for (const sd of Object.values(store.scheduledDetails)) {
+    const plan = sd?.plan;
+    if (!plan) continue;
+    for (const t of plan.tasks || []) {
+      for (const [key, hours] of Object.entries(t.assign || {})) {
+        if (key.startsWith("role:")) continue;
+        if (!(hours || []).some((h) => (Number(h) || 0) > 0)) continue;
+        const person = store.people.find((p) => p.id === key);
+        if (!person?.role) continue;
+        if (!eligibility?.[person.role]?.[person.id]) {
+          keys.add(`${person.role}::${person.id}`);
+        }
+      }
+    }
+  }
   return keys;
 }
 

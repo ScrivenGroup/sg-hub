@@ -45,7 +45,13 @@ function GuideToc({ children }: { children: ReactNode }) {
   return <nav className="mrt-guide-toc">{children}</nav>;
 }
 
-export function HelpTab({ showStaffNotes = false }: { showStaffNotes?: boolean }) {
+export function HelpTab({
+  showStaffNotes = false,
+  sandbox = false,
+}: {
+  showStaffNotes?: boolean;
+  sandbox?: boolean;
+}) {
   const [sub, setSub] = useState<(typeof SUBS)[number]>("Quick reference");
   const [scrollTo, setScrollTo] = useState<string | null>(null);
 
@@ -65,9 +71,14 @@ export function HelpTab({ showStaffNotes = false }: { showStaffNotes?: boolean }
     <div>
       <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       {sub === "Quick reference" ? (
-        <QuickReference onOpen={openGuide} showStaffNotes={showStaffNotes} />
+        <QuickReference
+          onOpen={openGuide}
+          showStaffNotes={showStaffNotes}
+        />
       ) : null}
-      {sub === "User guide" ? <UserGuide showStaffNotes={showStaffNotes} /> : null}
+      {sub === "User guide" ? (
+        <UserGuide showStaffNotes={showStaffNotes} sandbox={sandbox} />
+      ) : null}
     </div>
   );
 }
@@ -149,8 +160,9 @@ function QuickReference({
             </li>
           ) : (
             <li>
-              This shared view is <strong>read-only</strong>. You cannot save
-              back to the live plan.{" "}
+              This desk is a <strong>personal copy</strong> of the live plan.
+              You can drag and save here. <strong>Reset to live plan</strong>{" "}
+              restores the current live copy. You cannot change the live plan.{" "}
               <More id="guide-guest" onOpen={onOpen} />
             </li>
           )}
@@ -220,7 +232,13 @@ function QuickReference({
   );
 }
 
-function UserGuide({ showStaffNotes }: { showStaffNotes: boolean }) {
+function UserGuide({
+  showStaffNotes,
+  sandbox,
+}: {
+  showStaffNotes: boolean;
+  sandbox: boolean;
+}) {
   return (
     <article className="mrt-how-to-share max-w-4xl space-y-8 text-sm leading-relaxed text-[var(--ink)]">
       <header className="space-y-2">
@@ -300,7 +318,8 @@ function UserGuide({ showStaffNotes }: { showStaffNotes: boolean }) {
           </li>
         </ul>
         <p>
-          Guests see those six tabs, read-only. Staff also see{" "}
+          Guests see those six tabs on a personal copy of the live plan. Staff
+          also see{" "}
           <strong>Admin</strong> (sharing) and <strong>Development</strong>{" "}
           (changelog and notes).
         </p>
@@ -523,13 +542,20 @@ function UserGuide({ showStaffNotes }: { showStaffNotes: boolean }) {
         <h3 className="text-base font-semibold">Shared view</h3>
         <p>
           A guest opens a labelled link, enters their name and the share
-          password, and sees the <strong>live plan read-only</strong>. They do
-          not use the site Microsoft login. They cannot save. Tabs: Gantt,
-          Obligations, Inputs, Definitions, Defaults, and Help.
+          password, and works a <strong>personal copy</strong> of the live plan.
+          Drag and hour edits save on that desk only.{" "}
+          <strong>Reset to live plan</strong> restores the current live copy.
+          They cannot change the live plan. They do not use the site Microsoft
+          login. Tabs: Gantt, Obligations, Inputs, Definitions, Defaults, and
+          Help.
         </p>
+        {sandbox ? (
+          <p>
+            Reset sits in the bar above the tabs on this desk.
+          </p>
+        ) : null}
         <p>
-          Home, Feedback, Admin, and Development are hidden. If a control looks
-          faded, it is display-only.
+          Home, Feedback, Admin, and Development are hidden.
         </p>
       </section>
 
@@ -554,8 +580,7 @@ function UserGuide({ showStaffNotes }: { showStaffNotes: boolean }) {
         <h3 className="text-base font-semibold">Out of this version</h3>
         <p>
           Followups, Assumptions, non-resource / intangibles costing, and
-          automatic leveling. The heatmap is planned hours only. Guests do not
-          get a click-drag sandbox in this version.
+          automatic leveling. The heatmap is planned hours only.
         </p>
       </section>
     </article>

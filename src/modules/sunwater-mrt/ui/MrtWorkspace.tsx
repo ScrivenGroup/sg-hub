@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
-import { saveSunwaterMrtStoreAction, resetMrtSandboxAction } from "../actions";
+import { saveSunwaterMrtStoreAction, saveGuestMrtSandboxAction, resetMrtSandboxAction } from "../actions";
 import type { ScheduleStore } from "../schema";
 import { AdminTab } from "./AdminTab";
 import { DefaultsTab } from "./DefaultsTab";
@@ -68,7 +68,9 @@ export function MrtWorkspace({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       startTransition(async () => {
-        const result = await saveSunwaterMrtStoreAction(next);
+        const result = sandbox
+          ? await saveGuestMrtSandboxAction(next)
+          : await saveSunwaterMrtStoreAction(next);
         setSaveState(result.ok ? "saved" : "error");
       });
     }, 400);
@@ -129,7 +131,7 @@ export function MrtWorkspace({
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pb-1">
           <p className="text-[11px] text-[var(--muted)]">
             Demo copy keyed by your name and network. Changes do not update the
-            live plan.
+            live plan. Reset restores the current live copy.
           </p>
           <button
             type="button"
@@ -282,7 +284,10 @@ export function MrtWorkspace({
         />
       ) : null}
       {tab === "Help" ? (
-        <HelpTab showStaffNotes={showDevelopment && !readOnly} />
+        <HelpTab
+          showStaffNotes={showDevelopment && !readOnly}
+          sandbox={sandbox}
+        />
       ) : null}
       {tab === "Admin" ? <AdminTab /> : null}
       {tab === "Development" ? (

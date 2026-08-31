@@ -346,7 +346,7 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-0.10",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "0.10",
     createdAt: "2026-08-19T16:00:00.000Z",
     title: "Grouped Gantt, rates, and split panes",
@@ -360,7 +360,7 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-0.11",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "0.11",
     createdAt: "2026-08-20T03:30:00.000Z",
     title: "Week tails, seed rates, and resource summary",
@@ -376,7 +376,7 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-0.12",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "0.12",
     createdAt: "2026-08-20T05:00:00.000Z",
     title: "Infinite pan, cost columns, and equal week scale",
@@ -389,7 +389,7 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-0.13",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "0.13",
     createdAt: "2026-08-20T05:40:00.000Z",
     title: "Hours origin, restore, and Gantt jump",
@@ -401,7 +401,7 @@ export const seedChangelogs: ChangelogEntry[] = [
   {
     id: "cl-sunwater-mrt-0.14",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "0.14",
     createdAt: "2026-08-20T06:30:00.000Z",
     title: "Actuals, restore pulse, and stacked rebalance",
@@ -442,7 +442,7 @@ export const seedChangelogs: ChangelogEntry[] = [
     kind: "release",
     version: "1.0",
     createdAt: "2026-08-23T04:00:00.000Z",
-    title: "Milestone Resourcing Tracker",
+    title: "Initial product cut",
     body: `Sunwater dam-safety obligations as regulator cycles (each dam × requirement type × due date), not named project milestones. Shared Work hub for Scriven Group staff (Microsoft sign-in).
 
 What you can do
@@ -489,7 +489,7 @@ Out of this version
     id: "cl-sunwater-mrt-1.3",
     nodeId: "w-sunwater-mrt",
     kind: "release",
-    version: "1.0",
+    version: "1.3",
     createdAt: "2026-08-31T05:10:00.000Z",
     title: "Share-ready release",
     body: `This is the 1.0 pack to share. Regulator cycles, guest Help, and audience shares.
@@ -502,12 +502,22 @@ Out of this version
   {
     id: "cl-sunwater-mrt-0.16",
     nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "1.4",
+    createdAt: "2026-08-31T08:20:00.000Z",
+    title: "Guest click-drag sandbox",
+    body: `- Guests load a personal copy of the live plan. Drag and hour edits save under data/mrt-sandboxes, keyed by guest name and network. Not live writes. Same App Service, no Neon.
+- Reset to live plan reclones the current live store onto that desk. Staff save path is unchanged. Guests still do not see Admin or Development.
+- Help describes the personal copy and Reset. Shell version stays v1.0.`,
+  },
+  {
+    id: "cl-sunwater-mrt-0.17",
+    nodeId: "w-sunwater-mrt",
     kind: "plan",
-    version: "0.16",
-    createdAt: "2026-08-28T06:00:00.000Z",
-    title: "Guest click-drag sandbox and example dataset",
-    body: `- Guest click-drag sandbox (future): reconnect getGuestMrtSandbox / save / Reset on a per-guest JSON file under data/mrt-sandboxes — same App Service, no Neon/second DB. Not live writes.
-- Later: pre-load the store from an external example dataset (provided separately).`,
+    version: "1.5",
+    createdAt: "2026-08-31T08:30:00.000Z",
+    title: "Example dataset preload",
+    body: `- Later: pre-load the live store from an external example dataset (provided separately).`,
   },
 ];
 

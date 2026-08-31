@@ -21,7 +21,7 @@ const SUBS = ["Sharing", "Guest activity", "Guides"] as const;
 const GUIDES = ["How to share"] as const;
 
 const INTRO: Record<(typeof SUBS)[number], string> = {
-  Sharing: "Create a labelled guest link to the live plan.",
+  Sharing: "Create a labelled guest link. Viewers get a personal copy they can click-drag.",
   "Guest activity": "Who opened a share on this instance.",
   Guides: "How to share a guest link. Product usage is on the Help tab.",
 };
@@ -67,9 +67,9 @@ function HowToShareGuide() {
         </p>
         <h2 className="text-2xl font-semibold tracking-tight">How to share</h2>
         <p className="max-w-2xl text-[var(--muted)]">
-          Give an external audience a read-only view of the live plan. They do
-          not use the site staff login. You create a labelled link in this app
-          and send the password separately.
+          Give an external audience a personal copy of the live plan they can
+          click-drag. They do not use the site staff login. You create a
+          labelled link in this app and send the password separately.
         </p>
         <p className="mrt-guide-downloads flex flex-wrap gap-3 print:hidden">
           <a className="sg-btn-secondary text-sm" href="/mrt-guest-share.html" download>
@@ -119,9 +119,10 @@ function HowToShareGuide() {
       <section className="space-y-2">
         <h3 className="text-base font-semibold">4. What the viewer sees</h3>
         <p>
-          They open the guest page, enter their name and that password, and see
-          a <strong>read-only</strong> live plan. Site/Staff login will not
-          open this view.
+          They open the guest page, enter their name and that password, and get
+          a <strong>personal copy</strong> of the live plan. They can drag and
+          save on that desk. Reset restores the current live copy. They cannot
+          change the live plan. Site/Staff login will not open this view.
         </p>
         <GuideFigure
           src="/mrt-guide/guest-gate.png"
@@ -131,7 +132,7 @@ function HowToShareGuide() {
         <GuideFigure
           src="/mrt-guide/guest-readonly.png"
           alt="Read-only tracker Gantt for a guest session"
-          caption="After sign-in they can browse the live plan. They cannot save changes."
+          caption="After sign-in they work a personal copy. Reset restores live; they cannot save to live."
         />
       </section>
 

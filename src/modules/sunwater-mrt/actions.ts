@@ -8,6 +8,7 @@ import {
   getMrtGuestActivity,
   logMrtGuestActivity,
   resetGuestMrtSandbox,
+  saveGuestMrtSandbox,
   saveSunwaterMrtStore,
   type MrtGuestActivity,
 } from "@/core/store/json-store";
@@ -53,6 +54,29 @@ export async function saveSunwaterMrtStoreAction(payload: unknown) {
   };
 
   await saveSunwaterMrtStore(next);
+  revalidatePath("/w/sunwater-mrt");
+  return { ok: true as const };
+}
+
+export async function saveGuestMrtSandboxAction(payload: unknown) {
+  const session = await auth();
+  if (!session?.user || !isMrtGuest(session)) {
+    return { ok: false as const, error: "Not a guest session" };
+  }
+  const guestId = session.user.id;
+  if (!guestId) return { ok: false as const, error: "Missing guest id" };
+
+  const parsed = scheduleStoreSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false as const, error: "Invalid store" };
+  }
+
+  const next = {
+    ...parsed.data,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await saveGuestMrtSandbox(guestId, next);
   revalidatePath("/w/sunwater-mrt");
   return { ok: true as const };
 }

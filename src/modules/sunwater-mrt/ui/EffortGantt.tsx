@@ -213,7 +213,6 @@ const HIDEABLE_META: Record<string, keyof MetaCols> = {
 };
 
 function MetaColHead({
-  colKey,
   label,
   width,
   hoursClass,
@@ -221,7 +220,7 @@ function MetaColHead({
   onSort,
   onHide,
 }: {
-  colKey: string;
+  colKey?: string;
   label: string;
   width: number;
   hoursClass?: boolean;
@@ -695,7 +694,6 @@ export function EffortGantt({
   colsOpen: colsOpenProp,
   onColsOpen,
   onStick,
-  showPmToggle = false,
   redHover = false,
   weekPx: weekPxProp,
   onWeekPx,
@@ -731,7 +729,6 @@ export function EffortGantt({
   colsOpen?: boolean;
   onColsOpen?: (next: boolean) => void;
   onStick?: (stick: EffortStick) => void;
-  showPmToggle?: boolean;
   redHover?: boolean;
   weekPx?: number;
   onWeekPx?: (next: number) => void;
@@ -784,7 +781,6 @@ export function EffortGantt({
     const val = typeof next === "function" ? next(colsOpen) : next;
     (onColsOpen ?? setColsOpenState)(val);
   };
-  const colsPopRef = useRef<HTMLDivElement>(null);
   const [focusPerson, setFocusPerson] = useState<string | null>(
     initialFocusPerson || null,
   );

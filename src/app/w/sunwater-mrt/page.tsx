@@ -4,6 +4,7 @@ import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
 import {
+  getGuestMrtSandbox,
   getChangelogsForNode,
   getSunwaterMrtStore,
 } from "@/core/store/json-store";
@@ -21,7 +22,11 @@ export default async function SunwaterMrtPage() {
   if (guest) await assertGuestShareOrSignOut();
 
   const node = getNodeByHref(HREF);
-  const store = await getSunwaterMrtStore();
+  const guestId = session?.user?.id;
+  const store =
+    guest && guestId
+      ? await getGuestMrtSandbox(guestId)
+      : await getSunwaterMrtStore();
   const changelogs = await getChangelogsForNode("w-sunwater-mrt");
 
   if (!node) {
@@ -54,8 +59,8 @@ export default async function SunwaterMrtPage() {
         initialStore={store}
         changelogs={changelogs}
         showDevelopment={!guest}
-        readOnly={guest}
-        sandbox={false}
+        readOnly={false}
+        sandbox={guest}
       />
     </AppShell>
   );
