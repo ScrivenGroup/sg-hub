@@ -489,15 +489,15 @@ Out of this version
     id: "cl-sunwater-mrt-1.3",
     nodeId: "w-sunwater-mrt",
     kind: "release",
-    version: "1.3",
-    createdAt: "2026-08-31T04:30:00.000Z",
-    title: "Help tab, user guides, Development notes",
-    body: `Share-ready pack: product guides on a tab guests can see, plus a staff scratchpad.
+    version: "1.0",
+    createdAt: "2026-08-31T05:10:00.000Z",
+    title: "Share-ready release",
+    body: `This is the 1.0 pack to share. Regulator cycles, guest Help, and audience shares.
 
-- Help (staff and guests): User guide and Quick reference. Quick reference More links jump to the matching User guide section. HTML and Print → PDF downloads.
+- Help (staff and guests): User guide and Quick reference. Quick reference More links jump to the matching User guide section. HTML and Print → PDF downloads. Version v1.0 sits in the page header.
 - Admin → Guides stays How to share (staff). Guests do not see Admin.
 - Development: sandbox Effort Gantt removed. Notes is a full-page textarea saved with the live plan (openNotes). Staff only.
-- User guide covers Gantt, Recalc / First due, resource hours, occurrence Effort, Project Management, Obligations, Inputs, Definitions, Defaults (seed-once), shared view, and what is out of this version.`,
+- Includes audience shares (guest gate), Recalc week-ending, First due, and Effort polish from the cycles after the first product cut.`,
   },
   {
     id: "cl-sunwater-mrt-0.16",

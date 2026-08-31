@@ -153,6 +153,8 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
           ...current,
           kind: "release",
           version: seeded.version ?? current.version,
+          title: seeded.title,
+          body: seeded.body,
         });
         changed = true;
       }
