@@ -3,12 +3,14 @@
 import { useState } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
 import type { ScheduleStore } from "../schema";
-import { emptyEffortDemo } from "../schema";
-import { ensureEffortDemo } from "../logic/effort-gantt";
-import { EffortGantt } from "./EffortGantt";
 import { SubTabs } from "./SubTabs";
 
-const SUBS = ["Changelog", "Effort Gantt"] as const;
+const SUBS = ["Changelog", "Notes"] as const;
+
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  Changelog: "What shipped, and what is still WIP.",
+  Notes: "Staff scratchpad. Saved with the live plan; not shown on a guest share.",
+};
 
 function releaseSort(a: ChangelogEntry, b: ChangelogEntry) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -49,13 +51,12 @@ export function DevelopmentTab({
   const releases = changelogs
     .filter((c) => c.kind === "release")
     .sort(releaseSort);
-  const demo = ensureEffortDemo(store.effortDemo || emptyEffortDemo());
 
   return (
-    <div>
-      <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       {sub === "Changelog" ? (
-        <section className="max-w-3xl space-y-6">
+        <section className="min-h-0 max-w-3xl flex-1 space-y-6 overflow-auto">
           {wip.length > 0 ? (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
@@ -80,36 +81,17 @@ export function DevelopmentTab({
           </div>
         </section>
       ) : null}
-      {sub === "Effort Gantt" ? (
-        <div>
-          <EffortGantt
-            store={store}
-            onChange={onChange}
-            demo={demo}
-            onDemoChange={(nextDemo) => {
-              const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
-              next.effortDemo = nextDemo;
-              onChange(next);
-            }}
-            applyDemoToStore={(next, nextDemo) => {
-              next.effortDemo = nextDemo;
-            }}
-            toolbarNote={`${demo.weekCount} weeks · Development sandbox (not an occurrence).`}
-          />
-          <label className="mt-4 block">
-            <span className="text-sm font-medium">Open notes</span>
-            <textarea
-              className="mrt-input mt-1 min-h-32 w-full"
-              value={store.openNotes || ""}
-              placeholder="Jot ideas for later review. Staff-only; not shown on a public share."
-              onChange={(e) => {
-                const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
-                next.openNotes = e.target.value;
-                onChange(next);
-              }}
-            />
-          </label>
-        </div>
+      {sub === "Notes" ? (
+        <textarea
+          className="mrt-notes-bulk"
+          value={store.openNotes || ""}
+          placeholder="Notes for this plan. Staff only. Saved with the live store."
+          onChange={(e) => {
+            const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
+            next.openNotes = e.target.value;
+            onChange(next);
+          }}
+        />
       ) : null}
     </div>
   );

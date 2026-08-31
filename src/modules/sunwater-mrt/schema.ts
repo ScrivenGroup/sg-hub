@@ -180,6 +180,8 @@ export const scheduleStoreSchema = z.object({
         z.object({
           y: z.number(),
           m: z.number(),
+          /** Optional week-ending day carried through predicted cycle slots. */
+          d: z.number().optional(),
         }),
       ),
     )

@@ -17,6 +17,13 @@ const SUBS = [
   "Resource Names",
 ] as const;
 
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  Assets: "Dams on this plan.",
+  "Obligation Types": "Regulator requirement types and their cycle.",
+  "Resource Roles": "Role catalogue, rates, and default weekly hours.",
+  "Resource Names": "Named people, roles, and available hours.",
+};
+
 export type InputsSub = (typeof SUBS)[number];
 export type DefinitionsTarget =
   | "Asset × Obligation"
@@ -30,12 +37,14 @@ export function InputsTab({
   onChange,
   readOnly = false,
   focusSub,
+  focusPersonId,
   onGoToDefinitions,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
   readOnly?: boolean;
   focusSub?: InputsSub | null;
+  focusPersonId?: string | null;
   onGoToDefinitions?: (sub: DefinitionsTarget) => void;
 }) {
   const [sub, setSub] = useState<(typeof SUBS)[number]>(
@@ -46,6 +55,22 @@ export function InputsTab({
     if (focusSub && SUBS.includes(focusSub)) setSub(focusSub);
   }, [focusSub]);
 
+  useEffect(() => {
+    if (!focusPersonId || sub !== "Resource Names") return;
+    const el = document.querySelector(
+      `[data-mrt-person-row="${CSS.escape(focusPersonId)}"]`,
+    );
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      el.classList.add("mrt-person-flash");
+      const t = window.setTimeout(
+        () => el.classList.remove("mrt-person-flash"),
+        1600,
+      );
+      return () => window.clearTimeout(t);
+    }
+  }, [focusPersonId, sub]);
+
   function update(mut: (next: ScheduleStore) => void) {
     if (readOnly) return;
     const next = JSON.parse(JSON.stringify(store)) as ScheduleStore;
@@ -55,7 +80,7 @@ export function InputsTab({
 
   return (
     <div>
-      <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+      <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       {sub === "Assets" ? (
         <>
           <CrossLinks
@@ -116,7 +141,11 @@ export function InputsTab({
             ]}
           />
           <div className={readOnly ? "mrt-ro" : undefined}>
-            <NamesTable store={store} update={update} />
+            <NamesTable
+              store={store}
+              update={update}
+              focusPersonId={focusPersonId}
+            />
           </div>
         </>
       ) : null}
@@ -439,9 +468,11 @@ function RolesTable({
 function NamesTable({
   store,
   update,
+  focusPersonId,
 }: {
   store: ScheduleStore;
   update: (mut: (next: ScheduleStore) => void) => void;
+  focusPersonId?: string | null;
 }) {
   const [draftFirst, setDraftFirst] = useState("");
   const [draftLast, setDraftLast] = useState("");
@@ -583,7 +614,13 @@ function NamesTable({
           {store.people.map((p, i) => {
             const parts = splitPersonName(p.name);
             return (
-              <tr key={p.id}>
+              <tr
+                key={p.id}
+                data-mrt-person-row={p.id}
+                className={
+                  focusPersonId === p.id ? "mrt-person-flash" : undefined
+                }
+              >
                 <td>
                   <input
                     className="mrt-input"

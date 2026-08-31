@@ -13,10 +13,12 @@ import {
 } from "@/core/store/json-store";
 import {
   createMrtShare,
+  deleteMrtShare,
   disableMrtShare,
   getMrtShareById,
   guestShareStillValid,
   listMrtSharesPublic,
+  revealMrtSharePassword,
   setMrtSharePassword,
   type MrtAudienceSharePublic,
 } from "@/core/store/mrt-share";
@@ -112,6 +114,22 @@ export async function setMrtSharePasswordAction(input: {
   return result;
 }
 
+export async function deleteMrtShareAction(id: string) {
+  if (!(await staffSession())) {
+    return { ok: false as const, error: "Staff only" };
+  }
+  const result = await deleteMrtShare(id);
+  if (result.ok) revalidatePath("/w/sunwater-mrt");
+  return result;
+}
+
+export async function revealMrtSharePasswordAction(id: string) {
+  if (!(await staffSession())) {
+    return { ok: false as const, error: "Staff only" };
+  }
+  return revealMrtSharePassword(id);
+}
+
 export async function guestMrtSignInAction(formData: FormData) {
   const shareId = String(formData.get("s") || "").trim();
   const name = String(formData.get("name") || "").trim();
@@ -131,19 +149,25 @@ export async function guestMrtSignInAction(formData: FormData) {
   });
   const fail = `/w/sunwater-mrt/guest${shareId ? `?s=${encodeURIComponent(shareId)}&error=1` : "?error=1"}`;
   try {
-    await signIn("mrt-share", {
+    // redirect:false then hard redirect — avoids Auth.js landing on /login
+    // after a successful credentials sign-in in some hosts.
+    const result = await signIn("mrt-share", {
       name,
       password,
       shareId,
       ip,
-      redirectTo: "/w/sunwater-mrt",
+      redirect: false,
     });
+    if (!result || result.error) {
+      redirect(fail);
+    }
   } catch (error) {
     if (error instanceof AuthError) {
       redirect(fail);
     }
     throw error;
   }
+  redirect("/w/sunwater-mrt");
 }
 
 export async function assertGuestShareOrSignOut() {

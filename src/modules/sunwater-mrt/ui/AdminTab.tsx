@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   createMrtShareAction,
+  deleteMrtShareAction,
   disableMrtShareAction,
   listMrtGuestActivityAction,
   listMrtSharesAction,
+  revealMrtSharePasswordAction,
   setMrtSharePasswordAction,
 } from "../actions";
 import {
@@ -17,6 +19,12 @@ import { SubTabs } from "./SubTabs";
 
 const SUBS = ["Sharing", "Guest activity", "Guides"] as const;
 const GUIDES = ["How to share"] as const;
+
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  Sharing: "Create a labelled guest link to the live plan.",
+  "Guest activity": "Who opened a share on this instance.",
+  Guides: "How to share a guest link. Product usage is on the Help tab.",
+};
 
 function guestLink(id: string) {
   const origin =
@@ -159,6 +167,11 @@ function SharingPanel() {
   const [pwRow, setPwRow] = useState<string | null>(null);
   const [pwEdits, setPwEdits] = useState<Record<string, string>>({});
   const [pwHours, setPwHours] = useState<Record<string, number>>({});
+  const [revealed, setRevealed] = useState<{
+    id: string;
+    password: string;
+    until: number;
+  } | null>(null);
 
   function refresh() {
     void listMrtSharesAction().then(setShares);
@@ -166,14 +179,46 @@ function SharingPanel() {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [revealTick, setRevealTick] = useState(0);
+  useEffect(() => {
+    if (!revealed) return;
+    const left = revealed.until - Date.now();
+    if (left <= 0) {
+      setRevealed(null);
+      return;
+    }
+    const hide = window.setTimeout(() => setRevealed(null), left);
+    const tick = window.setInterval(() => setRevealTick((n) => n + 1), 250);
+    return () => {
+      window.clearTimeout(hide);
+      window.clearInterval(tick);
+    };
+  }, [revealed]);
+  void revealTick;
 
   function copyLink(id: string) {
     const url = guestLink(id);
     void navigator.clipboard.writeText(url).then(() => {
       setCopied(id);
       setTimeout(() => setCopied((cur) => (cur === id ? null : cur)), 2000);
+    });
+  }
+
+  function viewPassword(id: string) {
+    setError("");
+    start(async () => {
+      const result = await revealMrtSharePasswordAction(id);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setRevealed({
+        id,
+        password: result.password,
+        until: Date.now() + 10_000,
+      });
     });
   }
 
@@ -283,6 +328,19 @@ function SharingPanel() {
                         >
                           {copied === row.id ? "Copied" : "Copy link"}
                         </button>
+                        <button
+                          type="button"
+                          className="mrt-btn-secondary"
+                          disabled={pending}
+                          title={
+                            row.hasVault
+                              ? "Show password for 10 seconds"
+                              : "Not stored — replace password to enable view"
+                          }
+                          onClick={() => viewPassword(row.id)}
+                        >
+                          View password
+                        </button>
                         {row.enabled ? (
                           <button
                             type="button"
@@ -307,7 +365,60 @@ function SharingPanel() {
                         >
                           {pwRow === row.id ? "Cancel" : "Replace password"}
                         </button>
+                        <button
+                          type="button"
+                          className="mrt-btn-secondary"
+                          disabled={pending}
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                `Delete audience “${row.audience}”? This cannot be undone.`,
+                              )
+                            ) {
+                              return;
+                            }
+                            start(async () => {
+                              const result = await deleteMrtShareAction(row.id);
+                              if (!result.ok) {
+                                setError(result.error);
+                                return;
+                              }
+                              setRevealed((cur) =>
+                                cur?.id === row.id ? null : cur,
+                              );
+                              setShares(await listMrtSharesAction());
+                            });
+                          }}
+                        >
+                          Delete
+                        </button>
                       </div>
+                      {revealed?.id === row.id ? (
+                        <p className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-mono rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1">
+                            {revealed.password}
+                          </span>
+                          <button
+                            type="button"
+                            className="mrt-btn-secondary"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(
+                                revealed.password,
+                              );
+                            }}
+                          >
+                            Copy
+                          </button>
+                          <span className="text-[var(--muted)]">
+                            Hides in{" "}
+                            {Math.max(
+                              1,
+                              Math.ceil((revealed.until - Date.now()) / 1000),
+                            )}
+                            s
+                          </span>
+                        </p>
+                      ) : null}
                       {pwRow === row.id ? (
                         <form
                           className="mt-2 flex flex-wrap items-end gap-2"
@@ -441,14 +552,19 @@ export function AdminTab() {
   return (
     <div>
       <div className="print:hidden">
-        <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+        <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       </div>
       {sub === "Sharing" ? <SharingPanel /> : null}
       {sub === "Guest activity" ? <GuestActivityPanel /> : null}
       {sub === "Guides" ? (
         <div>
           <div className="print:hidden">
-            <SubTabs tabs={GUIDES} value={guide} onChange={setGuide} />
+            <SubTabs
+              tabs={GUIDES}
+              value={guide}
+              onChange={setGuide}
+              intro="Print or download the sharing steps for staff."
+            />
           </div>
           {guide === "How to share" ? <HowToShareGuide /> : null}
         </div>

@@ -22,6 +22,7 @@ import {
   effortDemoToAssignmentPlan,
 } from "../logic/plan-effort-bridge";
 import {
+  effectiveDueDay,
   effectiveDueIdx,
   isCompleted,
   isScheduled,
@@ -108,7 +109,7 @@ export function OccurrenceModal({
   );
 
   const winStart = storeWindow(store).start;
-  const dueDay = sd.dueDayOverride ?? defaultDueDayForIdx(dueIdx, winStart);
+  const dueDay = effectiveDueDay(store, dam, lane, marker.procDueIdx, winStart);
   const procDay = defaultDueDayForIdx(marker.procDueIdx, winStart);
   const due = dueYmd(dueIdx, dueDay, winStart);
 
@@ -122,7 +123,7 @@ export function OccurrenceModal({
       marker.procDueIdx,
     );
     const baseDueIdx = effectiveDueIdx(clone, dam, lane, marker.procDueIdx);
-    const baseDueDay = defaultDueDayForIdx(baseDueIdx, winStart);
+    const baseDueDay = effectiveDueDay(clone, dam, lane, marker.procDueIdx, winStart);
     const baseDue = dueYmd(baseDueIdx, baseDueDay, winStart);
     const seeded = seedPlanFromDefaults(
       clone,
@@ -264,55 +265,53 @@ export function OccurrenceModal({
         </p>
       }
       footer={
-        <>
-          <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {readOnly || kind === "completed" ? null : (
-                <button
-                  type="button"
-                  className="mrt-btn-remove"
-                  onClick={removeMilestone}
-                >
-                  Remove this milestone
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  disabled={readOnly}
-                  checked={!!sd.completed}
-                  onChange={(e) => patchDetail({ completed: e.target.checked })}
-                />
-                Completed
-              </label>
+        <div className="mrt-occ-foot mt-2 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--border)] pt-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            {readOnly || kind === "completed" ? null : (
               <button
                 type="button"
-                className="sg-btn-primary"
-                disabled={readOnly}
-                onClick={savePlan}
+                className="mrt-btn-remove is-compact"
+                onClick={removeMilestone}
               >
-                Save assignment
+                Remove this milestone
               </button>
-              <button
-                type="button"
-                className="sg-btn-primary"
-                disabled={readOnly}
-                onClick={() => {
-                  savePlan();
-                  onClose();
-                }}
-              >
-                Save and Close
-              </button>
-            </div>
+            )}
+            <span className="mrt-occ-note">
+              Seeded once from Defaults. Later Defaults edits do not overwrite
+              a saved plan.
+            </span>
           </div>
-          <p className="mt-2 shrink-0 text-xs text-[var(--muted)]">
-            Seeded once from Defaults. Changing Defaults later does not overwrite
-            this occurrence until you restore.
-          </p>
-        </>
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                disabled={readOnly}
+                checked={!!sd.completed}
+                onChange={(e) => patchDetail({ completed: e.target.checked })}
+              />
+              Completed
+            </label>
+            <button
+              type="button"
+              className="mrt-btn-primary"
+              disabled={readOnly}
+              onClick={savePlan}
+            >
+              Save assignment
+            </button>
+            <button
+              type="button"
+              className="mrt-btn-primary"
+              disabled={readOnly}
+              onClick={() => {
+                savePlan();
+                onClose();
+              }}
+            >
+              Save and Close
+            </button>
+          </div>
+        </div>
       }
     >
       <EffortGantt

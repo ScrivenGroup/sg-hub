@@ -12,6 +12,8 @@ export type MrtAudienceSharePublic = {
   enabled: boolean;
   expiresAt: string;
   updatedAt: string;
+  /** Staff can View password when a vault was stored at create/replace. */
+  hasVault: boolean;
 };
 
 export type MrtGuestActivity = {

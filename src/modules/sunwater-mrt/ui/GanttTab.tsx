@@ -74,6 +74,7 @@ import { FilterChecklist } from "./FilterChecklist";
 import { ResourceLoadPane } from "./ResourceLoadPane";
 import { StackedEffortModal } from "./StackedEffortModal";
 import { GanttTimescale, ganttTimescaleHeight, monthGridEdge, weekGridLine } from "./GanttTimescale";
+import { PageIntro } from "./SubTabs";
 
 const ZOOM_X = [8, 11, 14, 18, 24, 32, 48, 72];
 const ZOOM_Y = [0.7, 0.85, 1, 1.2, 1.45, 1.8];
@@ -135,6 +136,7 @@ export function GanttTab({
   onChange,
   readOnly = false,
   onGoToDefaults,
+  onGoToPerson,
   focusOccurrence,
   onFocusConsumed,
 }: {
@@ -142,6 +144,7 @@ export function GanttTab({
   onChange: (store: ScheduleStore) => void;
   readOnly?: boolean;
   onGoToDefaults?: (laneCode: string) => void;
+  onGoToPerson?: (personId: string) => void;
   focusOccurrence?: GanttOccurrenceFocus | null;
   onFocusConsumed?: () => void;
 }) {
@@ -170,6 +173,8 @@ export function GanttTab({
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [rowSort, setRowSort] = useState<GanttSort | null>(null);
   const [pulseKey, setPulseKey] = useState<string | null>(null);
+  const [pulseToast, setPulseToast] = useState<string | null>(null);
+  const [hideEmptyOnScreen, setHideEmptyOnScreen] = useState(false);
   const [rebalance, setRebalance] = useState<{
     contributions: LoadContribution[];
     personId: string;
@@ -266,7 +271,7 @@ export function GanttTab({
   const labelW = 420;
   const markers = useMemo(() => ganttMarkers(store), [store]);
 
-  const pairs = useMemo(
+  const basePairs = useMemo(
     () =>
       visiblePairs(store, damFilter, laneFilter, onlyOngoing, scheduleFilter),
     [store, damFilter, laneFilter, onlyOngoing, scheduleFilter],
@@ -287,6 +292,40 @@ export function GanttTab({
     return map;
   }, [store, markers, win.start]);
 
+  const viewStartC = (minimap.leftPct / 100) * months;
+  const viewEndC = ((minimap.leftPct + minimap.widthPct) / 100) * months;
+
+  const pairs = useMemo(() => {
+    if (!hideEmptyOnScreen) return basePairs;
+    const pad = 0.05;
+    const a = viewStartC - pad;
+    const b = viewEndC + pad;
+    return basePairs.filter((p) =>
+      markers.some((m) => {
+        if (m.damId !== p.dam.id || m.laneCode !== p.lane.code) return false;
+        if (m.kind === "completed" || m.kind === "notRequired") return false;
+        const span = hourBars.get(
+          `${m.damId}-${m.laneCode}-${m.procDueIdx}`,
+        );
+        if (span) return span.endC > a && span.startC < b;
+        const c = idxDayToContinuous(
+          m.displayDueIdx,
+          m.dueDay ?? 15,
+          win.start,
+        );
+        return c >= a && c < b;
+      }),
+    );
+  }, [
+    hideEmptyOnScreen,
+    basePairs,
+    markers,
+    hourBars,
+    viewStartC,
+    viewEndC,
+    win.start,
+  ]);
+
   const headerH = ganttTimescaleHeight(grain, "full");
   const weekSlots = grain === "week" ? scale.slots : [];
 
@@ -298,8 +337,34 @@ export function GanttTab({
       if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) return false;
       return true;
     });
-    return aggregateResourceLoad(store, visible, win.start, months, grain);
-  }, [store, markers, pairs, dueBeforeIdx, months, win.start, grain]);
+    const rows = aggregateResourceLoad(
+      store,
+      visible,
+      win.start,
+      months,
+      grain,
+    );
+    if (!hideEmptyOnScreen) return rows;
+    const a = viewStartC;
+    const b = viewEndC;
+    return rows.filter((row) =>
+      row.cells.some(
+        (cell) =>
+          cell.hours > 0 && cell.endC > a && cell.startC < b,
+      ),
+    );
+  }, [
+    store,
+    markers,
+    pairs,
+    dueBeforeIdx,
+    months,
+    win.start,
+    grain,
+    hideEmptyOnScreen,
+    viewStartC,
+    viewEndC,
+  ]);
 
   const { items, totalHeight } = useMemo(
     () =>
@@ -401,7 +466,7 @@ export function GanttTab({
       setAllCollapsed(false);
       return;
     }
-    const pairVisible = pairs.some(
+    const pairVisible = basePairs.some(
       (p) =>
         p.dam.id === focusOccurrence.damId &&
         p.lane.code === focusOccurrence.laneCode,
@@ -466,6 +531,7 @@ export function GanttTab({
         idxDayToContinuous(marker.displayDueIdx, marker.dueDay, win.start),
       );
     }
+    if (hideEmptyOnScreen) setHideEmptyOnScreen(false);
     pendingScroll.current = { type: "xy", x: cx, y: top + laneH / 2 };
     const bv = bodyRef.current;
     if (bv) {
@@ -475,15 +541,25 @@ export function GanttTab({
     syncChrome();
     const pulse = `${focusOccurrence.damId}-${focusOccurrence.laneCode}-${focusOccurrence.procDueIdx}`;
     setPulseKey(pulse);
+    const damName =
+      store.dams.find((d) => d.id === focusOccurrence.damId)?.name ||
+      focusOccurrence.damId;
+    const laneLabel =
+      store.lanes.find((l) => l.code === focusOccurrence.laneCode)?.label ||
+      focusOccurrence.laneCode;
+    setPulseToast(`Centred on ${damName} · ${laneLabel}`);
     if (pulseTimer.current) clearTimeout(pulseTimer.current);
-    pulseTimer.current = setTimeout(() => setPulseKey(null), 2500);
+    pulseTimer.current = setTimeout(() => {
+      setPulseKey(null);
+      setPulseToast(null);
+    }, 4000);
     onFocusConsumed?.();
   }, [
     focusOccurrence,
     showGantt,
     mode,
     collapsed,
-    pairs,
+    basePairs,
     items,
     markers,
     store,
@@ -656,13 +732,28 @@ export function GanttTab({
       }
       const pan = panRef.current;
       if (!pan) return;
-      const bv = bodyRef.current;
+      const bv = bodyRef.current || allocScrollRef.current;
       if (!bv) return;
       if (pan.mode !== "y") {
-        bv.scrollLeft = pan.startLeft - (e.clientX - pan.startX);
+        const nextLeft = pan.startLeft - (e.clientX - pan.startX);
+        bv.scrollLeft = nextLeft;
+        if (bodyRef.current && allocScrollRef.current && bv === bodyRef.current) {
+          syncingH.current = true;
+          allocScrollRef.current.scrollLeft = nextLeft;
+          syncingH.current = false;
+        } else if (
+          bodyRef.current &&
+          allocScrollRef.current &&
+          bv === allocScrollRef.current
+        ) {
+          syncingH.current = true;
+          bodyRef.current.scrollLeft = nextLeft;
+          syncingH.current = false;
+        }
       }
-      if (pan.mode !== "x") {
-        bv.scrollTop = pan.startTop - (e.clientY - pan.startY);
+      if (pan.mode !== "x" && bodyRef.current) {
+        bodyRef.current.scrollTop =
+          pan.startTop - (e.clientY - pan.startY);
       }
       syncChrome();
     }
@@ -726,6 +817,103 @@ export function GanttTab({
       bv.scrollLeft = todayChartX(scaleRef.current) - bv.clientWidth / 2;
       syncChrome();
     }
+  }
+
+  function jumpToFirstDue() {
+    if (!showGantt) {
+      setShowGantt(true);
+      return;
+    }
+    const pairSet = new Set(pairs.map((p) => `${p.dam.id}|${p.lane.code}`));
+    const candidates = markers
+      .filter((m) => {
+        if (m.kind === "completed" || m.kind === "notRequired") return false;
+        if (!pairSet.has(`${m.damId}|${m.laneCode}`)) return false;
+        if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.displayDueIdx !== b.displayDueIdx) {
+          return a.displayDueIdx - b.displayDueIdx;
+        }
+        return (a.dueDay ?? 0) - (b.dueDay ?? 0);
+      });
+    const first = candidates[0];
+    if (!first) return;
+
+    const headingKey =
+      mode === "flat"
+        ? null
+        : mode === "dam-obl"
+          ? `dam:${first.damId}`
+          : `lane:${first.laneCode}`;
+    if (headingKey && collapsed[headingKey]) {
+      setCollapsed((cur) => ({ ...cur, [headingKey]: false }));
+      setAllCollapsed(false);
+    }
+
+    let top = 0;
+    let found = false;
+    for (const it of items) {
+      if (
+        it.type === "row" &&
+        it.damId === first.damId &&
+        it.laneCode === first.laneCode
+      ) {
+        found = true;
+        break;
+      }
+      top += it.h;
+    }
+    const sc = scaleRef.current;
+    const span = occurrenceAllSpanContinuous(
+      store,
+      first.damId,
+      first.laneCode,
+      first.procDueIdx,
+      win.start,
+    );
+    let cx = 0;
+    if (span) {
+      cx =
+        (continuousToChartX(sc, span.startC) +
+          continuousToChartX(sc, span.endC)) /
+        2;
+    } else {
+      cx = continuousToChartX(
+        sc,
+        idxDayToContinuous(
+          first.displayDueIdx,
+          first.dueDay ?? 15,
+          win.start,
+        ),
+      );
+    }
+    pendingScroll.current = {
+      type: "xy",
+      x: cx,
+      y: found ? top + laneH / 2 : 0,
+    };
+    const bv = bodyRef.current;
+    if (bv) {
+      bv.scrollLeft = Math.max(0, cx - bv.clientWidth / 2);
+      if (found) {
+        bv.scrollTop = Math.max(0, top - bv.clientHeight / 2 + laneH / 2);
+      }
+      syncChrome();
+    }
+    const pulse = `${first.damId}-${first.laneCode}-${first.procDueIdx}`;
+    setPulseKey(pulse);
+    const damName =
+      store.dams.find((d) => d.id === first.damId)?.name || first.damId;
+    const laneLabel =
+      store.lanes.find((l) => l.code === first.laneCode)?.label || first.laneCode;
+    setPulseToast(`First due · ${damName} · ${laneLabel}`);
+    if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(() => {
+      setPulseKey(null);
+      setPulseToast(null);
+    }, 4000);
   }
 
   function jumpToFY(endYear: number) {
@@ -1018,14 +1206,23 @@ export function GanttTab({
     if (
       target.closest("[data-gantt-marker]") ||
       target.closest("[data-minimap-window]") ||
-      target.closest("button") ||
+      target.closest("[data-mrt-alloc-over]") ||
+      target.closest("[data-mrt-alloc-pop]") ||
+      target.closest("[data-mrt-alloc-name-link]") ||
       target.closest("input") ||
       target.closest("select") ||
       target.closest("label")
     ) {
       return;
     }
-    const bv = bodyRef.current;
+    // Empty Resource Hours cells are disabled buttons — still allow pan there.
+    if (
+      target.closest("button") &&
+      !target.closest(".mrt-alloc-cell")
+    ) {
+      return;
+    }
+    const bv = bodyRef.current || allocScrollRef.current;
     if (!bv) return;
     e.preventDefault();
     panRef.current = {
@@ -1136,7 +1333,16 @@ export function GanttTab({
   const bothPanes = showGantt && showAlloc;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {pulseToast ? (
+        <div className="mrt-gantt-focus-toast" role="status">
+          {pulseToast}
+        </div>
+      ) : null}
+      <PageIntro>
+        Regulator cycles on a timeline — drag a due, then Recalc so later dates
+        keep that week-ending.
+      </PageIntro>
       <div className="mrt-chrome-row mb-1 text-sm" data-mrt-overlay>
         <div className="mrt-chrome-group">
           <button
@@ -1285,6 +1491,22 @@ export function GanttTab({
             title="Predicted only"
           >
             Pred
+          </button>
+          <button
+            type="button"
+            className={`mrt-chrome-btn ${hideEmptyOnScreen ? "on" : ""}`}
+            onClick={() => setHideEmptyOnScreen((v) => !v)}
+            title="Hide rows with no work in the current timescale view"
+          >
+            On screen
+          </button>
+          <button
+            type="button"
+            className="mrt-chrome-btn"
+            onClick={() => jumpToFirstDue()}
+            title="Jump to earliest filtered obligation"
+          >
+            First due
           </button>
         </div>
         <div className="mrt-chrome-group">
@@ -1805,6 +2027,9 @@ export function GanttTab({
               onRebalanceAll={openRebalance}
               showClose={bothPanes}
               onClosePane={() => setShowAlloc(false)}
+              onPanPointerDown={(e) => startPan(e, "x")}
+              panning={panning}
+              onGoToPerson={onGoToPerson}
             />
           </div>
         ) : null}

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User guide — Milestone Resourcing Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/mrt-guide/guide.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Milestone Resourcing Tracker · User guide</p>
+      <h1>User guide</h1>
+      <p class="lede">
+        How to read the plan, move dues, assign people, and seed hours. A
+        shorter map lives in the
+        <a href="/mrt-quick-reference.html">Quick reference</a>.
+      </p>
+
+      <nav class="toc">
+        <a href="#guide-what">What this is</a>
+        <a href="#guide-tabs">Tabs</a>
+        <a href="#guide-gantt">Gantt</a>
+        <a href="#guide-recalc">Recalc and First due</a>
+        <a href="#guide-hours">Resource hours</a>
+        <a href="#guide-effort">Occurrence and Effort</a>
+        <a href="#guide-pm">Project Management</a>
+        <a href="#guide-obligations">Obligations</a>
+        <a href="#guide-inputs">Inputs</a>
+        <a href="#guide-definitions">Definitions</a>
+        <a href="#guide-defaults">Defaults</a>
+        <a href="#guide-guest">Shared view</a>
+        <a href="#guide-staff">Staff</a>
+        <a href="#guide-out">Out of this version</a>
+      </nav>
+
+      <h2 id="guide-what">What this is</h2>
+      <p>
+        The Milestone Resourcing Tracker plans <strong>regulator cycles</strong>
+        for dam safety: each dam × requirement type × due date. It is not a list
+        of named engagement milestones.
+      </p>
+      <p>
+        Staff apply a seeded catalog of obligation types and roles, and may add
+        or rename. Plan hours sit on <strong>Defaults</strong> (by role) and on
+        the occurrence popup (by person). Those hours
+        <strong>seed once</strong>: saving an occurrence keeps that plan even if
+        Defaults change later.
+      </p>
+      <p>
+        Load is a heatmap of <strong>planned</strong> hours against weekly
+        available hours. The app does not level or auto-move work.
+      </p>
+
+      <h2 id="guide-tabs">Tabs</h2>
+      <p>
+        Product tabs sit under the page title. <strong>← Back</strong> returns
+        to the previous tracker tab when you jumped (for example from Gantt to a
+        person on Inputs).
+      </p>
+      <ul>
+        <li>
+          <strong>Gantt</strong> — cyclical timeline and resource-hours pane.
+        </li>
+        <li>
+          <strong>Obligations</strong> — every occurrence as a table.
+        </li>
+        <li>
+          <strong>Inputs</strong> — assets, types, roles, named people.
+        </li>
+        <li>
+          <strong>Definitions</strong> — applicability and ownership matrices.
+        </li>
+        <li>
+          <strong>Defaults</strong> — lead-in months and default effort hours.
+        </li>
+        <li>
+          <strong>Help</strong> — Quick reference and this User guide.
+        </li>
+      </ul>
+      <p>
+        Guests see those six tabs, read-only. Staff also see
+        <strong>Admin</strong> (sharing) and <strong>Development</strong>
+        (changelog and notes).
+      </p>
+
+      <h2 id="guide-gantt">Gantt</h2>
+      <p>
+        Each row is a dam × obligation type. Diamonds on the timeline are
+        occurrences: predicted (open), scheduled (solid), completed, or not
+        required. The working rule: drag a due, then Recalc so later dates keep
+        that week-ending.
+      </p>
+      <ul>
+        <li>
+          Filter by <strong>Asset</strong>, <strong>Type</strong>, and
+          <strong>Due</strong>. Each filter has Select all / Clear all.
+        </li>
+        <li>
+          Switch grain with <strong>Weeks</strong> / <strong>Months</strong>.
+          Zoom the timescale and the row height.
+        </li>
+        <li>
+          <strong>On screen</strong> centres today. <strong>First due</strong>
+          jumps to the earliest filtered obligation that is still on the board
+          (not complete).
+        </li>
+        <li>
+          Drag a diamond to move that due. Task hours on the Effort chart move
+          with the milestone (tail-end shift; stick unchanged).
+        </li>
+        <li>
+          Flatten, Dam↔Obl, and the FY timeline sit on the chrome row above the
+          chart. Open <strong>Legend</strong> for marker colours.
+        </li>
+      </ul>
+
+      <h2 id="guide-recalc">Recalc and First due</h2>
+      <p>
+        After you drag a due, later <em>predicted</em> dates on that row may
+        still be on the old cycle. Press <strong>↺ Recalc</strong> on the row.
+        Recalc uses the next known due as the cycle origin (skipping
+        not-required). Scheduled and completed stays. Predicted futures are
+        replaced. Hidden predicted occurrences come back.
+      </p>
+      <p>
+        Recalc keeps the <strong>week-ending day</strong> you dragged — not
+        month-end. If you move a due inside the same month, ↺ turns amber until
+        you Recalc. Obligations has the same Recalculate action.
+      </p>
+      <p>
+        <strong>First due</strong> (next to On screen) scrolls to the earliest
+        incomplete marker in the current filters.
+      </p>
+
+      <h2 id="guide-hours">Resource hours</h2>
+      <p>
+        The lower Gantt pane is planned load by person and week. Cells stay
+        blank when hours are at or under weekly available capacity.
+        <strong>Yellow</strong> is over 100%. <strong>Red</strong> is over the
+        overrun threshold (default 125%, set on Inputs → Resource Names).
+      </p>
+      <ul>
+        <li>
+          Hover or click a yellow/red cell to see which obligations stack that
+          week.
+        </li>
+        <li>
+          <strong>Rebalance</strong> opens those contributing Effort charts on
+          one week axis so you can edit hours by hand. It does not auto-level.
+        </li>
+        <li>
+          Click a name to jump to that person on Inputs. Availability and
+          summary toggles (This milestone | Everywhere, Total | Available/over)
+          live on the Effort chart, not only here.
+        </li>
+      </ul>
+
+      <h2 id="guide-effort">Occurrence and Effort</h2>
+      <p>
+        Click a diamond (or open a row from Obligations) for the occurrence
+        popup. Set due date, lead-in and tail, assign people to tasks, and plan
+        hours on the Effort Gantt.
+      </p>
+      <ul>
+        <li>
+          Task, Role, and Name stay frozen on the left; week columns scroll. Hide
+          a meta column with ×; bring it back from <strong>Columns</strong>.
+        </li>
+        <li>
+          Toolbar groups: Unstick / Tail start / Tail end · Columns · Centre /
+          Collapse / Availability.
+        </li>
+        <li>
+          Resource summary hours update while you drag. Weeks zoom is an inline
+          chip (− % +).
+        </li>
+        <li>
+          <strong>Save</strong> writes hour edits.
+          <strong>Save and Close</strong> does both. <strong>Close</strong> (and
+          Esc) discard unsaved hour edits. The italic note under the chart
+          reminds you that Defaults seeded this plan once.
+        </li>
+        <li>
+          Changing role keeps the name and warns with * when that person is out
+          of the role catalog for the dropdown.
+        </li>
+        <li>
+          Reset icons restore due/tail or hours to Defaults without snapping the
+          window to the tail.
+        </li>
+      </ul>
+
+      <h2 id="guide-pm">Project Management</h2>
+      <p>
+        <strong>Enable Project Management</strong> is off by default. When it is
+        on, the Effort chart shows status, actual hours / actual $, FAC, and VAC
+        — and forces Hours and Costs columns on. FAC is actuals plus remaining
+        planned from today. VAC is FAC minus budget. The heatmap still uses
+        planned hours only.
+      </p>
+
+      <h2 id="guide-obligations">Obligations</h2>
+      <p>
+        A table of every occurrence in the horizon. Sub-tabs:
+        <strong>All Obligations</strong>, <strong>Ongoing</strong> (overdue and
+        in the lead-in window now), and <strong>Upcoming</strong> (next dues
+        inside the look-ahead you pick).
+      </p>
+      <ul>
+        <li>Filter assets and obligation types (Select all / Clear all).</li>
+        <li>Open a row for the same occurrence popup as the Gantt.</li>
+        <li>
+          <strong>Go to Gantt</strong> centres that marker and pulses it.
+        </li>
+        <li>Recalculate on a row is the same cycle rebase as Gantt ↺.</li>
+      </ul>
+
+      <h2 id="guide-inputs">Inputs</h2>
+      <p>The catalog you plan against. Four sub-tabs:</p>
+      <ul>
+        <li><strong>Assets</strong> — dams on this plan.</li>
+        <li>
+          <strong>Obligation Types</strong> — regulator requirement types and
+          their cycle (for example every n years).
+        </li>
+        <li>
+          <strong>Resource Roles</strong> — role catalogue, rates, default
+          weekly hours.
+        </li>
+        <li>
+          <strong>Resource Names</strong> — named people, roles they hold,
+          weekly available hours, overrun threshold. External rate shows a
+          colour dot when it differs from the role default.
+        </li>
+      </ul>
+      <p>
+        Cross-links take you to the matching Definitions matrix. Removing a dam,
+        type, role, or person cascades so leftover assignments do not orphan.
+      </p>
+
+      <h2 id="guide-definitions">Definitions</h2>
+      <ul>
+        <li>
+          <strong>Asset × Obligation</strong> — which types apply to which dams,
+          plus each cycle origin (the date later Recalc uses).
+        </li>
+        <li>
+          <strong>Resource × Role</strong> — who can fill which roles in the
+          Effort dropdowns.
+        </li>
+        <li>
+          <strong>Asset × Resource Role</strong> — named owners per dam, region,
+          or all assets, by role.
+        </li>
+      </ul>
+
+      <h2 id="guide-defaults">Defaults</h2>
+      <ul>
+        <li>
+          <strong>Lead-in time per dam</strong> — months of lead-in before each
+          dam × obligation due. That window is the Effort chart for a new
+          occurrence.
+        </li>
+        <li>
+          <strong>Task+Resource Effort</strong> — default hours by role that
+          <strong>seed a new occurrence once</strong>. After you save that
+          occurrence, editing Defaults does not overwrite it. Reset on the
+          occurrence restores the current Defaults if you want that.
+        </li>
+      </ul>
+      <p>
+        Cross-links on Defaults go to Inputs (Assets, Obligation Types, Resource
+        Roles).
+      </p>
+
+      <h2 id="guide-guest">Shared view</h2>
+      <p>
+        A guest opens a labelled link, enters their name and the share password,
+        and sees the <strong>live plan read-only</strong>. They do not use the
+        site Microsoft login. They cannot save. Tabs: Gantt, Obligations,
+        Inputs, Definitions, Defaults, and Help.
+      </p>
+      <p>
+        Home, Feedback, Admin, and Development are hidden. If a control looks
+        faded, it is display-only.
+      </p>
+
+      <h2 id="guide-staff">Staff</h2>
+      <p>
+        Create and cut guest links under <strong>Admin → Sharing</strong>. The
+        staff how-to is <strong>Admin → Guides → How to share</strong> (HTML and
+        PDF). Do not put the share password in Azure App Settings. Copy the
+        link; tell the password another way.
+      </p>
+      <p>
+        <strong>Development → Changelog</strong> is what shipped and what is
+        still WIP. <strong>Development → Notes</strong> is a staff-only
+        scratchpad saved with this plan — not shown on a guest share.
+      </p>
+
+      <h2 id="guide-out">Out of this version</h2>
+      <p>
+        Followups, Assumptions, non-resource / intangibles costing, and
+        automatic leveling. The heatmap is planned hours only. Guests do not get
+        a click-drag sandbox in this version.
+      </p>
+
+      <footer>
+        Scriven Group · Help → User guide · Shorter map:
+        <a href="/mrt-quick-reference.html">Quick reference</a>. Download PDF
+        from the in-app guide (Print → Save as PDF).
+      </footer>
+    </main>
+  </body>
+</html>

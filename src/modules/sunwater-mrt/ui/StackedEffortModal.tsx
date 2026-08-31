@@ -21,6 +21,9 @@ import {
   ALL_META,
   EffortGantt,
   EffortLoadSummary,
+  EffortWeekPxProvider,
+  WEEK_PX_DEFAULT,
+  WeekZoomChip,
   effortChromeWidths,
   type MetaCols,
 } from "./EffortGantt";
@@ -69,6 +72,7 @@ export function StackedEffortModal({
   const [foldNonce, setFoldNonce] = useState({ n: 0, all: false });
   const [centreNonce, setCentreNonce] = useState(0);
   const [focusPerson, setFocusPerson] = useState<string | null>(personId || null);
+  const [weekPx, setWeekPx] = useState(WEEK_PX_DEFAULT);
 
   const pmOn = !!store.projectManagement;
   const widths = effortChromeWidths(mode, metaCols, pmOn, true);
@@ -185,22 +189,6 @@ export function StackedEffortModal({
             ))}
           </div>
           <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
-            <button
-              type="button"
-              className="mrt-gantt-tool"
-              title="Scroll to the start of the shared timeline"
-              onClick={() => setCentreNonce((n) => n + 1)}
-            >
-              Centre around Gantt
-            </button>
-            <button
-              type="button"
-              className="mrt-gantt-tool"
-              disabled={mode === "flat"}
-              onClick={() => setFoldNonce((c) => ({ n: c.n + 1, all: !c.all }))}
-            >
-              {foldNonce.all ? "Expand" : "Collapse"}
-            </button>
             <div className="relative inline-flex items-center" data-mrt-cols-pop>
               <button
                 type="button"
@@ -235,6 +223,24 @@ export function StackedEffortModal({
                 </div>
               ) : null}
             </div>
+          </div>
+          <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
+            <button
+              type="button"
+              className="mrt-gantt-tool"
+              title="Scroll to the start of the shared timeline"
+              onClick={() => setCentreNonce((n) => n + 1)}
+            >
+              Centre around Gantt
+            </button>
+            <button
+              type="button"
+              className="mrt-gantt-tool"
+              disabled={mode === "flat"}
+              onClick={() => setFoldNonce((c) => ({ n: c.n + 1, all: !c.all }))}
+            >
+              {foldNonce.all ? "Expand" : "Collapse"}
+            </button>
             <button
               type="button"
               className={`mrt-gantt-tool${metaCols.availability ? " on" : ""}`}
@@ -245,6 +251,7 @@ export function StackedEffortModal({
               Availability
             </button>
           </div>
+          <WeekZoomChip weekPx={weekPx} onWeekPx={setWeekPx} />
           <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
             <label
               className="mrt-gantt-tool inline-flex cursor-pointer items-center gap-1.5"
@@ -277,10 +284,10 @@ export function StackedEffortModal({
       }
       toolbar={toolbar}
       footer={
-        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-3">
+        <div className="mrt-occ-foot mt-2 flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-2">
           <button
             type="button"
-            className="sg-btn-primary"
+            className="mrt-btn-primary"
             disabled={readOnly}
             onClick={saveAssignment}
           >
@@ -288,7 +295,7 @@ export function StackedEffortModal({
           </button>
           <button
             type="button"
-            className="sg-btn-primary"
+            className="mrt-btn-primary"
             disabled={readOnly}
             onClick={() => {
               saveAssignment();
@@ -300,6 +307,7 @@ export function StackedEffortModal({
         </div>
       }
     >
+      <EffortWeekPxProvider weekPx={weekPx}>
           {contributions.map((c, i) => (
             <section
               key={`${c.damId}|${c.laneCode}|${c.procDueIdx}`}
@@ -329,6 +337,8 @@ export function StackedEffortModal({
                   metaCols={metaCols}
                   onMetaCols={setMetaCols}
                   redHover
+                  weekPx={weekPx}
+                  onWeekPx={setWeekPx}
                 />
               ) : null}
             </section>
@@ -343,6 +353,7 @@ export function StackedEffortModal({
               focusPerson={focusPerson}
               onFocus={setFocusPerson}
               metaCols={metaCols}
+              onMetaCols={setMetaCols}
               nameW={widths.nameW}
               labelW={widths.labelW}
               n={weeks.length}
@@ -350,6 +361,7 @@ export function StackedEffortModal({
               redHover
             />
           ) : null}
+      </EffortWeekPxProvider>
     </EffortPopupShell>
   );
 }

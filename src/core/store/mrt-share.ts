@@ -1,4 +1,11 @@
-import { randomBytes, scrypt, timingSafeEqual } from "crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  scrypt,
+  timingSafeEqual,
+} from "crypto";
 import { promisify } from "util";
 import { promises as fs } from "fs";
 import path from "path";
@@ -21,9 +28,45 @@ export type MrtAudienceShare = {
   enabled: boolean;
   passwordHash: string;
   salt: string;
+  /** AES-GCM vault: iv:tag:ciphertext (hex). Staff reveal only. */
+  passwordVault?: string;
   expiresAt: string;
   updatedAt: string;
 };
+
+function vaultKey(): Buffer {
+  const secret = process.env.AUTH_SECRET || "";
+  return createHash("sha256").update(`mrt-share-vault:${secret}`).digest();
+}
+
+function sealPassword(plain: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", vaultKey(), iv);
+  const enc = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString("hex")}:${tag.toString("hex")}:${enc.toString("hex")}`;
+}
+
+function openPassword(vault: string): string | null {
+  const parts = vault.split(":");
+  if (parts.length !== 3) return null;
+  const [ivHex, tagHex, dataHex] = parts;
+  try {
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      vaultKey(),
+      Buffer.from(ivHex, "hex"),
+    );
+    decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(dataHex, "hex")),
+      decipher.final(),
+    ]);
+    return plain.toString("utf8");
+  } catch {
+    return null;
+  }
+}
 
 type ShareFile = { shares: MrtAudienceShare[] };
 
@@ -62,6 +105,7 @@ function toPublic(row: MrtAudienceShare): MrtAudienceSharePublic {
     enabled: row.enabled,
     expiresAt: row.expiresAt,
     updatedAt: row.updatedAt,
+    hasVault: Boolean(row.passwordVault),
   };
 }
 
@@ -155,6 +199,7 @@ export async function createMrtShare(input: {
     enabled: true,
     passwordHash,
     salt,
+    passwordVault: sealPassword(input.password),
     expiresAt: new Date(now.getTime() + hours * 3600 * 1000).toISOString(),
     updatedAt: now.toISOString(),
   };
@@ -178,6 +223,7 @@ export async function setMrtSharePassword(input: {
   const salt = randomBytes(16).toString("hex");
   row.salt = salt;
   row.passwordHash = await hashPassword(input.password, salt);
+  row.passwordVault = sealPassword(input.password);
   row.enabled = true;
   const now = new Date();
   if (input.durationHours != null) {
@@ -202,6 +248,39 @@ export async function disableMrtShare(
   row.updatedAt = new Date().toISOString();
   await writeFile(file);
   return { ok: true, share: toPublic(row) };
+}
+
+export async function deleteMrtShare(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const file = await readFile();
+  const next = file.shares.filter((s) => s.id !== id);
+  if (next.length === file.shares.length) {
+    return { ok: false, error: "Audience not found" };
+  }
+  await writeFile({ shares: next });
+  return { ok: true };
+}
+
+export async function revealMrtSharePassword(
+  id: string,
+): Promise<
+  | { ok: true; password: string }
+  | { ok: false; error: string }
+> {
+  const row = await getMrtShareById(id);
+  if (!row) return { ok: false, error: "Audience not found" };
+  if (!row.passwordVault) {
+    return {
+      ok: false,
+      error: "Not stored — replace password to enable view.",
+    };
+  }
+  const password = openPassword(row.passwordVault);
+  if (password == null) {
+    return { ok: false, error: "Could not open vault" };
+  }
+  return { ok: true, password };
 }
 
 export async function authorizeMrtShare(credentials: {

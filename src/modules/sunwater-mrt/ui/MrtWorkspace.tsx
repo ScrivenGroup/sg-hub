@@ -9,6 +9,7 @@ import { DefaultsTab } from "./DefaultsTab";
 import { DefinitionsTab, type DefinitionsSub } from "./DefinitionsTab";
 import { DevelopmentTab } from "./DevelopmentTab";
 import { GanttTab, type GanttOccurrenceFocus } from "./GanttTab";
+import { HelpTab } from "./HelpTab";
 import { InputsTab, type InputsSub } from "./InputsTab";
 import { ObligationsTab } from "./ObligationsTab";
 import "./mrt-tables.css";
@@ -19,7 +20,15 @@ const BASE_TABS = [
   "Inputs",
   "Definitions",
   "Defaults",
+  "Help",
 ] as const;
+
+type ReturnNav = {
+  tab: string;
+  inputsSub?: InputsSub | null;
+  defsSub?: DefinitionsSub | null;
+  defaultsLane?: string | null;
+};
 
 export function MrtWorkspace({
   initialStore,
@@ -40,8 +49,10 @@ export function MrtWorkspace({
   const [tab, setTab] = useState<string>("Gantt");
   const [defaultsLane, setDefaultsLane] = useState<string | null>(null);
   const [inputsSub, setInputsSub] = useState<InputsSub | null>(null);
+  const [focusPersonId, setFocusPersonId] = useState<string | null>(null);
   const [defsSub, setDefsSub] = useState<DefinitionsSub | null>(null);
   const [ganttFocus, setGanttFocus] = useState<GanttOccurrenceFocus | null>(null);
+  const [returnStack, setReturnStack] = useState<ReturnNav[]>([]);
   const [store, setStore] = useState(initialStore);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
@@ -68,6 +79,37 @@ export function MrtWorkspace({
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
+
+  function pushReturn() {
+    setReturnStack((stack) => [
+      ...stack,
+      {
+        tab,
+        inputsSub,
+        defsSub,
+        defaultsLane,
+      },
+    ]);
+  }
+
+  function goBackInMrt() {
+    setReturnStack((stack) => {
+      if (stack.length === 0) {
+        if (typeof window !== "undefined" && window.history.length > 1) {
+          window.history.back();
+        }
+        return stack;
+      }
+      const prev = stack[stack.length - 1];
+      setTab(prev.tab);
+      setInputsSub(prev.inputsSub ?? null);
+      setDefsSub(prev.defsSub ?? null);
+      setDefaultsLane(prev.defaultsLane ?? null);
+      setFocusPersonId(null);
+      setGanttFocus(null);
+      return stack.slice(0, -1);
+    });
+  }
 
   function resetToLive() {
     startReset(async () => {
@@ -105,6 +147,18 @@ export function MrtWorkspace({
           aria-label="Milestone Resourcing Tracker"
           className="flex flex-wrap gap-1"
         >
+          <button
+            type="button"
+            className="min-h-10 px-2 py-1.5 text-sm font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+            onClick={goBackInMrt}
+            title={
+              returnStack.length > 0
+                ? "Return to previous MRT tab"
+                : "Browser back"
+            }
+          >
+            ← Back
+          </button>
           {tabs.map((id) => {
             const selected = id === tab;
             return (
@@ -118,7 +172,10 @@ export function MrtWorkspace({
                     ? "border-b-2 border-[var(--ink)] text-[var(--ink)]"
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
                 }`}
-                onClick={() => setTab(id)}
+                onClick={() => {
+                  setTab(id);
+                  setFocusPersonId(null);
+                }}
               >
                 {id}
               </button>
@@ -140,7 +197,9 @@ export function MrtWorkspace({
 
       <div
         className={`flex min-h-0 flex-1 flex-col pt-2 ${
-          tab === "Gantt" ? "overflow-hidden" : "overflow-auto"
+          tab === "Gantt" || tab === "Development"
+            ? "overflow-hidden"
+            : "overflow-auto"
         }`}
       >
       {tab === "Gantt" ? (
@@ -151,8 +210,15 @@ export function MrtWorkspace({
           focusOccurrence={ganttFocus}
           onFocusConsumed={() => setGanttFocus(null)}
           onGoToDefaults={(laneCode) => {
+            pushReturn();
             setDefaultsLane(laneCode);
             setTab("Defaults");
+          }}
+          onGoToPerson={(personId) => {
+            pushReturn();
+            setInputsSub("Resource Names");
+            setFocusPersonId(personId);
+            setTab("Inputs");
           }}
         />
       ) : null}
@@ -162,10 +228,12 @@ export function MrtWorkspace({
           onChange={persist}
           readOnly={readOnly}
           onGoToDefaults={(laneCode) => {
+            pushReturn();
             setDefaultsLane(laneCode);
             setTab("Defaults");
           }}
           onGoToGantt={(focus) => {
+            pushReturn();
             setGanttFocus(focus);
             setTab("Gantt");
           }}
@@ -177,7 +245,9 @@ export function MrtWorkspace({
           onChange={persist}
           readOnly={readOnly}
           focusSub={inputsSub}
+          focusPersonId={focusPersonId}
           onGoToDefinitions={(sub) => {
+            pushReturn();
             setDefsSub(sub);
             setTab("Definitions");
           }}
@@ -190,7 +260,9 @@ export function MrtWorkspace({
           readOnly={readOnly}
           focusSub={defsSub}
           onGoToInputs={(sub) => {
+            pushReturn();
             setInputsSub(sub);
+            setFocusPersonId(null);
             setTab("Inputs");
           }}
         />
@@ -202,10 +274,15 @@ export function MrtWorkspace({
           readOnly={readOnly}
           focusLane={defaultsLane}
           onGoToInputs={(sub) => {
+            pushReturn();
             setInputsSub(sub);
+            setFocusPersonId(null);
             setTab("Inputs");
           }}
         />
+      ) : null}
+      {tab === "Help" ? (
+        <HelpTab showStaffNotes={showDevelopment && !readOnly} />
       ) : null}
       {tab === "Admin" ? <AdminTab /> : null}
       {tab === "Development" ? (

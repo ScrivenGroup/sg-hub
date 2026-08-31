@@ -5,7 +5,7 @@ import {
   seedPlanFromDefaults,
   leadMonthsFromTailWeeks,
 } from "./assignment";
-import { defaultDueDayForIdx, fullDateLabel, idxDayToDate, monthIndex } from "./dates";
+import { fullDateLabel, idxDayToDate, monthIndex } from "./dates";
 import {
   addWeeksWe,
   calendarWindow,
@@ -20,7 +20,7 @@ import {
   assignmentPlanToEffortDemo,
   effortDemoToAssignmentPlan,
 } from "./plan-effort-bridge";
-import { effectiveDueIdx, schedKey, storeWindow } from "./scheduling";
+import { effectiveDueDay, effectiveDueIdx, schedKey, storeWindow } from "./scheduling";
 
 function weekOrigin(
   weeks: { y?: number; m1?: number; d?: number }[],
@@ -44,7 +44,7 @@ export function loadOccurrenceEffortDemo(
   const weeks = occurrenceWeekWindow(store, damId, laneCode, procDueIdx);
   const dueIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
   const winStart = storeWindow(store).start;
-  const dueDay = sd.dueDayOverride ?? defaultDueDayForIdx(dueIdx, winStart);
+  const dueDay = effectiveDueDay(store, dam, lane, procDueIdx, winStart);
   const dt = idxDayToDate(dueIdx, dueDay, winStart);
   const origin = weekOrigin(weeks as { y?: number; m1?: number; d?: number }[]);
   return assignmentPlanToEffortDemo(
@@ -103,7 +103,7 @@ export function writeOccurrenceEffortDemo(
     delete cycleStore.scheduledDetails[key];
     const dueIdx = monthIndex(synced.milestone.due.y, synced.milestone.due.m, winStart);
     const cycleDue = effectiveDueIdx(cycleStore, dam, lane, procDueIdx);
-    const cycleDay = defaultDueDayForIdx(cycleDue, winStart);
+    const cycleDay = effectiveDueDay(cycleStore, dam, lane, procDueIdx, winStart);
     const weeks = occurrenceWeekWindow(cycleStore, damId, laneCode, procDueIdx);
     const datesDiffer =
       dueIdx !== cycleDue ||
@@ -152,9 +152,8 @@ export function occurrenceStackHeading(
     (lane ? `${lane.code} ${lane.label}` : item.laneCode);
   if (!dam || !lane) return `${damName} · ${obl}`;
   const dueIdx = effectiveDueIdx(store, dam, lane, item.procDueIdx);
-  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, item.procDueIdx)] || {};
   const winStart = storeWindow(store).start;
-  const dueDay = sd.dueDayOverride ?? defaultDueDayForIdx(dueIdx, winStart);
+  const dueDay = effectiveDueDay(store, dam, lane, item.procDueIdx, winStart);
   return `${damName} · ${obl} · ${fullDateLabel(dueIdx, dueDay, winStart)}`;
 }
 

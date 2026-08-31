@@ -1032,6 +1032,47 @@ export function mergePersonWeekLoads(
   return out;
 }
 
+/** How many obligations (stacked) or tasks (single demo) feed each person×week cell. */
+export function personWeekContributorCounts(demos: EffortDemo[], n: number) {
+  const out = new Map<string, number[]>();
+  const bump = (id: string, i: number) => {
+    let arr = out.get(id);
+    if (!arr) {
+      arr = new Array(n).fill(0);
+      out.set(id, arr);
+    }
+    if (i >= 0 && i < n) arr[i] += 1;
+  };
+  if (demos.length > 1) {
+    for (const d of demos) {
+      for (const [id, hours] of personWeekLoad(d)) {
+        hours.forEach((h, i) => {
+          if ((Number(h) || 0) > 0) bump(id, i);
+        });
+      }
+    }
+    return out;
+  }
+  const d = demos[0];
+  if (!d) return out;
+  for (const t of d.tasks) {
+    const seen = new Set<string>();
+    for (const r of t.resources) {
+      if (!r.personId || seen.has(r.personId)) continue;
+      const hours = windowHours(d, r.hours);
+      let any = false;
+      hours.forEach((h, i) => {
+        if ((Number(h) || 0) > 0) {
+          bump(r.personId!, i);
+          any = true;
+        }
+      });
+      if (any) seen.add(r.personId);
+    }
+  }
+  return out;
+}
+
 export function hoursSpanIndexes(hours: number[]) {
   let start: number | null = null;
   let finish: number | null = null;

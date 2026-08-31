@@ -33,6 +33,12 @@ type SortKey =
 const SUBS = ["All Obligations", "Ongoing", "Upcoming"] as const;
 const LOOKAHEAD = [6, 12, 24, 60, 0] as const;
 
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  "All Obligations": "Every occurrence in the horizon, with plan status and due.",
+  Ongoing: "Overdue and in-progress work in the lead-in window now.",
+  Upcoming: "Next dues inside the look-ahead you pick.",
+};
+
 const STATUS_LABEL: Record<GanttMarker["bucket"], string> = {
   overdue: "OVERDUE",
   ongoing: "Ongoing",
@@ -187,7 +193,7 @@ export function ObligationsTab({
 
   return (
     <div>
-      <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+      <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <label className="text-xs text-[var(--muted)]">
           Calculate for

@@ -15,6 +15,13 @@ import { parseDecimal } from "../logic/numbers";
 
 const SUBS = ["Lead-in time per dam", "Task+Resource Effort"] as const;
 
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  "Lead-in time per dam":
+    "Months of lead-in before each dam × obligation due.",
+  "Task+Resource Effort":
+    "Default hours that seed a new occurrence once.",
+};
+
 export function DefaultsTab({
   store,
   onChange,
@@ -45,7 +52,7 @@ export function DefaultsTab({
 
   return (
     <div>
-      <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+      <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       {sub === "Lead-in time per dam" ? (
         <>
           <CrossLinks

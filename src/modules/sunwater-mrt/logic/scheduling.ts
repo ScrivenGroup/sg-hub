@@ -5,6 +5,7 @@ import {
   addMonths,
   calendarToday,
   clampHorizonYears,
+  daysInMonth,
   defaultDueDayForIdx,
   frequencyToMonths,
   fullDateLabel,
@@ -90,6 +91,23 @@ export function isScheduled(store: ScheduleStore, dam: Dam, lane: Lane, dueIdx: 
   );
 }
 
+/** Day-of-month from cycle anchor for a display month, else EOM default. */
+export function cycleAnchorDueDay(
+  store: ScheduleStore,
+  dam: Dam,
+  lane: Lane,
+  displayIdx: number,
+  windowStart = storeWindow(store).start,
+) {
+  const anchor = store.laneCycleAnchors?.[dam.id]?.[lane.code];
+  const { y, m0 } = idxToYm(displayIdx, windowStart);
+  const dim = daysInMonth(y, m0 + 1);
+  if (anchor?.d != null && Number.isFinite(anchor.d)) {
+    return Math.min(dim, Math.max(1, Math.round(anchor.d)));
+  }
+  return defaultDueDayForIdx(displayIdx, windowStart);
+}
+
 export function effectiveDueDay(
   store: ScheduleStore,
   dam: Dam,
@@ -99,7 +117,8 @@ export function effectiveDueDay(
 ) {
   const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
   const displayIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
-  return sd?.dueDayOverride ?? defaultDueDayForIdx(displayIdx, windowStart);
+  if (sd?.dueDayOverride != null) return sd.dueDayOverride;
+  return cycleAnchorDueDay(store, dam, lane, displayIdx, windowStart);
 }
 
 export function isCompleted(store: ScheduleStore, dam: Dam, lane: Lane, dueIdx: number) {
@@ -509,9 +528,16 @@ export function recalculateRow(
 
   const { y, m0 } = idxToYm(known.displayDueIdx, start);
   const originM = m0 + 1;
+  const originDay =
+    known.dueDay ??
+    effectiveDueDay(next, dam, lane, known.procDueIdx, start);
   if (!next.laneCycleAnchors) next.laneCycleAnchors = {};
   if (!next.laneCycleAnchors[damId]) next.laneCycleAnchors[damId] = {};
-  next.laneCycleAnchors[damId][laneCode] = { y, m: originM };
+  next.laneCycleAnchors[damId][laneCode] = {
+    y,
+    m: originM,
+    d: Math.min(daysInMonth(y, originM), Math.max(1, Math.round(originDay))),
+  };
 
   const prefix = `${damId}|${laneCode}|`;
   const oldKey = schedKey(damId, laneCode, known.procDueIdx);
@@ -649,7 +675,20 @@ export function rowNeedsRecalc(
   const actualised = isScheduled(store, dam, lane, first.procDueIdx);
   if (!actualised) return false;
   const anchor = store.laneCycleAnchors?.[damId]?.[laneCode];
-  if (!anchor?.y || !anchor?.m) return first.displayDueIdx !== first.procDueIdx;
+  const liveDay = effectiveDueDay(store, dam, lane, first.procDueIdx, start);
+  if (!anchor?.y || !anchor?.m) {
+    if (first.displayDueIdx !== first.procDueIdx) return true;
+    const defaultDay = defaultDueDayForIdx(first.displayDueIdx, start);
+    return liveDay !== defaultDay;
+  }
   const originIdx = monthIndex(anchor.y, anchor.m, start);
-  return Math.round(first.displayDueIdx) !== originIdx;
+  if (Math.round(first.displayDueIdx) !== originIdx) return true;
+  const expectedDay = cycleAnchorDueDay(
+    store,
+    dam,
+    lane,
+    first.displayDueIdx,
+    start,
+  );
+  return liveDay !== expectedDay;
 }

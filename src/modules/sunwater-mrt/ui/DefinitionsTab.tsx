@@ -16,6 +16,14 @@ const SUBS = [
   "Asset × Resource Role",
 ] as const;
 
+const INTRO: Record<(typeof SUBS)[number], string> = {
+  "Asset × Obligation":
+    "Which types apply to which dams, plus each cycle origin.",
+  "Resource × Role": "Who can fill which roles in the dropdowns.",
+  "Asset × Resource Role":
+    "Named owners per dam, region, or all assets, by role.",
+};
+
 export type DefinitionsSub = (typeof SUBS)[number];
 
 export function DefinitionsTab({
@@ -48,7 +56,7 @@ export function DefinitionsTab({
 
   return (
     <div>
-      <SubTabs tabs={SUBS} value={sub} onChange={setSub} />
+      <SubTabs tabs={SUBS} value={sub} onChange={setSub} intro={INTRO[sub]} />
       {sub === "Asset × Obligation" ? (
         <>
           <CrossLinks

@@ -1,14 +1,13 @@
 import type { AssignmentPlan, PlanTask, ScheduleStore } from "../schema";
 import { emptyPlan } from "../schema";
 import {
-  defaultDueDayForIdx,
   idxDayToContinuous,
   idxDayToDate,
   monthIndex,
   weekEndingSunday,
   weekSpanStartFromEndingSunday,
 } from "./dates";
-import { effectiveDueIdx, effectiveLead, schedKey } from "./scheduling";
+import { effectiveDueDay, effectiveDueIdx, effectiveLead, schedKey } from "./scheduling";
 import { ragStatus } from "./status";
 
 const SHORT_MONTHS = [
@@ -198,8 +197,7 @@ export function occurrenceWeekWindow(
   const lane = store.lanes.find((l) => l.code === laneCode);
   if (!dam || !lane) return relativeWeekWindow(1);
   const dueIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
-  const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
-  const dueDay = sd?.dueDayOverride ?? defaultDueDayForIdx(dueIdx);
+  const dueDay = effectiveDueDay(store, dam, lane, procDueIdx);
   const lead = effectiveLead(store, dam, lane, procDueIdx);
   const due = idxDayToDate(dueIdx, dueDay);
   return weeksCoveringLeadIn(due.y, due.m1, due.d, lead);
@@ -264,7 +262,7 @@ export function occurrenceTailStartContinuous(
   if (!dam || !lane) return null;
   const dueIdx = effectiveDueIdx(store, dam, lane, procDueIdx);
   const sd = store.scheduledDetails[schedKey(dam.id, lane.code, procDueIdx)];
-  const dueDay = sd?.dueDayOverride ?? defaultDueDayForIdx(dueIdx);
+  const dueDay = effectiveDueDay(store, dam, lane, procDueIdx);
   const due = idxDayToDate(dueIdx, dueDay);
   const weeks = sd?.tailWeeks
     ? weeksCoveringTailWeeks(due.y, due.m1, due.d, sd.tailWeeks)

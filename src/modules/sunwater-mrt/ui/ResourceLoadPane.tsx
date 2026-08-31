@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
 import { idxToYm } from "../logic/dates";
@@ -48,6 +49,9 @@ export function ResourceLoadPane({
   years,
   scale: scaleProp,
   rowH = DEFAULT_ROW_H,
+  onPanPointerDown,
+  panning = false,
+  onGoToPerson,
 }: {
   rows: PersonMonthLoad[];
   months: number;
@@ -67,6 +71,9 @@ export function ResourceLoadPane({
   timescale?: "full" | "compact";
   years: { y: number; start: number; span: number }[];
   scale?: GanttXScale;
+  onPanPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  panning?: boolean;
+  onGoToPerson?: (personId: string) => void;
 }) {
   const nameRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -87,15 +94,13 @@ export function ResourceLoadPane({
 
   useEffect(() => {
     if (!pop) return;
-    function onDoc(e: MouseEvent) {
+    function onDoc(e: PointerEvent) {
       const t = e.target as HTMLElement | null;
-      if (t?.closest("[data-mrt-alloc-pop]") || t?.closest("[data-mrt-alloc-over]")) {
-        return;
-      }
+      if (t?.closest("[data-mrt-alloc-pop]")) return;
       setPop(null);
     }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("pointerdown", onDoc, true);
+    return () => document.removeEventListener("pointerdown", onDoc, true);
   }, [pop]);
 
   const scale = scaleProp || makeGanttXScale(winStart, months, monthPx, grain);
@@ -130,6 +135,8 @@ export function ResourceLoadPane({
       <div
         ref={headerRef}
         className="overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]"
+        style={{ cursor: panning ? "grabbing" : "grab" }}
+        onPointerDown={onPanPointerDown}
       >
         <GanttTimescale
           months={months}
@@ -149,8 +156,27 @@ export function ResourceLoadPane({
         <div style={{ height: bodyH }}>
           {rows.map((row) => (
             <div key={row.personId} className="mrt-alloc-name" style={{ height: rowH }}>
-              <span className="truncate font-medium">{row.personName}</span>
-              <span className="truncate text-[9px] text-[var(--muted)]">{row.role}</span>
+              {onGoToPerson ? (
+                <button
+                  type="button"
+                  data-mrt-alloc-name-link
+                  className="mrt-alloc-name-link min-w-0 flex-1 truncate font-medium"
+                  title="Open Resource Names"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onGoToPerson(row.personId);
+                  }}
+                >
+                  {row.personName}
+                </button>
+              ) : (
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {row.personName}
+                </span>
+              )}
+              <span className="max-w-[40%] shrink-0 truncate text-[9px] text-[var(--muted)]">
+                {row.role}
+              </span>
             </div>
           ))}
         </div>
@@ -158,6 +184,8 @@ export function ResourceLoadPane({
       <div
         ref={scrollRef}
         className="overflow-auto bg-[var(--surface)]"
+        style={{ cursor: panning ? "grabbing" : "grab" }}
+        onPointerDown={onPanPointerDown}
         onScroll={() => {
           syncNames();
           onScrollLeft(scrollRef.current?.scrollLeft ?? 0);
@@ -220,6 +248,7 @@ export function ResourceLoadPane({
                 const inChunk =
                   row.chunkStart >= 0 && mi >= row.chunkStart && mi <= row.chunkEnd;
                 const over = cell.rag === "yellow" || cell.rag === "red";
+                const multi = over && cell.contributions.length >= 2;
                 const clickable = cell.hours > 0 || cell.contributions.length > 0;
                 const label = inChunk && cell.hours > 0 ? fmtHours(cell.hours) : "";
                 return (
@@ -229,7 +258,7 @@ export function ResourceLoadPane({
                     data-mrt-alloc-over={clickable ? "true" : undefined}
                     className={`mrt-alloc-cell${over ? ` is-over ${cell.rag}` : ""}${
                       clickable ? " is-over" : ""
-                    }`}
+                    }${multi ? " is-multi" : ""}`}
                     style={{
                       left:
                         grain === "week"
@@ -243,7 +272,13 @@ export function ResourceLoadPane({
                     disabled={!clickable}
                     title={
                       inChunk
-                        ? `${fmtHours(cell.hours, true)} h / ${fmtHours(cell.cap, true)} h capacity`
+                        ? `${fmtHours(cell.hours, true)} h / ${fmtHours(cell.cap, true)} h capacity${
+                            multi
+                              ? ` · ${cell.contributions.length} obligations (overlap)`
+                              : over
+                                ? " · single obligation over-assign"
+                                : ""
+                          }`
                         : undefined
                     }
                     onClick={(e) => {
@@ -272,7 +307,18 @@ export function ResourceLoadPane({
           className="mrt-alloc-pop"
           style={{ left: pop.x, top: pop.y }}
         >
-          <p className="mb-1 text-[10px] font-semibold">{pop.label}</p>
+          <div className="mb-1 flex items-start justify-between gap-2">
+            <p className="text-[10px] font-semibold">{pop.label}</p>
+            <button
+              type="button"
+              className="mrt-pane-x"
+              title="Close"
+              aria-label="Close"
+              onClick={() => setPop(null)}
+            >
+              ×
+            </button>
+          </div>
           <p className="mb-1.5 text-[10px] text-[var(--muted)]">
             Contributing obligations
           </p>

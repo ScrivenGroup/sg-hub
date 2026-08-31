@@ -411,6 +411,7 @@ export const seedChangelogs: ChangelogEntry[] = [
 - Heatmap Rebalance all stacks contributing occurrence Effort charts on a shared week axis for manual hour edits. No leveling.`,
   },
   {
+    // Shipped as 0.15; id kept so existing changelogs.json rows still match.
     id: "cl-sunwater-mrt-0.9",
     nodeId: "w-sunwater-mrt",
     kind: "release",
@@ -471,14 +472,41 @@ Out of this version
 - Zip deploy can clear data/mrt-share.json. Recreate audiences in Admin → Sharing if View stops working.`,
   },
   {
+    id: "cl-sunwater-mrt-1.2",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "1.2",
+    createdAt: "2026-08-31T02:00:00.000Z",
+    title: "Recalc week-ending, First due, Effort polish",
+    body: `Bugs and small polish on the live tracker.
+
+- Recalc keeps the week-ending day you dragged (not month-end). Same-month moves show the stale ↺ until you Recalc.
+- First due jumps the Gantt to the earliest filtered obligation still on the board.
+- Effort Gantt: hide a column with × (Columns to bring it back); Resource summary toggles use the amber selected look; week hours in the summary update while you drag; Save buttons sit with the Defaults seed note; Weeks zoom is an inline chip.
+- One-line intro under every tab and sub-tab.`,
+  },
+  {
+    id: "cl-sunwater-mrt-1.3",
+    nodeId: "w-sunwater-mrt",
+    kind: "release",
+    version: "1.3",
+    createdAt: "2026-08-31T04:30:00.000Z",
+    title: "Help tab, user guides, Development notes",
+    body: `Share-ready pack: product guides on a tab guests can see, plus a staff scratchpad.
+
+- Help (staff and guests): User guide and Quick reference. Quick reference More links jump to the matching User guide section. HTML and Print → PDF downloads.
+- Admin → Guides stays How to share (staff). Guests do not see Admin.
+- Development: sandbox Effort Gantt removed. Notes is a full-page textarea saved with the live plan (openNotes). Staff only.
+- User guide covers Gantt, Recalc / First due, resource hours, occurrence Effort, Project Management, Obligations, Inputs, Definitions, Defaults (seed-once), shared view, and what is out of this version.`,
+  },
+  {
     id: "cl-sunwater-mrt-0.16",
     nodeId: "w-sunwater-mrt",
     kind: "plan",
     version: "0.16",
     createdAt: "2026-08-28T06:00:00.000Z",
-    title: "Site userguide and guest click-drag prep",
-    body: `- Write a staff-facing site userguide for the tracker (beyond Admin → Guides → How to share).
-- Prepare guest click-drag via sandbox reconnect (not live writes): load getGuestMrtSandbox again, restore saveGuestMrtSandbox / Reset banner, undo readOnly / mrt-ro where guests should interact.
+    title: "Guest click-drag sandbox and example dataset",
+    body: `- Guest click-drag sandbox (future): reconnect getGuestMrtSandbox / save / Reset on a per-guest JSON file under data/mrt-sandboxes — same App Service, no Neon/second DB. Not live writes.
 - Later: pre-load the store from an external example dataset (provided separately).`,
   },
 ];

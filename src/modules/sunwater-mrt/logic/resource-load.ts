@@ -344,6 +344,60 @@ export function personWeekLoadEverywhere(store: ScheduleStore, live: EffortDemo)
   return byPerson;
 }
 
+/** Incomplete occurrences that contribute hours to each person×week on the live axis. */
+export function personWeekContributorCountEverywhere(
+  store: ScheduleStore,
+  live: EffortDemo,
+) {
+  const { start, n } = calendarWindow(live);
+  const byPerson = new Map<string, number[]>();
+  const personIdsInStore = new Set(store.people.map((p) => p.id));
+  const markers = ganttMarkers(store).filter(
+    (m) => m.kind !== "completed" && m.kind !== "notRequired",
+  );
+
+  function arrOf(id: string) {
+    let arr = byPerson.get(id);
+    if (!arr) {
+      arr = new Array(n).fill(0);
+      byPerson.set(id, arr);
+    }
+    return arr;
+  }
+
+  for (const m of markers) {
+    const key = schedKey(m.damId, m.laneCode, m.procDueIdx);
+    const weeks = occurrencePlanWeeks(store, m.damId, m.laneCode, m.procDueIdx);
+    const weekCount = Math.max(1, weeks.length);
+    const plan =
+      store.scheduledDetails[key]?.plan ||
+      seedPlanFromDefaults(store, m.laneCode, weekCount, m.damId);
+    const personIds = assignedResourceIds(plan).filter(
+      (id) => !id.startsWith("role:") && personIdsInStore.has(id),
+    );
+    for (const personId of personIds) {
+      const byWeek = resourceHoursByWeek(
+        plan,
+        personId,
+        Math.max(weekCount, plan.weekCount || 0),
+      );
+      const arr = arrOf(personId);
+      const hit = new Set<number>();
+      for (let i = 0; i < byWeek.length; i++) {
+        const h = byWeek[i];
+        if (!h) continue;
+        const w = weeks[i] as { y?: number; m1?: number; d?: number } | undefined;
+        if (!w?.y || !w.m1 || !w.d) continue;
+        const col = weeksBetweenWe(start, { y: w.y, m: w.m1, d: w.d });
+        if (col < 0 || col >= n || hit.has(col)) continue;
+        hit.add(col);
+        arr[col] += 1;
+      }
+    }
+  }
+  return byPerson;
+}
+
 export function contributionsAroundWeek(
   store: ScheduleStore,
   personId: string,

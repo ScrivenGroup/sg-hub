@@ -2,6 +2,8 @@
 
 import {
   Fragment,
+  createContext,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -36,6 +38,7 @@ import {
   hoursTotal,
   hoursSpanIndexes,
   mergePersonWeekLoads,
+  personWeekContributorCounts,
   personAssignedRoles,
   remainingHoursFromToday,
   windowHours,
@@ -81,7 +84,10 @@ import {
   type EffortLayoutRow,
   type HourSpan,
 } from "../logic/effort-gantt";
-import { personWeekLoadEverywhere } from "../logic/resource-load";
+import {
+  personWeekContributorCountEverywhere,
+  personWeekLoadEverywhere,
+} from "../logic/resource-load";
 import { formatHours, parseDecimal, round2 } from "../logic/numbers";
 import { createPortal } from "react-dom";
 import { PersonOverHover } from "./PersonOverHover";
@@ -94,14 +100,20 @@ function maybePortal(node: ReactNode, host: HTMLElement | null | undefined, wait
   return node;
 }
 
-const WEEK_PX = 56;
+export const WEEK_PX_DEFAULT = 56;
+const WEEK_PX_STEPS = [32, 40, 48, 56, 72, 88, 112];
+const WeekPxContext = createContext(WEEK_PX_DEFAULT);
+function useWeekPx() {
+  return useContext(WeekPxContext);
+}
 const FN_W = 54;
 const L0_H = 29;
 const L1_H = 29;
 const L2_H = 26;
 const MS_H = 38;
 const HEAD_H = 22;
-const SUM_HEAD_H = 30;
+const SUM_HEAD_H = 52;
+const WEEK_WRAP_BELOW = 48;
 const FLAT_COL_W = 118;
 const META_W = 72;
 const HOURS_W = 76;
@@ -112,7 +124,6 @@ const FAC_HOURS_W = 72;
 const FAC_COST_W = 80;
 const VAC_HOURS_W = 64;
 const VAC_COST_W = 72;
-const PAN_EDGE_PX = WEEK_PX * 2;
 const CREATE_ROLE = "__create_role__";
 const ADD_OTHER = "__add_other__";
 
@@ -139,6 +150,167 @@ export const ALL_META: MetaCols = {
   totalCost: false,
 };
 
+function hoursColOn(meta: MetaCols, pmOn: boolean) {
+  return meta.hours || pmOn;
+}
+
+function costColOn(meta: MetaCols, pmOn: boolean) {
+  return meta.totalCost || pmOn;
+}
+
+export function nextWeekPx(current: number, dir: number) {
+  const nearest = WEEK_PX_STEPS.reduce(
+    (best, cur, i) =>
+      Math.abs(cur - current) < Math.abs(WEEK_PX_STEPS[best] - current) ? i : best,
+    0,
+  );
+  return WEEK_PX_STEPS[
+    Math.min(WEEK_PX_STEPS.length - 1, Math.max(0, nearest + dir))
+  ];
+}
+
+export function WeekZoomChip({
+  weekPx,
+  onWeekPx,
+}: {
+  weekPx: number;
+  onWeekPx: (next: number) => void;
+}) {
+  return (
+    <div className="mrt-zoom-chip is-inline" title="Week column width">
+      <span className="mrt-zoom-chip-label">Weeks</span>
+      <div className="mrt-zoom-chip-row">
+        <button
+          type="button"
+          aria-label="Narrow week columns"
+          disabled={weekPx <= WEEK_PX_STEPS[0]}
+          onClick={() => onWeekPx(nextWeekPx(weekPx, -1))}
+        >
+          −
+        </button>
+        <span className="mrt-zoom-chip-val">
+          {Math.round((weekPx / WEEK_PX_DEFAULT) * 100)}%
+        </span>
+        <button
+          type="button"
+          aria-label="Widen week columns"
+          disabled={weekPx >= WEEK_PX_STEPS[WEEK_PX_STEPS.length - 1]}
+          onClick={() => onWeekPx(nextWeekPx(weekPx, 1))}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const HIDEABLE_META: Record<string, keyof MetaCols> = {
+  start: "start",
+  finish: "finish",
+  dur: "duration",
+  hours: "hours",
+  cost: "totalCost",
+};
+
+function MetaColHead({
+  colKey,
+  label,
+  width,
+  hoursClass,
+  sortMark: mark,
+  onSort,
+  onHide,
+}: {
+  colKey: string;
+  label: string;
+  width: number;
+  hoursClass?: boolean;
+  sortMark?: string;
+  onSort?: () => void;
+  onHide?: () => void;
+}) {
+  const cls = `effort-gantt-meta pl-1${hoursClass ? " effort-gantt-hours" : ""}${
+    onHide ? " has-hide" : ""
+  }`;
+  const hideBtn = onHide ? (
+    <button
+      type="button"
+      className="effort-gantt-col-hide"
+      title={`Hide ${label}`}
+      aria-label={`Hide ${label}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onHide();
+      }}
+    >
+      ×
+    </button>
+  ) : null;
+  if (onSort) {
+    return (
+      <button
+        type="button"
+        className={`effort-gantt-sort ${cls}`}
+        style={{ width }}
+        onClick={onSort}
+      >
+        <span className="min-w-0 truncate">
+          {label}
+          {mark}
+        </span>
+        {hideBtn}
+      </button>
+    );
+  }
+  return (
+    <span className={cls} style={{ width }}>
+      <span className="min-w-0 truncate">{label}</span>
+      {hideBtn}
+    </span>
+  );
+}
+
+export function EffortWeekPxProvider({
+  weekPx,
+  children,
+}: {
+  weekPx: number;
+  children: ReactNode;
+}) {
+  return <WeekPxContext.Provider value={weekPx}>{children}</WeekPxContext.Provider>;
+}
+
+function weekHeadHeight(weekPx: number) {
+  return weekPx < WEEK_WRAP_BELOW ? 32 : HEAD_H;
+}
+
+function sumHeadHeight(weekPx: number) {
+  return weekPx < WEEK_WRAP_BELOW ? 56 : SUM_HEAD_H;
+}
+
+function WeekHeadCell({
+  label,
+  weekPx,
+}: {
+  label: string;
+  weekPx: number;
+}) {
+  const wrap = weekPx < WEEK_WRAP_BELOW;
+  const parts = label.split(" ");
+  return (
+    <div className="effort-gantt-weekcell border-r border-[var(--border)]/50 text-[10px]" style={{ width: weekPx }}>
+      {wrap && parts.length > 1 ? (
+        <>
+          <span>{parts[0]}</span>
+          <span>{parts.slice(1).join(" ")}</span>
+        </>
+      ) : (
+        label
+      )}
+    </div>
+  );
+}
+
 export function effortChromeWidths(
   mode: EffortGroupMode,
   metaCols: MetaCols,
@@ -151,8 +323,8 @@ export function effortChromeWidths(
     (metaCols.start ? META_W : 0) +
     (metaCols.finish ? META_W : 0) +
     (metaCols.duration ? META_W : 0) +
-    (metaCols.hours ? HOURS_W + (pmOn ? ACTUAL_HOURS_W + FAC_HOURS_W + VAC_HOURS_W : 0) : 0) +
-    (metaCols.totalCost ? COST_W + (pmOn ? ACTUAL_COST_W + FAC_COST_W + VAC_COST_W : 0) : 0);
+    (hoursColOn(metaCols, pmOn) ? HOURS_W + (pmOn ? ACTUAL_HOURS_W + FAC_HOURS_W + VAC_HOURS_W : 0) : 0) +
+    (costColOn(metaCols, pmOn) ? COST_W + (pmOn ? ACTUAL_COST_W + FAC_COST_W + VAC_COST_W : 0) : 0);
   return { nameW, metaW, labelW: nameW + metaW };
 }
 
@@ -464,8 +636,8 @@ function confirmLoss(message: string, hasHours: boolean) {
   return window.confirm(message);
 }
 
-function diamondX(dueCol: number) {
-  return dueCol * WEEK_PX + WEEK_PX / 2;
+function diamondX(dueCol: number, weekPx: number) {
+  return dueCol * weekPx + weekPx / 2;
 }
 
 function baselineHoursForRow(
@@ -525,6 +697,8 @@ export function EffortGantt({
   onStick,
   showPmToggle = false,
   redHover = false,
+  weekPx: weekPxProp,
+  onWeekPx,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
@@ -559,8 +733,19 @@ export function EffortGantt({
   onStick?: (stick: EffortStick) => void;
   showPmToggle?: boolean;
   redHover?: boolean;
+  weekPx?: number;
+  onWeekPx?: (next: number) => void;
 }) {
-  const demo = ensureEffortDemo(demoProp);
+  const [liveDemo, setLiveDemo] = useState(() => ensureEffortDemo(demoProp));
+  const skipDemoSync = useRef(false);
+  useEffect(() => {
+    if (skipDemoSync.current) {
+      skipDemoSync.current = false;
+      return;
+    }
+    setLiveDemo(ensureEffortDemo(demoProp));
+  }, [demoProp]);
+  const demo = liveDemo;
   const demoRef = useRef(demo);
   demoRef.current = demo;
   const [placeState, setPlace] = useState<ChartPlace>(lockedPlace || "milestone");
@@ -587,6 +772,12 @@ export function EffortGantt({
     const val = typeof next === "function" ? next(metaCols) : next;
     (onMetaCols ?? setMetaColsState)(val);
   };
+  const [weekPxState, setWeekPxState] = useState(WEEK_PX_DEFAULT);
+  const weekPx = weekPxProp ?? weekPxState;
+  const setWeekPx = onWeekPx ?? setWeekPxState;
+  const pendingWeekZoomFrac = useRef<number | null>(null);
+  const panEdgePx = weekPx * 2;
+  const headH = weekHeadHeight(weekPx);
   const [colsOpenState, setColsOpenState] = useState(false);
   const colsOpen = colsOpenProp ?? colsOpenState;
   const setColsOpen = (next: boolean | ((cur: boolean) => boolean)) => {
@@ -681,10 +872,10 @@ export function EffortGantt({
     (metaCols.start ? META_W : 0) +
     (metaCols.finish ? META_W : 0) +
     (metaCols.duration ? META_W : 0) +
-    (metaCols.hours ? HOURS_W + (pmOn ? ACTUAL_HOURS_W + FAC_HOURS_W + VAC_HOURS_W : 0) : 0) +
-    (metaCols.totalCost ? COST_W + (pmOn ? ACTUAL_COST_W + FAC_COST_W + VAC_COST_W : 0) : 0);
+    (hoursColOn(metaCols, pmOn) ? HOURS_W + (pmOn ? ACTUAL_HOURS_W + FAC_HOURS_W + VAC_HOURS_W : 0) : 0) +
+    (costColOn(metaCols, pmOn) ? COST_W + (pmOn ? ACTUAL_COST_W + FAC_COST_W + VAC_COST_W : 0) : 0);
   const labelW = nameW + metaW;
-  const chartW = n * WEEK_PX;
+  const chartW = n * weekPx;
   const dueCol = dueColumnIndex(demo);
   const tailStartCol = tailStartColumnIndex(demo);
   const todayCol = todayColumnIndex(demo);
@@ -715,6 +906,8 @@ export function EffortGantt({
     next.effortDemo = beforeDemo;
     demoRef.current = chartDemo;
     if (chartTouched) {
+      skipDemoSync.current = true;
+      setLiveDemo(chartDemo);
       applyDemoToStore?.(next, chartDemo);
       onDemoChange(chartDemo);
     }
@@ -725,6 +918,8 @@ export function EffortGantt({
     if (readOnly) return;
     const d = ensureEffortDemo(nextDemo);
     demoRef.current = d;
+    skipDemoSync.current = true;
+    setLiveDemo(d);
     onDemoChange(d);
   }
 
@@ -745,7 +940,7 @@ export function EffortGantt({
       const alreadyOverflows = el.scrollWidth > el.clientWidth + 8;
       if (!unconstrained && !alreadyOverflows) {
         const view = Math.max(80, el.clientWidth - (timescaleOnly ? 0 : FN_W + labelW));
-        const needed = Math.min(104, Math.ceil(view / WEEK_PX));
+        const needed = Math.min(104, Math.ceil(view / weekPx));
         if (n < needed) {
           const padded = padViewportToFill(demoRef.current, needed);
           if ((padded.weekCount || 0) > n) commit(padded);
@@ -756,7 +951,7 @@ export function EffortGantt({
     if (centredOnce.current) return;
     centreChart(el);
     centredOnce.current = true;
-  }, [n, chartW, labelW, place]);
+  }, [n, chartW, labelW, place, weekPx]);
 
   function centreChart(el?: HTMLDivElement | null, align: "mid" | "start" = centreAlign) {
     const box = el || scrollerRef.current;
@@ -773,11 +968,11 @@ export function EffortGantt({
     const frozen = timescaleOnly ? 0 : FN_W + labelW;
     const view = Math.max(80, box.clientWidth - frozen);
     if (align === "start") {
-      box.scrollLeft = Math.max(0, start * WEEK_PX);
+      box.scrollLeft = Math.max(0, start * weekPx);
       onScrollLeft?.(Math.round(box.scrollLeft));
       return;
     }
-    const spanMid = ((start + end + 1) / 2) * WEEK_PX;
+    const spanMid = ((start + end + 1) / 2) * weekPx;
     box.scrollLeft = Math.max(0, spanMid - view / 2);
     onScrollLeft?.(Math.round(box.scrollLeft));
   }
@@ -787,6 +982,16 @@ export function EffortGantt({
     centreChart(scrollerRef.current, centreAlign);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centreNonce]);
+
+  useLayoutEffect(() => {
+    const frac = pendingWeekZoomFrac.current;
+    if (frac == null) return;
+    pendingWeekZoomFrac.current = null;
+    const box = scrollerRef.current;
+    if (!box) return;
+    box.scrollLeft = Math.max(0, frac * chartW - box.clientWidth / 2);
+    onScrollLeft?.(Math.round(box.scrollLeft));
+  }, [weekPx, chartW, onScrollLeft]);
 
   const applyingScroll = useRef(false);
   useLayoutEffect(() => {
@@ -817,11 +1022,18 @@ export function EffortGantt({
     if (
       target.closest("input") ||
       target.closest("select") ||
-      target.closest("button") ||
-      target.closest("[data-effort-grab]") ||
-      target.closest("[data-effort-resize]") ||
-      target.closest("[data-effort-diamond]") ||
-      target.closest("[data-effort-tail]")
+      target.closest("button")
+    ) {
+      return;
+    }
+    // In read-only (guest) mode, bars still cover the chart — allow pan on them.
+    // When editable, leave grab/resize/diamond/tail to their own handlers.
+    if (
+      !readOnly &&
+      (target.closest("[data-effort-grab]") ||
+        target.closest("[data-effort-resize]") ||
+        target.closest("[data-effort-diamond]") ||
+        target.closest("[data-effort-tail]"))
     ) {
       return;
     }
@@ -851,11 +1063,11 @@ export function EffortGantt({
       if (yTarget) yTarget.scrollTop = p.startTop - (ev.clientY - p.startY);
       if (place !== "milestone" || extendingRef.current || readOnly) return;
       const maxScroll = Math.max(0, box.scrollWidth - box.clientWidth);
-      if (wantLeft < PAN_EDGE_PX) {
+      if (wantLeft < panEdgePx) {
         extendingRef.current = true;
-        pendingPanAdj.current = VIEW_EXTEND_WEEKS * WEEK_PX;
+        pendingPanAdj.current = VIEW_EXTEND_WEEKS * weekPx;
         commit(extendViewport(demoRef.current, "start"));
-      } else if (wantLeft > maxScroll - PAN_EDGE_PX) {
+      } else if (wantLeft > maxScroll - panEdgePx) {
         extendingRef.current = true;
         commit(extendViewport(demoRef.current, "end"));
       }
@@ -879,7 +1091,7 @@ export function EffortGantt({
     const base = snapshot.milestone.due;
     let lastDelta = 0;
     const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / WEEK_PX);
+      const delta = Math.round((ev.clientX - startX) / weekPx);
       if (delta === lastDelta) return;
       lastDelta = delta;
       const dt = new Date(base.y, base.m - 1, base.d);
@@ -909,7 +1121,7 @@ export function EffortGantt({
     const baseTail = Math.max(1, snapshot.milestone.tailWeeks);
     let lastDelta = 0;
     const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / WEEK_PX);
+      const delta = Math.round((ev.clientX - startX) / weekPx);
       if (delta === lastDelta) return;
       lastDelta = delta;
       commit(setTailWeeks(snapshot, Math.max(1, baseTail - delta)));
@@ -938,7 +1150,7 @@ export function EffortGantt({
     const base = edge === "start" ? runStart : runEnd;
     let lastIndex = base;
     const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / WEEK_PX);
+      const delta = Math.round((ev.clientX - startX) / weekPx);
       const newIndex = base + delta;
       if (newIndex === lastIndex) return;
       lastIndex = newIndex;
@@ -967,7 +1179,7 @@ export function EffortGantt({
     const base = edge === "start" ? spanStart : spanEnd;
     let lastIndex = base;
     const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / WEEK_PX);
+      const delta = Math.round((ev.clientX - startX) / weekPx);
       const newIndex = base + delta;
       if (newIndex === lastIndex) return;
       lastIndex = newIndex;
@@ -997,7 +1209,7 @@ export function EffortGantt({
     const onMove = (ev: PointerEvent) => {
       const d = barDrag.current;
       if (!d) return;
-      const delta = Math.round((ev.clientX - d.startX) / WEEK_PX);
+      const delta = Math.round((ev.clientX - d.startX) / weekPx);
       if (delta === d.lastDelta) return;
       d.lastDelta = delta;
       if (d.kind === "l0") commit(shiftAll(d.snapshot, delta));
@@ -1304,14 +1516,14 @@ export function EffortGantt({
       metaCols.start ? { key: "start", label: "Start", sortKey: "start" as const, width: META_W } : null,
       metaCols.finish ? { key: "finish", label: "Finish", sortKey: "finish" as const, width: META_W } : null,
       metaCols.duration ? { key: "dur", label: "Duration", sortKey: "dur" as const, width: META_W } : null,
-      metaCols.hours ? { key: "hours", label: "Hours", sortKey: "hours" as const, width: HOURS_W } : null,
-      metaCols.hours && pmOn ? { key: "actualHours", label: "Actual hours", width: ACTUAL_HOURS_W } : null,
-      metaCols.hours && pmOn ? { key: "facHours", label: "FAC h", width: FAC_HOURS_W } : null,
-      metaCols.hours && pmOn ? { key: "vacHours", label: "VAC h", width: VAC_HOURS_W } : null,
-      metaCols.totalCost ? { key: "cost", label: "Total Cost", sortKey: "cost" as const, width: COST_W } : null,
-      metaCols.totalCost && pmOn ? { key: "actualCost", label: "Actual $", width: ACTUAL_COST_W } : null,
-      metaCols.totalCost && pmOn ? { key: "facCost", label: "FAC $", width: FAC_COST_W } : null,
-      metaCols.totalCost && pmOn ? { key: "vacCost", label: "VAC $", width: VAC_COST_W } : null,
+      hoursColOn(metaCols, pmOn) ? { key: "hours", label: "Hours", sortKey: "hours" as const, width: HOURS_W } : null,
+      pmOn ? { key: "actualHours", label: "Actual hours", width: ACTUAL_HOURS_W } : null,
+      pmOn ? { key: "facHours", label: "FAC h", width: FAC_HOURS_W } : null,
+      pmOn ? { key: "vacHours", label: "VAC h", width: VAC_HOURS_W } : null,
+      costColOn(metaCols, pmOn) ? { key: "cost", label: "Total Cost", sortKey: "cost" as const, width: COST_W } : null,
+      pmOn ? { key: "actualCost", label: "Actual $", width: ACTUAL_COST_W } : null,
+      pmOn ? { key: "facCost", label: "FAC $", width: FAC_COST_W } : null,
+      pmOn ? { key: "vacCost", label: "VAC $", width: VAC_COST_W } : null,
     ] as const
   ).filter((c): c is NonNullable<typeof c> => Boolean(c));
 
@@ -1324,11 +1536,11 @@ export function EffortGantt({
           <>
           <div
             className="effort-gantt-fn effort-gantt-head"
-            style={{ height: HEAD_H, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, left: pane === "both" ? 0 : undefined, zIndex: pane === "both" ? 30 : undefined }}
+            style={{ height: headH, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, left: pane === "both" ? 0 : undefined, zIndex: pane === "both" ? 30 : undefined }}
           />
           <div
             className="effort-gantt-head effort-gantt-labels is-summary flex border-b border-[var(--border)] text-[10px]"
-            style={{ height: HEAD_H, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, left: pane === "both" ? FN_W : undefined, zIndex: pane === "both" ? 20 : undefined }}
+            style={{ height: headH, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, left: pane === "both" ? FN_W : undefined, zIndex: pane === "both" ? 20 : undefined }}
           >
             {mode === "flat" ? (
               <>
@@ -1355,62 +1567,52 @@ export function EffortGantt({
                     : "Task / Resource role"}
               </span>
             )}
-            {headerCols.map((col) =>
-                  mode === "flat" && "sortKey" in col && col.sortKey ? (
-                    <button
+            {headerCols.map((col) => {
+                  const hideKey = HIDEABLE_META[col.key];
+                  const hoursClass =
+                    col.key === "hours" ||
+                    col.key === "cost" ||
+                    col.key.startsWith("actual") ||
+                    col.key.startsWith("fac") ||
+                    col.key.startsWith("vac");
+                  const onHide = hideKey
+                    ? () => setMetaCols((cur) => ({ ...cur, [hideKey]: false }))
+                    : undefined;
+                  return mode === "flat" && "sortKey" in col && col.sortKey ? (
+                    <MetaColHead
                       key={col.key}
-                      type="button"
-                      className={`effort-gantt-sort effort-gantt-meta px-1${
-                        col.key === "hours" ||
-                        col.key === "cost" ||
-                        col.key.startsWith("actual") ||
-                        col.key.startsWith("fac") ||
-                        col.key.startsWith("vac")
-                          ? " effort-gantt-hours"
-                          : ""
-                      }`}
-                      style={{ width: col.width }}
-                      onClick={() => toggleSort(col.sortKey)}
-                    >
-                      {col.label}{sortMark(col.sortKey)}
-                    </button>
+                      colKey={col.key}
+                      label={col.label}
+                      width={col.width}
+                      hoursClass={hoursClass}
+                      sortMark={sortMark(col.sortKey)}
+                      onSort={() => toggleSort(col.sortKey)}
+                      onHide={onHide}
+                    />
                   ) : (
-                    <span
+                    <MetaColHead
                       key={col.key}
-                      className={`effort-gantt-meta px-1${
-                        col.key === "hours" ||
-                        col.key === "cost" ||
-                        col.key.startsWith("actual") ||
-                        col.key.startsWith("fac") ||
-                        col.key.startsWith("vac")
-                          ? " effort-gantt-hours"
-                          : ""
-                      }`}
-                      style={{ width: col.width }}
-                    >
-                      {col.label}
-                    </span>
-                  ),
-                )}
+                      colKey={col.key}
+                      label={col.label}
+                      width={col.width}
+                      hoursClass={hoursClass}
+                      onHide={onHide}
+                    />
+                  );
+                })}
           </div>
           </>
           ) : null}
           {pane !== "frozen" ? (
           <div
             className="effort-gantt-head effort-gantt-weekhead relative flex border-b border-[var(--border)] text-[10px]"
-            style={{ height: HEAD_H, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, zIndex: pane === "both" ? 12 : undefined }}
+            style={{ height: headH, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, zIndex: pane === "both" ? 12 : undefined }}
           >
             {weeks.map((w) => (
-              <div
-                key={w.idx}
-                className="flex shrink-0 items-center justify-center border-r border-[var(--border)]/50"
-                style={{ width: WEEK_PX }}
-              >
-                {w.label}
-              </div>
+              <WeekHeadCell key={w.idx} label={w.label} weekPx={weekPx} />
             ))}
             {showToday ? (
-              <div className="effort-gantt-today" style={{ left: todayCol * WEEK_PX + WEEK_PX / 2 }} title="Today" />
+              <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} title="Today" />
             ) : null}
           </div>
           ) : null}
@@ -1646,6 +1848,7 @@ export function EffortGantt({
   );
 
   return (
+    <WeekPxContext.Provider value={weekPx}>
     <div>
       {maybePortal(
         hideToolbar ? null : (
@@ -1727,33 +1930,6 @@ export function EffortGantt({
           </div>
         ) : null}
         <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
-          <button
-            type="button"
-            className="mrt-gantt-tool"
-            title="Scroll so hours, tail, and due sit in the middle of the visible chart"
-            onClick={() => centreChart()}
-          >
-            Centre around Gantt
-          </button>
-          <button
-            type="button"
-            className="mrt-gantt-tool"
-            disabled={mode === "flat"}
-            title="Collapse or expand all groups"
-            onClick={() => {
-              if (mode === "flat") return;
-              if (allCollapsed) {
-                setCollapsed({});
-                setAllCollapsed(false);
-              } else {
-                const keys = rows.filter((r) => r.type === "l1").map((r) => r.key);
-                setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
-                setAllCollapsed(true);
-              }
-            }}
-          >
-            {allCollapsed ? "Expand" : "Collapse"}
-          </button>
           <div className="relative inline-flex items-center" data-mrt-cols-pop>
             <button
               type="button"
@@ -1789,6 +1965,35 @@ export function EffortGantt({
               </div>
             ) : null}
           </div>
+        </div>
+        <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
+          <button
+            type="button"
+            className="mrt-gantt-tool"
+            title="Scroll so hours, tail, and due sit in the middle of the visible chart"
+            onClick={() => centreChart()}
+          >
+            Centre around Gantt
+          </button>
+          <button
+            type="button"
+            className="mrt-gantt-tool"
+            disabled={mode === "flat"}
+            title="Collapse or expand all groups"
+            onClick={() => {
+              if (mode === "flat") return;
+              if (allCollapsed) {
+                setCollapsed({});
+                setAllCollapsed(false);
+              } else {
+                const keys = rows.filter((r) => r.type === "l1").map((r) => r.key);
+                setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
+                setAllCollapsed(true);
+              }
+            }}
+          >
+            {allCollapsed ? "Expand" : "Collapse"}
+          </button>
           <button
             type="button"
             className={`mrt-gantt-tool${metaCols.availability ? " on" : ""}`}
@@ -1800,6 +2005,17 @@ export function EffortGantt({
             Availability
           </button>
         </div>
+        <WeekZoomChip
+          weekPx={weekPx}
+          onWeekPx={(next) => {
+            const box = scrollerRef.current;
+            if (box && n > 0) {
+              pendingWeekZoomFrac.current =
+                (box.scrollLeft + box.clientWidth / 2) / Math.max(1, n * weekPx);
+            }
+            setWeekPx(next);
+          }}
+        />
         {place === "milestone" ? (
           <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
             <label
@@ -1861,6 +2077,7 @@ export function EffortGantt({
               focusPerson={focusPerson}
               onFocus={setFocusPerson}
               metaCols={metaCols}
+              onMetaCols={setMetaCols}
               nameW={nameW}
               labelW={labelW}
               n={n}
@@ -1901,6 +2118,7 @@ export function EffortGantt({
             focusPerson={focusPerson}
             onFocus={setFocusPerson}
             metaCols={metaCols}
+            onMetaCols={setMetaCols}
             nameW={nameW}
             labelW={labelW}
             n={n}
@@ -1914,24 +2132,22 @@ export function EffortGantt({
       {maybePortal(
         hideToolbar ? null : (
       <div className="effort-gantt-legend">
-        <span><b>Pan</b> drag empty chart or week header</span>
-        <span><b>⋮⋮</b> drag a row; green line shows insert position</span>
-        <span><b className="text-[var(--rag-green)]">+</b> add row</span>
-        <span><b className="text-[var(--rag-red)]">×</b> remove row</span>
-        <span><b>Centre</b> scroll the filled timeline around hours and the tail</span>
+        <span><b>Pan</b></span>
+        <span><b>⋮⋮</b> move</span>
+        <span><b className="text-[var(--rag-green)]">+</b> / <b className="text-[var(--rag-red)]">×</b> row</span>
+        <span><b>Centre</b></span>
         {place === "milestone" ? (
           <>
-            <span><b>◆</b> drag due by weeks; drag the tail’s left end to change length</span>
-            <span>Drag chunk <b>edges</b> to grow or shrink hours</span>
-            <span><b>Stick</b> tail end keeps the gap to due; tail start keeps the gap to tail start</span>
+            <span><b>◆</b> due</span>
+            <span><b>edges</b> hours</span>
+            <span><b>Stick</b></span>
             <span><b className="text-[var(--rag-red)]">|</b> today</span>
-            <span><b>*</b> name assigned outside the Resource × Role ticks</span>
+            <span><b>*</b> off-role</span>
           </>
         ) : (
           <>
-            <span>Drag chunk <b>edges</b> to grow or shrink hours</span>
-            <span>Defaults maps <b>tasks</b> to <b>resource roles</b> only</span>
-            <span>Defaults uses <b>W1…n</b> labels until live occurrence wiring</span>
+            <span><b>edges</b> hours</span>
+            <span>roles only</span>
           </>
         )}
       </div>
@@ -1963,6 +2179,7 @@ export function EffortGantt({
         />
       ) : null}
     </div>
+    </WeekPxContext.Provider>
   );
 }
 
@@ -1980,6 +2197,7 @@ export function EffortLoadSummary({
   focusPerson,
   onFocus,
   metaCols,
+  onMetaCols,
   nameW,
   labelW,
   n,
@@ -1996,6 +2214,7 @@ export function EffortLoadSummary({
   focusPerson: string | null;
   onFocus: (id: string | null) => void;
   metaCols: MetaCols;
+  onMetaCols?: (next: MetaCols) => void;
   nameW: number;
   labelW: number;
   n: number;
@@ -2004,17 +2223,36 @@ export function EffortLoadSummary({
   scrollLeft?: number;
   onScrollLeft?: (left: number) => void;
 }) {
+  const weekPx = useWeekPx();
+  const headH = weekHeadHeight(weekPx);
+  const sumHeadH = sumHeadHeight(weekPx);
   const [everywhere, setEverywhere] = useState(false);
   const [availOver, setAvailOver] = useState(false);
   const freeze = useEffortFreeze();
   const embedScroller = useEffortScrollRoot();
   const freezeReady = !!(freeze?.frozenHost && freeze?.chartHost);
-  const thisLoad = weekLoad;
+  const demos = roleDemos?.length ? roleDemos : [demo];
+  const thisLoad = useMemo(() => {
+    if (demos.length === 1) return personWeekLoad(demos[0]);
+    return mergePersonWeekLoads(
+      demos.map((d) => personWeekLoad(d)),
+      n,
+    );
+    // weekLoad signals live drag commits from the parent chart.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demo, roleDemos, n, weekLoad]);
   const allLoad = useMemo(
     () => (everywhere ? personWeekLoadEverywhere(store, demo) : thisLoad),
     [everywhere, store, demo, thisLoad],
   );
-  const demos = roleDemos?.length ? roleDemos : [demo];
+  const contribCounts = useMemo(
+    () => personWeekContributorCounts(demos, n),
+    [roleDemos, demo, n],
+  );
+  const everywhereCounts = useMemo(
+    () => (everywhere ? personWeekContributorCountEverywhere(store, demo) : contribCounts),
+    [everywhere, store, demo, contribCounts],
+  );
   const liveStart = calendarWindow(demo).start;
   const sumScrollRef = useRef<HTMLDivElement>(null);
   const applying = useRef(false);
@@ -2091,7 +2329,7 @@ export function EffortLoadSummary({
   const vacHoursSum = rows.reduce((s, r) => s + r.vacHours, 0);
   const facCostSum = rows.reduce((s, r) => s + r.facCost, 0);
   const vacCostSum = rows.reduce((s, r) => s + r.vacCost, 0);
-  const chartW = n * WEEK_PX;
+  const chartW = n * weekPx;
 
   function weekCell(
     h: number,
@@ -2103,22 +2341,26 @@ export function EffortLoadSummary({
   ) {
     const rag = ragStatus(h, cap, store.overrunPercent);
     const shown = availOver ? cap - h : h;
-    const tint = everywhere && thisH > 0;
+    const tint = everywhere && thisH > 0 && rag !== "yellow" && rag !== "red";
+    const over = rag === "yellow" || rag === "red";
+    const contrib =
+      (everywhere ? everywhereCounts : contribCounts).get(personId)?.[weekIdx] || 0;
+    const multi = over && contrib >= 2;
     return (
       <div
         key={key}
         className={`mrt-sum-week relative flex shrink-0 items-center justify-center text-[10px] tabular-nums${
-          rag === "red"
-            ? " text-[var(--rag-red)] font-semibold"
-            : rag === "yellow"
-              ? " text-[var(--rag-amber)]"
-              : ""
-        }${tint ? " is-this-ms" : ""}`}
-        style={{ width: WEEK_PX }}
+          over ? ` ${rag}` : ""
+        }${multi ? " is-multi" : ""}${tint ? " is-this-ms" : ""}`}
+        style={{ width: weekPx }}
         title={
           everywhere
-            ? `This milestone ${formatHours(thisH, true)} h · All ${formatHours(h, true)} h`
-            : undefined
+            ? `This milestone ${formatHours(thisH, true)} h · All ${formatHours(h, true)} h${
+                multi ? ` · ${contrib} obligations` : ""
+              }`
+            : multi
+              ? `${formatHours(h, true)} h · ${contrib} overlapping sources`
+              : undefined
         }
       >
         {shown ? formatHours(shown) : ""}
@@ -2140,13 +2382,14 @@ export function EffortLoadSummary({
       <>
       <div
         className="effort-gantt-fn effort-gantt-head"
-        style={{ height: SUM_HEAD_H, position: "sticky", left: 0, zIndex: 30 }}
+        style={{ height: sumHeadH, position: "sticky", left: 0, zIndex: 30 }}
       />
       <div
-        className="effort-gantt-head effort-gantt-labels is-summary flex items-center gap-2 border-b border-[var(--border)] px-1"
-        style={{ height: SUM_HEAD_H, position: "sticky", left: FN_W, zIndex: 20 }}
+        className="effort-gantt-head effort-gantt-labels is-summary mrt-sum-chrome"
+        style={{ height: sumHeadH, position: "sticky", left: FN_W, zIndex: 20 }}
       >
-        <span className="min-w-0 truncate text-[13px] font-semibold">Resource summary</span>
+        <span className="mrt-sum-chrome-title">Resource summary</span>
+        <div className="mrt-sum-chrome-toggles">
         <div className="mrt-seg" title="Hours on this stacked set vs all incomplete occurrences">
           <button
             type="button"
@@ -2179,22 +2422,17 @@ export function EffortLoadSummary({
             Available/over
           </button>
         </div>
+        </div>
       </div>
       </>
       ) : null}
       {pane !== "frozen" ? (
       <div
-        className="effort-gantt-head relative flex border-b border-[var(--border)] text-[10px]"
-        style={{ height: SUM_HEAD_H }}
+        className="effort-gantt-head relative flex items-end border-b border-[var(--border)] text-[10px]"
+        style={{ height: sumHeadH }}
       >
         {weeks.map((w, i) => (
-          <div
-            key={i}
-            className="flex shrink-0 items-center justify-center border-r border-[var(--border)]/50"
-            style={{ width: WEEK_PX }}
-          >
-            {w.label}
-          </div>
+          <WeekHeadCell key={i} label={w.label} weekPx={weekPx} />
         ))}
       </div>
       ) : null}
@@ -2203,11 +2441,11 @@ export function EffortLoadSummary({
       <>
       <div
         className="effort-gantt-fn"
-        style={{ height: HEAD_H, position: "sticky", left: 0, zIndex: 30 }}
+        style={{ height: headH, position: "sticky", left: 0, zIndex: 30 }}
       />
       <div
         className="effort-gantt-head effort-gantt-labels is-summary flex border-b border-[var(--border)] text-[10px]"
-        style={{ height: HEAD_H, position: "sticky", left: FN_W, zIndex: 20 }}
+        style={{ height: headH, position: "sticky", left: FN_W, zIndex: 20 }}
       >
         <span className="flex shrink-0 items-center" style={{ width: nameW }}>
           <span className="flex items-center px-1" style={{ width: "55%" }}>
@@ -2216,56 +2454,73 @@ export function EffortLoadSummary({
           <span className="min-w-0 flex-1 items-center px-1">Role</span>
         </span>
         {metaCols.start ? (
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            Start
-          </span>
+          <MetaColHead
+            colKey="start"
+            label="Start"
+            width={META_W}
+            onHide={onMetaCols ? () => onMetaCols({ ...metaCols, start: false }) : undefined}
+          />
         ) : null}
         {metaCols.finish ? (
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            Finish
-          </span>
+          <MetaColHead
+            colKey="finish"
+            label="Finish"
+            width={META_W}
+            onHide={onMetaCols ? () => onMetaCols({ ...metaCols, finish: false }) : undefined}
+          />
         ) : null}
         {metaCols.duration ? (
-          <span className="effort-gantt-meta" style={{ width: META_W }}>
-            Over
-          </span>
+          <MetaColHead
+            colKey="dur"
+            label="Over"
+            width={META_W}
+            onHide={onMetaCols ? () => onMetaCols({ ...metaCols, duration: false }) : undefined}
+          />
         ) : null}
-        {metaCols.hours ? (
-          <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
-            Total hours
-          </span>
+        {hoursColOn(metaCols, pmOn) ? (
+          <MetaColHead
+            colKey="hours"
+            label="Total hours"
+            hoursClass
+            width={HOURS_W}
+            onHide={onMetaCols ? () => onMetaCols({ ...metaCols, hours: false }) : undefined}
+          />
         ) : null}
-        {metaCols.hours && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: ACTUAL_HOURS_W }}>
             Actual hours
           </span>
         ) : null}
-        {metaCols.hours && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: FAC_HOURS_W }}>
             FAC h
           </span>
         ) : null}
-        {metaCols.hours && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: VAC_HOURS_W }}>
             VAC h
           </span>
         ) : null}
-        {metaCols.totalCost ? (
-          <span className="effort-gantt-meta effort-gantt-hours" style={{ width: COST_W }}>
-            Total Cost
-          </span>
+        {costColOn(metaCols, pmOn) ? (
+          <MetaColHead
+            colKey="cost"
+            label="Total Cost"
+            hoursClass
+            width={COST_W}
+            onHide={onMetaCols ? () => onMetaCols({ ...metaCols, totalCost: false }) : undefined}
+          />
         ) : null}
-        {metaCols.totalCost && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: ACTUAL_COST_W }}>
             Actual $
           </span>
         ) : null}
-        {metaCols.totalCost && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: FAC_COST_W }}>
             FAC $
           </span>
         ) : null}
-        {metaCols.totalCost && pmOn ? (
+        {pmOn ? (
           <span className="effort-gantt-meta effort-gantt-hours" style={{ width: VAC_COST_W }}>
             VAC $
           </span>
@@ -2274,7 +2529,7 @@ export function EffortLoadSummary({
       </>
       ) : null}
       {pane !== "frozen" ? (
-      <div className="effort-gantt-head border-b border-[var(--border)]" style={{ height: HEAD_H }} />
+      <div className="effort-gantt-head border-b border-[var(--border)]" style={{ height: headH }} />
       ) : null}
 
       {rows.length === 0 ? (
@@ -2348,36 +2603,36 @@ export function EffortLoadSummary({
                     {over || "—"}
                   </span>
                 ) : null}
-                {metaCols.hours ? (
+                {hoursColOn(metaCols, pmOn) ? (
                   <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: HOURS_W }}>
                     {r.totalHours ? formatHours(r.totalHours) : "—"}
                   </span>
                 ) : null}
-                {metaCols.hours && pmOn ? (
+                {pmOn ? (
                   <ActualValue width={ACTUAL_HOURS_W} label="Actual hours" value={r.actualHours} />
                 ) : null}
-                {metaCols.hours && pmOn ? (
+                {pmOn ? (
                   <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_HOURS_W }}>
                     {r.facHours ? formatHours(r.facHours) : "—"}
                   </span>
                 ) : null}
-                {metaCols.hours && pmOn ? (
+                {pmOn ? (
                   <VacValue width={VAC_HOURS_W} label="VAC h" value={r.vacHours} />
                 ) : null}
-                {metaCols.totalCost ? (
+                {costColOn(metaCols, pmOn) ? (
                   <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: COST_W }}>
                     {formatMoney(r.cost || null)}
                   </span>
                 ) : null}
-                {metaCols.totalCost && pmOn ? (
+                {pmOn ? (
                   <ActualValue width={ACTUAL_COST_W} label="Actual $" value={r.actualCost} money />
                 ) : null}
-                {metaCols.totalCost && pmOn ? (
+                {pmOn ? (
                   <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_COST_W }}>
                     {formatMoney(r.facCost || null)}
                   </span>
                 ) : null}
-                {metaCols.totalCost && pmOn ? (
+                {pmOn ? (
                   <VacValue width={VAC_COST_W} label="VAC $" value={r.vacCost} money />
                 ) : null}
               </div>
@@ -2416,36 +2671,36 @@ export function EffortLoadSummary({
             {metaCols.start ? <span className="effort-gantt-meta" style={{ width: META_W }} /> : null}
             {metaCols.finish ? <span className="effort-gantt-meta" style={{ width: META_W }} /> : null}
             {metaCols.duration ? <span className="effort-gantt-meta" style={{ width: META_W }} /> : null}
-            {metaCols.hours ? (
+            {hoursColOn(metaCols, pmOn) ? (
               <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: HOURS_W }}>
                 {hoursSum ? formatHours(hoursSum) : "—"}
               </span>
             ) : null}
-            {metaCols.hours && pmOn ? (
+            {pmOn ? (
               <ActualValue width={ACTUAL_HOURS_W} label="Actual hours" value={actualHoursSum} />
             ) : null}
-            {metaCols.hours && pmOn ? (
+            {pmOn ? (
               <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_HOURS_W }}>
                 {facHoursSum ? formatHours(facHoursSum) : "—"}
               </span>
             ) : null}
-            {metaCols.hours && pmOn ? (
+            {pmOn ? (
               <VacValue width={VAC_HOURS_W} label="VAC h" value={vacHoursSum} />
             ) : null}
-            {metaCols.totalCost ? (
+            {costColOn(metaCols, pmOn) ? (
               <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: COST_W }}>
                 {formatMoney(costSum || null)}
               </span>
             ) : null}
-            {metaCols.totalCost && pmOn ? (
+            {pmOn ? (
               <ActualValue width={ACTUAL_COST_W} label="Actual $" value={actualCostSum} money />
             ) : null}
-            {metaCols.totalCost && pmOn ? (
+            {pmOn ? (
               <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_COST_W }}>
                 {formatMoney(facCostSum || null)}
               </span>
             ) : null}
-            {metaCols.totalCost && pmOn ? (
+            {pmOn ? (
               <VacValue width={VAC_COST_W} label="VAC $" value={vacCostSum} money />
             ) : null}
           </div>
@@ -2460,7 +2715,7 @@ export function EffortLoadSummary({
               <div
                 key={i}
                 className="flex shrink-0 items-center justify-center text-[10px] tabular-nums"
-                style={{ width: WEEK_PX }}
+                style={{ width: weekPx }}
               >
                 {h ? formatHours(availOver ? 0 : h) : ""}
               </div>
@@ -2888,7 +3143,7 @@ function MilestoneLabel({
         </span>
       ) : null}
       {metaCols.finish ? (
-        <span className="flex items-center justify-end px-1" style={{ width: META_W }}>
+        <span className="effort-gantt-meta flex items-center justify-end" style={{ width: META_W }}>
           <input
             type="date"
             tabIndex={-1}
@@ -2904,7 +3159,7 @@ function MilestoneLabel({
         </span>
       ) : null}
       {metaCols.duration ? (
-        <span className="flex items-center justify-end px-0.5" style={{ width: META_W }}>
+        <span className="effort-gantt-meta flex items-center justify-end" style={{ width: META_W }}>
           <input
             type="number"
             min={1}
@@ -2916,22 +3171,22 @@ function MilestoneLabel({
           />
         </span>
       ) : null}
-      {metaCols.hours ? (
+      {hoursColOn(metaCols, pmOn) ? (
         <span className="effort-gantt-meta effort-gantt-hours" style={{ width: HOURS_W }}>
           —
         </span>
       ) : null}
-      {metaCols.hours && pmOn ? <ActualPlaceholder width={ACTUAL_HOURS_W} label="Actual hours" /> : null}
-      {metaCols.hours && pmOn ? <ActualPlaceholder width={FAC_HOURS_W} label="FAC h" /> : null}
-      {metaCols.hours && pmOn ? <ActualPlaceholder width={VAC_HOURS_W} label="VAC h" /> : null}
-      {metaCols.totalCost ? (
+      {pmOn ? <ActualPlaceholder width={ACTUAL_HOURS_W} label="Actual hours" /> : null}
+      {pmOn ? <ActualPlaceholder width={FAC_HOURS_W} label="FAC h" /> : null}
+      {pmOn ? <ActualPlaceholder width={VAC_HOURS_W} label="VAC h" /> : null}
+      {costColOn(metaCols, pmOn) ? (
         <span className="effort-gantt-meta effort-gantt-hours" style={{ width: COST_W }}>
           —
         </span>
       ) : null}
-      {metaCols.totalCost && pmOn ? <ActualPlaceholder width={ACTUAL_COST_W} label="Actual $" /> : null}
-      {metaCols.totalCost && pmOn ? <ActualPlaceholder width={FAC_COST_W} label="FAC $" /> : null}
-      {metaCols.totalCost && pmOn ? <ActualPlaceholder width={VAC_COST_W} label="VAC $" /> : null}
+      {pmOn ? <ActualPlaceholder width={ACTUAL_COST_W} label="Actual $" /> : null}
+      {pmOn ? <ActualPlaceholder width={FAC_COST_W} label="FAC $" /> : null}
+      {pmOn ? <ActualPlaceholder width={VAC_COST_W} label="VAC $" /> : null}
     </div>
   );
 }
@@ -3209,12 +3464,12 @@ function RowLabel({
           {row.span.dur || "—"}
         </span>
       ) : null}
-      {metaCols.hours ? (
+      {hoursColOn(metaCols, pmOn) ? (
         <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: HOURS_W }}>
           {row.span.total ? formatHours(row.span.total) : "—"}
         </span>
       ) : null}
-      {metaCols.hours && pmOn ? (
+      {pmOn ? (
         <ActualValue
           width={ACTUAL_HOURS_W}
           label="Actual hours"
@@ -3223,20 +3478,20 @@ function RowLabel({
           onChange={onActualHours}
         />
       ) : null}
-      {metaCols.hours && pmOn ? (
+      {pmOn ? (
         <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_HOURS_W }} title="Forecast at completion">
           {rowFacHours(row, demo) ? formatHours(rowFacHours(row, demo)) : "—"}
         </span>
       ) : null}
-      {metaCols.hours && pmOn ? (
+      {pmOn ? (
         <VacValue width={VAC_HOURS_W} label="VAC h" value={rowVacHours(row, demo)} />
       ) : null}
-      {metaCols.totalCost ? (
+      {costColOn(metaCols, pmOn) ? (
         <span className="effort-gantt-meta effort-gantt-hours font-medium text-[var(--ink)]" style={{ width: COST_W }}>
           {formatMoney(rowTotalCost(row, demo, store))}
         </span>
       ) : null}
-      {metaCols.totalCost && pmOn ? (
+      {pmOn ? (
         <ActualValue
           width={ACTUAL_COST_W}
           label="Actual $"
@@ -3246,12 +3501,12 @@ function RowLabel({
           onChange={onActualCost}
         />
       ) : null}
-      {metaCols.totalCost && pmOn ? (
+      {pmOn ? (
         <span className="effort-gantt-meta effort-gantt-hours tabular-nums" style={{ width: FAC_COST_W }} title="Forecast at completion $">
           {formatMoney(rowFacCost(row, demo, store) || null)}
         </span>
       ) : null}
-      {metaCols.totalCost && pmOn ? (
+      {pmOn ? (
         <VacValue width={VAC_COST_W} label="VAC $" value={rowVacCost(row, demo, store)} money />
       ) : null}
     </div>
@@ -3273,19 +3528,20 @@ function MilestoneLane({
   onDueDrag: (e: ReactPointerEvent) => void;
   onTailDrag: (e: ReactPointerEvent) => void;
 }) {
+  const weekPx = useWeekPx();
   const dueCol = dueColumnIndex(demo);
   const tail = Math.max(1, demo.milestone.tailWeeks);
   const startCol = dueCol - tail + 1;
-  const left = startCol * WEEK_PX;
-  const dueX = diamondX(dueCol);
+  const left = startCol * weekPx;
+  const dueX = diamondX(dueCol, weekPx);
   const tailCapX = stick === "tail-start" ? left : dueX;
   const base = baseline ? ensureEffortDemo(baseline) : null;
   const baseDueCol = base ? dueColumnOnLive(demo, base) : null;
   const baseTail = base ? Math.max(1, base.milestone.tailWeeks) : 0;
   const baseStartCol =
     baseDueCol !== null ? baseDueCol - baseTail + 1 : 0;
-  const baseLeft = baseStartCol * WEEK_PX;
-  const baseDueX = baseDueCol !== null ? diamondX(baseDueCol) : 0;
+  const baseLeft = baseStartCol * weekPx;
+  const baseDueX = baseDueCol !== null ? diamondX(baseDueCol, weekPx) : 0;
   return (
     <div className="relative border-b border-[var(--border)]" style={{ height: MS_H, zIndex: 1 }}>
       {baseline && baseDueCol !== null ? (
@@ -3332,7 +3588,7 @@ function MilestoneLane({
         onPointerDown={onDueDrag}
       />
       {todayCol !== null ? (
-        <div className="effort-gantt-today" style={{ left: todayCol * WEEK_PX + WEEK_PX / 2 }} />
+        <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} />
       ) : null}
     </div>
   );
@@ -3382,17 +3638,18 @@ function TimelineRow({
     edge: "start" | "end",
   ) => void;
 }) {
+  const weekPx = useWeekPx();
   const h = rowHeight(row.type);
   const span = row.span;
   const isSummary = row.type === "l0" || row.type === "l1";
   const barLeft =
-    span.start !== null ? span.start * WEEK_PX + 2 : 0;
+    span.start !== null ? span.start * weekPx + 2 : 0;
   const barWidth =
     span.start !== null && span.finish !== null
-      ? Math.max(8, (span.finish - span.start + 1) * WEEK_PX - 4)
+      ? Math.max(8, (span.finish - span.start + 1) * weekPx - 4)
       : 0;
-  const dueX = diamondX(dueCol);
-  const tailStartX = tailStartCol * WEEK_PX;
+  const dueX = diamondX(dueCol, weekPx);
+  const tailStartX = tailStartCol * weekPx;
   const barRight = barLeft + barWidth;
   const allX = stick === "tail-start" ? barLeft : barRight;
   const tailX = stick === "tail-start" ? tailStartX : dueX;
@@ -3414,7 +3671,7 @@ function TimelineRow({
         <div
           key={i}
           className="pointer-events-none absolute top-0 bottom-0 border-r border-[var(--border)]/40"
-          style={{ left: i * WEEK_PX }}
+          style={{ left: i * weekPx }}
         />
       ))}
       {row.type === "l2" && row.personId && weekLoad
@@ -3427,9 +3684,9 @@ function TimelineRow({
                 className="pointer-events-none absolute"
                 title={`${h} h / ${cap || 0} h capacity`}
                 style={{
-                  left: i * WEEK_PX + 1,
+                  left: i * weekPx + 1,
                   top: 1,
-                  width: WEEK_PX - 2,
+                  width: weekPx - 2,
                   bottom: 1,
                   border: `1.5px solid ${rag === "red" ? "var(--rag-red)" : "var(--rag-amber)"}`,
                   background:
@@ -3442,12 +3699,12 @@ function TimelineRow({
           })
         : null}
       {todayCol !== null ? (
-        <div className="effort-gantt-today" style={{ left: todayCol * WEEK_PX + WEEK_PX / 2 }} />
+        <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} />
       ) : null}
       {row.type === "l2" && baselineHours
         ? hourRuns(baselineHours).map((run) => {
-            const left = run.start * WEEK_PX + 2;
-            const width = Math.max(8, (run.end - run.start + 1) * WEEK_PX - 4);
+            const left = run.start * weekPx + 2;
+            const width = Math.max(8, (run.end - run.start + 1) * weekPx - 4);
             return (
               <div
                 key={`base-${run.start}-${run.end}`}
@@ -3543,8 +3800,8 @@ function TimelineRow({
       ) : null}
       {row.type === "l2"
         ? hourRuns(row.hours).map((run) => {
-            const left = run.start * WEEK_PX + 2;
-            const width = Math.max(8, (run.end - run.start + 1) * WEEK_PX - 4);
+            const left = run.start * weekPx + 2;
+            const width = Math.max(8, (run.end - run.start + 1) * weekPx - 4);
             return (
               <div key={`${run.start}-${run.end}`}>
                 <div
@@ -3587,7 +3844,7 @@ function TimelineRow({
             <HourCell
               key={i}
               hours={row.hours[i] || 0}
-              left={i * WEEK_PX}
+              left={i * weekPx}
               remaining={remaining}
               onCommit={(hours) => onHour(i, hours)}
               overHover={
@@ -3625,6 +3882,7 @@ function HourCell({
     weekIdx: number;
   } | null;
 }) {
+  const weekPx = useWeekPx();
   const [draft, setDraft] = useState<string | null>(null);
   const display = draft ?? (hours ? formatHours(hours) : "");
   const rem =
@@ -3634,7 +3892,7 @@ function HourCell({
   return (
     <div
       className="mrt-hour-cell absolute z-[2] flex items-center justify-center"
-      style={{ left, width: WEEK_PX, top: 8, bottom: 0 }}
+      style={{ left, width: weekPx, top: 8, bottom: 0 }}
     >
       {remaining != null ? (
         <span
@@ -3649,7 +3907,7 @@ function HourCell({
         inputMode="decimal"
         className="effort-gantt-input effort-gantt-hour"
         style={{
-          width: WEEK_PX - 6,
+          width: weekPx - 6,
           color: hours > 0 && draft === null ? "#fff" : "var(--ink)",
         }}
         value={display}

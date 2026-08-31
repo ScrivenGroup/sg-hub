@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { auth, isMrtGuest, signOut } from "@/auth";
 import { getHubs, getChildren } from "@/core/registry";
+import { BackButton } from "@/core/shell/BackButton";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
 import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
 
@@ -68,6 +69,7 @@ export async function AppShell({
             <div className="min-w-0 flex-1" />
           )}
           <nav className="ml-auto flex shrink-0 items-center gap-2" aria-label="App">
+            {guest ? null : <BackButton />}
             {guest ? null : (
               <Link href="/home" className="sg-btn-ghost">
                 Home
