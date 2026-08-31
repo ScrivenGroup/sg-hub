@@ -12,7 +12,7 @@ import {
   assertGuestShareOrSignOut,
 } from "@/modules/sunwater-mrt/actions";
 import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
-import { MRT_VERSION } from "@/modules/sunwater-mrt/version";
+import { MRT_VERSION, MRT_VERSION_WHEN } from "@/modules/sunwater-mrt/version";
 
 const HREF = "/w/sunwater-mrt";
 
@@ -49,6 +49,9 @@ export default async function SunwaterMrtPage() {
             title="Product version"
           >
             v{MRT_VERSION}
+            <span className="ml-1.5 font-normal">
+              {MRT_VERSION_WHEN}
+            </span>
           </span>
           <CodeBadge node={node} />
           <StatusPill status={node.status} />

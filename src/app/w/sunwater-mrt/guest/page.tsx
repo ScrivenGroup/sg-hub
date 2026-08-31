@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getMrtShareById, shareIsLive } from "@/core/store/mrt-share";
 import { guestMrtSignInAction } from "@/modules/sunwater-mrt/actions";
-import { MRT_VERSION } from "@/modules/sunwater-mrt/version";
+import { MRT_VERSION, MRT_VERSION_WHEN } from "@/modules/sunwater-mrt/version";
 
 export default async function MrtGuestPage({
   searchParams,
@@ -35,7 +35,7 @@ export default async function MrtGuestPage({
             Milestone Resourcing Tracker
           </h1>
           <p className="mt-1 text-xs font-medium text-[var(--muted)]">
-            v{MRT_VERSION}
+            v{MRT_VERSION} · {MRT_VERSION_WHEN}
           </p>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Shared view. Personal copy of the live plan.

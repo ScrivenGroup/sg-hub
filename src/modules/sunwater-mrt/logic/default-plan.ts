@@ -38,3 +38,17 @@ export function prepareInspectReportPlan(weekCount: number): AssignmentPlan {
   }
   return plan;
 }
+
+export function scalePlanHours(plan: AssignmentPlan, scale: number): AssignmentPlan {
+  const s = Number(scale);
+  if (!Number.isFinite(s) || s === 1) return plan;
+  for (const t of plan.tasks) {
+    if (!t.assign) continue;
+    for (const key of Object.keys(t.assign)) {
+      t.assign[key] = t.assign[key].map(
+        (h) => Math.round((Number(h) || 0) * s * 4) / 4,
+      );
+    }
+  }
+  return plan;
+}

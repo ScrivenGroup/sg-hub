@@ -513,11 +513,13 @@ Out of this version
   {
     id: "cl-sunwater-mrt-0.17",
     nodeId: "w-sunwater-mrt",
-    kind: "plan",
+    kind: "release",
     version: "1.5",
-    createdAt: "2026-08-31T08:30:00.000Z",
-    title: "Example dataset preload",
-    body: `- Later: pre-load the live store from an external example dataset (provided separately).`,
+    createdAt: "2026-08-31T09:00:00.000Z",
+    title: "Baseload dataset and header version",
+    body: `- Live store loads the 24-dam × 11-obligation catalog from the milestone-master condition schedules (applicability: AI where listed, SR where SR years exist, OTH = Paradise Dam only).
+- Cycle anchors use the source CI/SR years and the annual/once months from that dataset. Dummy Prepare/Inspect/Report Effort templates seed each obligation type (hours scaled by lead-in) and the next due on each applicable dam × type.
+- Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
   },
 ];
 

@@ -289,7 +289,7 @@ export function derivedNotRequired(
 ) {
   if (lane.code !== "AI" && lane.code !== "CI") return false;
   const fy = fyEndYearFromIdx(displayIdx, storeWindow(store).start);
-  const ds = damHasLaneInFy(store, dam, "DS", fy);
+  const ds = damHasLaneInFy(store, dam, "SR", fy);
   if (lane.code === "AI") {
     return ds || damHasLaneInFy(store, dam, "CI", fy);
   }

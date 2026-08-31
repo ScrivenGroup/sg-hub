@@ -1,10 +1,11 @@
 import { AI_COLOR, AI_LEGACY_GREEN } from "../catalog/lanes";
 import { defaultExternalRate, defaultInternalRateForRole, externalRateIsCustom } from "../catalog/roster";
 import type { ScheduleStore, ScheduledDetail } from "../schema";
-import { laneTemplateWeekWindow } from "./assignment";
+import { laneTemplateWeekWindow, seedPlanFromDefaults } from "./assignment";
 import { fyStartYm, monthIndex, todayYm } from "./dates";
-import { prepareInspectReportPlan } from "./default-plan";
-import { parseSchedKey, schedKey } from "./scheduling";
+import { prepareInspectReportPlan, scalePlanHours } from "./default-plan";
+import { laneApplies } from "./applicability";
+import { nextDueInfo, parseSchedKey, schedKey } from "./scheduling";
 
 const DEFAULT_OWNERS: Record<string, string> = {
   Lead: "Brendan",
@@ -62,11 +63,33 @@ export function normalizeScheduleStore(store: ScheduleStore): {
     const existing = next.defaultPlansByLane[lane.code];
     if (!existing || !existing.tasks?.length) {
       const weeks = laneTemplateWeekWindow(next, lane.code);
-      next.defaultPlansByLane[lane.code] = prepareInspectReportPlan(
-        weeks.length,
+      const scale = Math.max(0.35, Math.min(1.6, (lane.defLead || 2) / 4));
+      next.defaultPlansByLane[lane.code] = scalePlanHours(
+        prepareInspectReportPlan(weeks.length),
+        scale,
       );
       changed = true;
     }
+  }
+
+  if (
+    next.dams.length >= 20 &&
+    Object.keys(next.scheduledDetails || {}).length === 0
+  ) {
+    for (const dam of next.dams) {
+      for (const lane of next.lanes) {
+        if (!laneApplies(next.laneApplicability, dam, lane)) continue;
+        const info = nextDueInfo(next, dam, lane);
+        if (!info) continue;
+        const key = schedKey(dam.id, lane.code, Math.round(info.dueIdx));
+        const weeks = laneTemplateWeekWindow(next, lane.code);
+        next.scheduledDetails[key] = {
+          plan: seedPlanFromDefaults(next, lane.code, weeks.length, dam.id),
+          tailWeeks: weeks.length,
+        };
+      }
+    }
+    changed = true;
   }
 
   if (next.openNotes === undefined) {

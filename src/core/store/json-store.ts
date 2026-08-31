@@ -278,6 +278,19 @@ export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
       store = fallback;
     }
   }
+  if (store.dams.length < 20) {
+    const next = emptyScheduleStore();
+    next.openNotes = store.openNotes || "";
+    store = next;
+    const normalized = normalizeScheduleStore(store);
+    const checked = scheduleStoreSchema.safeParse(normalized.store);
+    if (checked.success) {
+      await writeJson("sunwater-mrt.json", checked.data);
+      return checked.data;
+    }
+    await writeJson("sunwater-mrt.json", normalized.store);
+    return normalized.store;
+  }
   const normalized = normalizeScheduleStore(store);
   if (normalized.changed) {
     const checked = scheduleStoreSchema.safeParse(normalized.store);

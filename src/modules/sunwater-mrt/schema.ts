@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CATALOG_DAMS } from "./catalog/dams";
 import { CATALOG_LANES } from "./catalog/lanes";
+import { seedLaneApplicability, seedLaneCycleAnchors } from "./catalog/baseload";
 import {
   DEFAULT_EXTERNAL_RATE_PERCENT,
   DEFAULT_OVERRUN_PERCENT,
@@ -266,15 +267,13 @@ export function emptyPlan(weekCount = 1): AssignmentPlan {
 }
 
 export function emptyScheduleStore(): ScheduleStore {
-  const dams: Dam[] = CATALOG_DAMS.map((d) => ({ ...d }));
+  const dams: Dam[] = CATALOG_DAMS.map((d) => ({
+    id: d.id,
+    name: d.name,
+    region: d.region,
+  }));
   const lanes: Lane[] = CATALOG_LANES.map((l) => ({ ...l }));
-  const laneApplicability: ScheduleStore["laneApplicability"] = {};
-  for (const dam of dams) {
-    laneApplicability[dam.id] = {};
-    for (const lane of lanes) {
-      laneApplicability[dam.id][lane.code] = true;
-    }
-  }
+  const laneApplicability = seedLaneApplicability(dams);
   const leadGeneral: Record<string, number> = {};
   const leadOverrides: Record<string, Record<string, number>> = {};
   for (const lane of lanes) {
@@ -287,7 +286,7 @@ export function emptyScheduleStore(): ScheduleStore {
       id: personIdFromName(p.name, i),
       name: p.name,
       role: p.role,
-      email: "",
+      email: p.email || "",
       weeklyCapacityHours: DEFAULT_WEEKLY_CAPACITY_HOURS,
       internalRate,
       externalRate: defaultExternalRate(internalRate),
@@ -322,7 +321,7 @@ export function emptyScheduleStore(): ScheduleStore {
     defaultPlansByLane: {},
     scheduledDetails: {},
     horizonYears: 25,
-    laneCycleAnchors: {},
+    laneCycleAnchors: seedLaneCycleAnchors(),
     baselineDate: { y: 2026, m: 7, d: 1 },
     projectManagement: false,
     effortDemo: emptyEffortDemo(),
