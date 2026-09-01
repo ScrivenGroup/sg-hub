@@ -108,6 +108,22 @@ export const seedNodes: RegistryNode[] = [
     order: 1,
   },
   {
+    id: "p-funds-forecaster",
+    hubPrefix: "p",
+    slug: "funds-forecaster",
+    title: "Funds Forecaster",
+    code: "1F6B4A",
+    kind: "subhub",
+    parentId: "hub-projects",
+    href: "/p/funds-forecaster",
+    accessMode: "per_user",
+    status: "building",
+    hasNetworkMap: false,
+    description:
+      "Personal funds forecast (savings, safety floor, horizon, income vs spend). Skeleton + Development reference; not revA.",
+    order: 2,
+  },
+  {
     id: "i-ideas",
     hubPrefix: "i",
     slug: "ideas",
@@ -215,6 +231,33 @@ export const seedNodes: RegistryNode[] = [
 ];
 
 export const seedChangelogs: ChangelogEntry[] = [
+  {
+    id: "cl-ff-1",
+    nodeId: "p-funds-forecaster",
+    kind: "plan",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    title: "Offline HTML is reference, not revA",
+    body: `## Funds Forecaster — development plan
+
+**Badge:** #1F6B4A only (global SG theme; no ThemeContract).
+**Access:** per_user — personal money.
+
+The sibling offline \`index.html\` is a **Development reference**, not revA product UI. Do not restyle that layout onto Inputs, Forecast, or Upcoming.
+
+### Skeleton routes (intent only)
+- Hub — savings, safety floor, horizon, income vs hard/soft/category spend
+- Inputs — those fields and groups
+- Forecast — monthly income/expense, rate gap, trough, extra weekly need, projected-balance chart
+- Upcoming — payments table + occurrence filter
+- Development — parked copy of the offline HTML (museum)
+
+### Out of this pass
+- No statement CSVs or snapshots in this repo
+- No seeded Table 1 numbers in SG JSON
+- No monthly-drop ritual
+- Sibling \`funds-forecaster\` folder stays until a later promote/archive ticket
+`,
+  },
   {
     id: "cl-fuel-1",
     nodeId: "p-fueltracker",

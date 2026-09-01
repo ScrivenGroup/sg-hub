@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Funds Forecaster</title>
+  <style>
+    :root {
+      --bg: #efe8d8;
+      --bg-2: #e6dcc6;
+      --paper: #fffaf0;
+      --ink: #1c1712;
+      --muted: #6d6256;
+      --line: #d7cbb4;
+      --income: #1f6b4a;
+      --income-bg: #e4f3ea;
+      --hard: #8f2d22;
+      --hard-bg: #f8e6e1;
+      --soft: #9a5b12;
+      --soft-bg: #f6ead3;
+      --cat: #1e3a5f;
+      --cat-bg: #e8eef5;
+      --navy: #1e3a5f;
+      --warn: #b45309;
+      --ok: #1f6b4a;
+      --shadow: 0 10px 30px rgba(28, 23, 18, 0.08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(1200px 500px at 10% -10%, #f7f1e4 0%, transparent 55%), var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      padding: 1.4rem 1.6rem 0.4rem;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+    header .actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    header h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600;
+      font-size: 1.7rem;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    header p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
+      gap: 1.1rem;
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 1rem 1.6rem 2.4rem;
+      align-items: start;
+    }
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem 1rem 1.1rem;
+    }
+    #results { position: sticky; top: 0.75rem; }
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.7rem;
+      margin-bottom: 1rem;
+    }
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    input, select, button { font: inherit; }
+    input[type="number"], input[type="text"], input[type="date"], select {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.42rem 0.5rem;
+      color: var(--ink);
+      min-width: 0;
+    }
+    input:focus, select:focus { outline: 2px solid #1e3a5f55; border-color: var(--navy); }
+    .block { margin-top: 0.85rem; }
+    .block-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 0 0.4rem;
+    }
+    .block-head h3 { margin: 0; font-size: 1.02rem; }
+    .income h3 { color: var(--income); }
+    .hard h3 { color: var(--hard); }
+    .soft h3 { color: var(--soft); }
+    .cats h3 { color: var(--cat); }
+    .note { margin: 0 0 0.4rem; color: var(--muted); font-size: 0.8rem; }
+    .rows { display: flex; flex-direction: column; gap: 0.32rem; }
+    .row, .hint, .sub-hint {
+      display: grid;
+      gap: 0.32rem;
+      align-items: center;
+    }
+    .income .row, .income .hint { grid-template-columns: 1.2fr 0.85fr 0.95fr auto; }
+    .cycle .row, .cycle .sub-hint { grid-template-columns: 1.25fr 0.7fr 0.9fr 0.95fr auto; }
+    .cats .row, .cats .sub-hint { grid-template-columns: 1.2fr 0.75fr 0.95fr auto; }
+    .row {
+      padding: 0.35rem;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .income .row { background: var(--income-bg); border-color: #cfe3d6; }
+    .hard .row { background: var(--hard-bg); border-color: #edd0c9; }
+    .soft .row { background: var(--soft-bg); border-color: #ead9b8; }
+    .hint, .sub-hint {
+      padding: 0 0.35rem 0.1rem;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .icon-btns { display: flex; gap: 0.15rem; }
+    .category {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.45rem;
+      margin-bottom: 0.45rem;
+    }
+    .hard .category { background: #fbf3f0; border-color: #edd0c9; }
+    .soft .category { background: #f8f1e4; border-color: #ead9b8; }
+    .cats .category { background: var(--cat-bg); border-color: #c9d6e6; }
+    .cat-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.35rem;
+      align-items: center;
+      margin-bottom: 0.35rem;
+    }
+    .cat-head input { font-weight: 650; }
+    .subs { display: flex; flex-direction: column; gap: 0.28rem; }
+    .group-foot, .table-foot { margin-top: 0.4rem; }
+    .table-foot { display: flex; }
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.4rem 0.65rem;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    button:hover { background: var(--bg-2); }
+    button.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+    button.ghost { background: transparent; }
+    button.icon { width: 1.9rem; height: 1.9rem; padding: 0; font-size: 1rem; }
+    button.danger:hover { color: var(--hard); border-color: var(--hard); }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 0.9rem; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.7rem 0.8rem;
+      background: #fff;
+    }
+    .card.wide { grid-column: 1 / -1; }
+    .card .k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; }
+    .card .v { font-size: 1.22rem; font-weight: 700; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+    .card .s { margin-top: 0.18rem; color: var(--muted); font-size: 0.8rem; }
+    .neg { color: var(--hard); }
+    .pos { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .chart-wrap {
+      position: relative;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.65rem 0.45rem 0.35rem;
+    }
+    .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.76rem; color: var(--muted); padding: 0 0.4rem 0.3rem; }
+    .legend i {
+      display: inline-block; width: 1.1rem; height: 0;
+      border-top: 3px solid currentColor; margin-right: 0.3rem; vertical-align: middle;
+    }
+    .legend .floor { color: var(--warn); }
+    svg.chart { width: 100%; height: 300px; display: block; }
+    .tooltip {
+      position: absolute; pointer-events: none; background: var(--ink); color: #fff;
+      font-size: 0.76rem; padding: 0.35rem 0.5rem; border-radius: 8px; display: none;
+      transform: translate(-50%, -120%); white-space: nowrap; z-index: 2;
+    }
+    details.help { margin-top: 0.75rem; color: var(--muted); font-size: 0.84rem; }
+    details.help summary { cursor: pointer; color: var(--ink); }
+    @media (max-width: 1020px) {
+      main { grid-template-columns: 1fr; }
+      #results { position: static; }
+      .controls { grid-template-columns: 1fr; }
+      .hint, .sub-hint { display: none; }
+      .income .row, .cycle .row, .cats .row, .cat-head { grid-template-columns: 1fr 1fr; }
+      .row input[type="text"], .cat-head input[type="text"] { grid-column: 1 / -1; }
+    }
+    @media print {
+      header button, button { display: none !important; }
+      #results { position: static; }
+      details.fold > *:not(summary), details.panel > *:not(summary) { display: block !important; }
+    }
+    .upcoming-wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 0 1.6rem 2.4rem;
+    }
+    .occur-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+    .occur-toolbar label.field { flex-direction: row; align-items: center; gap: 0.4rem; }
+    .occur-wrap {
+      max-height: 480px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    table.occur {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+    table.occur th, table.occur td {
+      text-align: left;
+      padding: 0.32rem 0.45rem;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    table.occur td:nth-child(4) { white-space: normal; }
+    table.occur th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-2);
+      z-index: 1;
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    table.occur input[type="number"] { width: 6.2rem; padding: 0.28rem 0.35rem; }
+    table.occur tr.overridden td { background: #eef3f9; }
+    .kind-hard { color: var(--hard); font-weight: 650; }
+    .kind-soft { color: var(--soft); font-weight: 650; }
+    .kind-income { color: var(--income); font-weight: 650; }
+    .kind-dated { color: var(--cat); font-weight: 650; }
+    details.fold { margin-top: 0.85rem; }
+    details.fold > summary,
+    details.panel > summary.panel-summary {
+      cursor: pointer;
+      list-style: none;
+    }
+    details.fold > summary::-webkit-details-marker,
+    details.panel > summary.panel-summary::-webkit-details-marker { display: none; }
+    details.fold > summary.block-head::before,
+    details.panel > summary.panel-summary::before {
+      content: "▾ ";
+      color: var(--muted);
+      font-weight: 700;
+    }
+    details.fold:not([open]) > summary.block-head::before,
+    details.panel:not([open]) > summary.panel-summary::before { content: "▸ "; }
+    details.panel > summary.panel-summary { margin: 0 0 0.75rem; }
+    details.panel > summary.panel-summary h2 { display: inline; margin: 0; }
+    .snapshot-banner {
+      max-width: 1360px;
+      margin: 0.4rem auto 0;
+      padding: 0.5rem 1.6rem;
+      color: var(--navy);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Funds Forecaster</h1>
+      <p>Standalone HTML file — open it in your browser (double-click or File → Open). No local server. Seeded from Table 1 in the Aug 2025 Life Costs workbook.</p>
+    </div>
+    <div class="actions">
+      <button type="button" id="saveAsBtn">Save as</button>
+      <button type="button" id="resetBtn">Reset to Table 1 lists</button>
+    </div>
+  </header>
+  <p id="snapshotBanner" class="snapshot-banner" hidden>This file is a dated snapshot. Edits stay here and do not change the live forecaster. Use Save as to keep another version.</p>
+  <main>
+    <details class="panel" id="inputs" open data-section="inputs">
+      <summary class="panel-summary"><h2>Inputs</h2></summary>
+      <div class="controls">
+        <label class="field">Savings account
+          <input type="number" id="savings" min="0" step="0.01" value="0" />
+        </label>
+        <label class="field">Safety floor
+          <input type="number" id="safetyFloor" step="0.01" value="0" />
+        </label>
+        <label class="field">Horizon
+          <select id="horizon">
+            <option value="6">6 months</option>
+            <option value="12" selected>12 months</option>
+            <option value="24">24 months</option>
+          </select>
+        </label>
+      </div>
+
+      <details class="block income fold" open data-section="income">
+        <summary class="block-head">
+          <h3>Income</h3>
+        </summary>
+        <p class="note">A total dollar amount on a date. Table 1’s SG invoices were 2025 dates, so income starts empty — add the next payment here.</p>
+        <div class="hint"><span>Name</span><span>Amount</span><span>Paid on</span><span></span></div>
+        <div class="rows" id="incomeRows"></div>
+        <div class="table-foot">
+          <button type="button" class="primary" id="addIncome">+ Add income</button>
+        </div>
+      </details>
+
+      <details class="block hard cycle fold" open data-section="hard">
+        <summary class="block-head">
+          <h3>Hard cyclical</h3>
+        </summary>
+        <p class="note">Table 1 Need, Loan, and Work items. Add a row at the bottom of a group, or a group at the bottom of the table.</p>
+        <div id="hardGroups"></div>
+        <div class="table-foot">
+          <button type="button" class="primary" id="addHardGroup">+ Add category</button>
+        </div>
+      </details>
+
+      <details class="block soft cycle fold" open data-section="soft">
+        <summary class="block-head">
+          <h3>Soft cyclical</h3>
+        </summary>
+        <p class="note">Table 1 Want items — keep paying unless you stop. Add a row at the bottom of a group.</p>
+        <div id="softGroups"></div>
+        <div class="table-foot">
+          <button type="button" class="primary" id="addSoftGroup">+ Add category</button>
+        </div>
+      </details>
+
+      <details class="block cats fold" open data-section="cats">
+        <summary class="block-head">
+          <h3>Non-cyclical categories</h3>
+        </summary>
+        <p class="note">Buckets for future dated expenses. Add a sub-row at the bottom of a category when you know the date.</p>
+        <div id="categories"></div>
+        <div class="table-foot">
+          <button type="button" class="primary" id="addCategory">+ Add category</button>
+        </div>
+      </details>
+    </details>
+
+    <details class="panel" id="results" open data-section="forecast">
+      <summary class="panel-summary"><h2>Forecast</h2></summary>
+      <div class="cards">
+        <div class="card">
+          <div class="k">Income in this horizon</div>
+          <div class="v pos" id="monthlyIncome">$0.00</div>
+          <div class="s" id="annualIncome">$0.00 / month equivalent</div>
+        </div>
+        <div class="card">
+          <div class="k">Monthly-equivalent outgoings</div>
+          <div class="v neg" id="monthlyExpense">$0.00</div>
+          <div class="s" id="annualExpense">$0.00 / year</div>
+        </div>
+        <div class="card">
+          <div class="k">Rate surplus / shortfall</div>
+          <div class="v" id="rateGap">$0.00</div>
+          <div class="s" id="rateGapNote">Monthly, income vs expenses</div>
+        </div>
+        <div class="card">
+          <div class="k">Lowest projected balance</div>
+          <div class="v" id="trough">$0.00</div>
+          <div class="s" id="troughDate">—</div>
+        </div>
+        <div class="card wide">
+          <div class="k">Extra income needed to stay at or above the floor</div>
+          <div class="v" id="extraNeed">$0.00 / week</div>
+          <div class="s" id="extraNeedDetail">No extra income required.</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="legend">
+          <span><i style="color:#1e3a5f"></i>Projected balance</span>
+          <span class="floor"><i></i>Safety floor</span>
+          <span id="extraLegend" hidden><i style="border-top: 3px dashed #1e3a5f; color:#1e3a5f"></i>With extra weekly income</span>
+        </div>
+        <div class="tooltip" id="tooltip"></div>
+        <svg class="chart" id="chart" viewBox="0 0 800 300" preserveAspectRatio="none" role="img" aria-label="Projected balance chart"></svg>
+      </div>
+      <details class="help">
+        <summary>How this is calculated</summary>
+        <p>Savings is the opening balance. Income hits once on its paid-on date. Hard and soft items repeat from the next date. Category sub-rows hit once on their date. Monthly, quarterly and yearly keep the same calendar day, clamped to month length.</p>
+        <p>Hard/soft annualised rates use the amounts actually hitting in this horizon (including overrides), spread across the months. Extra income is a weekly top-up from today so the trough stays at or above the floor. An override changes that date only — the template amount on the left stays as the usual cycle.</p>
+      </details>
+    </details>
+  </main>
+  <div class="upcoming-wrap">
+    <details class="panel" id="upcoming" open data-section="upcoming">
+      <summary class="panel-summary"><h2>Upcoming payments</h2></summary>
+      <p class="note">Every income and expense hit in the horizon. Use Override when a specific date will cost more or less than the template — for example body corp is $1,242 most quarters, but one levy is higher.</p>
+      <div class="occur-toolbar">
+        <label class="field">Show
+          <select id="occurFilter">
+            <option value="all">All</option>
+            <option value="income">Income</option>
+            <option value="hard">Hard</option>
+            <option value="soft">Soft</option>
+            <option value="dated">One-offs</option>
+          </select>
+        </label>
+        <span class="note" id="occurTotals"></span>
+      </div>
+      <div class="occur-wrap">
+        <table class="occur">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th>Name</th>
+              <th>Planned</th>
+              <th>Override</th>
+              <th>Used</th>
+            </tr>
+          </thead>
+          <tbody id="occurBody"></tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+  <script>
+    const STORAGE_KEY = "funds-forecaster-v5";
+    const LEGACY_KEYS = ["funds-forecaster-v4", "funds-forecaster-v3"];
+    const FREQS = [
+      ["oneOff", "One-off", 0],
+      ["weekly", "Weekly", 52],
+      ["fortnightly", "Fortnightly", 26],
+      ["fourWeekly", "4-weekly", 13],
+      ["monthly", "Monthly", 12],
+      ["twoMonthly", "Every 2 months", 6],
+      ["quarterly", "Quarterly", 4],
+      ["sixMonthly", "Every 6 months", 2],
+      ["yearly", "Yearly", 1],
+    ];
+    const PER_YEAR = Object.fromEntries(FREQS.map(([k, , n]) => [k, n]));
+    const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
+    const moneyAbs = (cents) => money.format(Math.abs(cents) / 100);
+
+    const el = {
+      savings: document.getElementById("savings"),
+      safetyFloor: document.getElementById("safetyFloor"),
+      horizon: document.getElementById("horizon"),
+      incomeRows: document.getElementById("incomeRows"),
+      hardGroups: document.getElementById("hardGroups"),
+      softGroups: document.getElementById("softGroups"),
+      categories: document.getElementById("categories"),
+      monthlyIncome: document.getElementById("monthlyIncome"),
+      annualIncome: document.getElementById("annualIncome"),
+      monthlyExpense: document.getElementById("monthlyExpense"),
+      annualExpense: document.getElementById("annualExpense"),
+      rateGap: document.getElementById("rateGap"),
+      rateGapNote: document.getElementById("rateGapNote"),
+      trough: document.getElementById("trough"),
+      troughDate: document.getElementById("troughDate"),
+      extraNeed: document.getElementById("extraNeed"),
+      extraNeedDetail: document.getElementById("extraNeedDetail"),
+      extraLegend: document.getElementById("extraLegend"),
+      chart: document.getElementById("chart"),
+      tooltip: document.getElementById("tooltip"),
+      resetBtn: document.getElementById("resetBtn"),
+      saveAsBtn: document.getElementById("saveAsBtn"),
+      snapshotBanner: document.getElementById("snapshotBanner"),
+      occurFilter: document.getElementById("occurFilter"),
+      occurBody: document.getElementById("occurBody"),
+      occurTotals: document.getElementById("occurTotals"),
+    };
+
+    let lastSim = null;
+    let liveOverrides = {};
+    let lastOccs = [];
+    const IS_SNAPSHOT = !!(window.__FORECASTER_SNAPSHOT && typeof window.__FORECASTER_SNAPSHOT === "object");
+
+    function readCollapsed() {
+      const out = {};
+      document.querySelectorAll("details[data-section]").forEach((d) => {
+        out[d.dataset.section] = !d.open;
+      });
+      return out;
+    }
+    function applyCollapsed(flags) {
+      document.querySelectorAll("details[data-section]").forEach((d) => {
+        const id = d.dataset.section;
+        d.open = !(flags && flags[id]);
+      });
+    }
+
+    function todayISO() {
+      const d = new Date();
+      return toISO(d);
+    }
+    function toISO(d) {
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+    function parseISO(s) {
+      if (!s) return null;
+      const [y, m, d] = s.split("-").map(Number);
+      if (!y || !m || !d) return null;
+      return new Date(y, m - 1, d);
+    }
+    function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+    function addMonths(d, n) {
+      const day = d.getDate();
+      const x = new Date(d.getFullYear(), d.getMonth() + n, 1);
+      const last = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+      x.setDate(Math.min(day, last));
+      return x;
+    }
+    function daysBetween(a, b) {
+      return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+    }
+    function uid() { return Math.random().toString(36).slice(2, 10); }
+    function toCents(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    }
+    function escapeAttr(s) {
+      return String(s || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    }
+    function advance(date, freq) {
+      switch (freq) {
+        case "oneOff": return addDays(date, 1e6);
+        case "weekly": return addDays(date, 7);
+        case "fortnightly": return addDays(date, 14);
+        case "fourWeekly": return addDays(date, 28);
+        case "monthly": return addMonths(date, 1);
+        case "twoMonthly": return addMonths(date, 2);
+        case "quarterly": return addMonths(date, 3);
+        case "sixMonthly": return addMonths(date, 6);
+        case "yearly": return addMonths(date, 12);
+        default: return addDays(date, 7);
+      }
+    }
+    function snapToStart(date, freq, start) {
+      if (freq === "oneOff") return date;
+      if (date >= start) return date;
+      if (freq === "weekly" || freq === "fortnightly" || freq === "fourWeekly") {
+        const step = freq === "weekly" ? 7 : freq === "fortnightly" ? 14 : 28;
+        return addDays(date, Math.ceil(daysBetween(date, start) / step) * step);
+      }
+      let d = date, guard = 0;
+      while (d < start && guard++ < 2400) d = advance(d, freq);
+      return d;
+    }
+    function freqSelect(selected) {
+      return FREQS.map(([k, label]) => `<option value="${k}" ${k === selected ? "selected" : ""}>${label}</option>`).join("");
+    }
+    function nextOnOrAfter(iso, freq) {
+      let d = parseISO(iso);
+      const start = parseISO(todayISO());
+      if (!d || !start) return todayISO();
+      return toISO(snapToStart(d, freq, start));
+    }
+
+    function item(name, amount, frequency, startDate) {
+      return { id: uid(), name, amount: String(amount), frequency, nextDate: nextOnOrAfter(startDate, frequency) };
+    }
+    function group(name, items) {
+      return { id: uid(), name, items: items || [] };
+    }
+
+    function seededState() {
+      return {
+        savings: "",
+        safetyFloor: "0",
+        horizon: "12",
+        income: [{ id: uid(), name: "", amount: "", date: todayISO() }],
+        hard: [
+          group("Home - Mortgage", [
+            item("Variable - Small", "285", "fortnightly", "2025-07-30"),
+            item("Variable - Medium", "363", "fortnightly", "2025-07-30"),
+            item("Variable - Large", "712", "fortnightly", "2025-07-30"),
+            item("Extra", "163", "fortnightly", "2025-07-30"),
+            item("ANZ Service", "10", "monthly", "2025-08-01"),
+          ]),
+          group("Home - Utilities", [
+            item("body corp", "1242", "quarterly", "2025-04-01"),
+            item("Electricity", "509", "quarterly", "2025-06-20"),
+            item("Gas", "326", "quarterly", "2025-02-24"),
+            item("Water/Sew", "320", "quarterly", "2025-02-23"),
+            item("Rates", "409", "quarterly", "2025-02-05"),
+            item("Home Internet (TPG)", "85", "monthly", "2025-07-11"),
+          ]),
+          group("Car", [
+            item("Car Insurance", "640", "yearly", "2025-05-18"),
+            item("Car Licence", "91.55", "yearly", "2025-08-29"),
+            item("Car Registration", "790", "yearly", "2024-12-11"),
+            item("Car Service", "400", "yearly", "2025-04-01"),
+            item("Car Street Parking", "15", "yearly", "2024-12-11"),
+          ]),
+          group("Personal", [
+            item("Climbing Membership", "26", "weekly", "2025-07-29"),
+            item("Health Insurance - NIB", "135", "monthly", "2025-07-14"),
+            item("Mobile", "320", "yearly", "2024-09-20"),
+          ]),
+          group("DOG", [
+            item("Dog Insurance", "600", "yearly", "2025-02-01"),
+            item("Dog 3-Mo Tablets", "15", "quarterly", "2025-07-01"),
+            item("Dog Monthly Tablets", "30", "sixMonthly", "2025-06-01"),
+          ]),
+          group("LIFE - ALLOW", [
+            item("Groceries", "100", "weekly", "2025-01-01"),
+            item("Fuel", "200", "monthly", "2025-01-01"),
+          ]),
+          group("Work", [
+            item("Adobe", "32", "monthly", "2025-07-15"),
+            item("MSFT - Teams", "10", "monthly", "2025-08-12"),
+            item("BizCover: PI & PL Insurance", "65.67", "monthly", "2025-09-02"),
+            item("MSFT - Home", "125", "yearly", "2025-01-20"),
+            item("Express VPN", "116", "yearly", "2025-01-12"),
+          ]),
+        ],
+        soft: [
+          group("LIFE - ALLOW", [
+            item("Dine Outs", "200", "monthly", "2025-01-01"),
+            item("HOBBIES", "200", "monthly", "2025-01-01"),
+            item("Movies", "20", "monthly", "2025-01-01"),
+          ]),
+          group("AdHoc", [
+            item("Physio", "150", "fortnightly", "2025-08-06"),
+            item("Piano", "500", "quarterly", "2025-06-20"),
+            item("Haircut", "150", "quarterly", "2025-07-21"),
+            item("Nutrition", "70", "quarterly", "2025-07-13"),
+            item("Dental", "200", "sixMonthly", "2025-06-11"),
+          ]),
+          group("Personal", [
+            item("Google - Youtube", "40", "monthly", "2025-07-21"),
+            item("Google - Family (1TB)", "150", "yearly", "2025-03-14"),
+            item("Nintendo Online", "30", "yearly", "2025-03-01"),
+            item("NYT - Games", "30", "yearly", "2025-12-15"),
+          ]),
+          group("DOG", [
+            item("Dog Groom", "100", "twoMonthly", "2025-07-01"),
+          ]),
+        ],
+        categories: [
+          group("Tax"),
+          group("Travel"),
+          group("Clothes / shoes"),
+          group("Tech"),
+          group("Gifts"),
+          group("Wedding"),
+          group("Other one-offs"),
+        ],
+      };
+    }
+
+    function incomeHTML(row) {
+      return `<div class="row" data-kind="income" data-id="${row.id}">
+        <input type="text" data-f="name" placeholder="Invoice / pay" value="${escapeAttr(row.name)}" />
+        <input type="number" data-f="amount" min="0" step="0.01" placeholder="0.00" value="${row.amount || ""}" />
+        <input type="date" data-f="date" value="${row.date || todayISO()}" />
+        <div class="icon-btns">
+          <button type="button" class="icon" data-act="dup" title="Duplicate">⧉</button>
+          <button type="button" class="icon danger" data-act="del" title="Delete">×</button>
+        </div>
+      </div>`;
+    }
+    function cycleHTML(kind, row) {
+      return `<div class="row" data-kind="${kind}" data-id="${row.id}">
+        <input type="text" data-f="name" placeholder="Bill" value="${escapeAttr(row.name)}" />
+        <input type="number" data-f="amount" min="0" step="0.01" placeholder="0.00" value="${row.amount || ""}" />
+        <select data-f="frequency">${freqSelect(row.frequency || "monthly")}</select>
+        <input type="date" data-f="nextDate" value="${row.nextDate || todayISO()}" />
+        <div class="icon-btns">
+          <button type="button" class="icon" data-act="dup" title="Duplicate">⧉</button>
+          <button type="button" class="icon danger" data-act="del" title="Delete">×</button>
+        </div>
+      </div>`;
+    }
+    function datedHTML(row) {
+      return `<div class="row" data-kind="dated" data-id="${row.id}">
+        <input type="text" data-f="name" placeholder="What" value="${escapeAttr(row.name)}" />
+        <input type="number" data-f="amount" min="0" step="0.01" placeholder="0.00" value="${row.amount || ""}" />
+        <input type="date" data-f="date" value="${row.date || todayISO()}" />
+        <div class="icon-btns">
+          <button type="button" class="icon danger" data-act="del" title="Delete">×</button>
+        </div>
+      </div>`;
+    }
+    function groupHTML(kind, g) {
+      const cycle = kind === "hard" || kind === "soft";
+      const rows = (g.items || []).map((r) => (cycle ? cycleHTML(kind, r) : datedHTML(r))).join("");
+      const hint = cycle
+        ? `<div class="sub-hint"><span>Name</span><span>Amount</span><span>Frequency</span><span>Next date</span><span></span></div>`
+        : `<div class="sub-hint"><span>Name</span><span>Amount</span><span>Date</span><span></span></div>`;
+      const addAct = cycle ? "addCycle" : "addDated";
+      const addLabel = cycle ? "+ Add row" : "+ Dated expense";
+      return `<div class="category" data-kind="${kind}" data-id="${g.id}">
+        <div class="cat-head">
+          <input type="text" data-f="catName" value="${escapeAttr(g.name)}" />
+          <button type="button" class="icon danger" data-act="delCat" title="Delete category">×</button>
+        </div>
+        ${hint}
+        <div class="subs">${rows}</div>
+        <div class="group-foot">
+          <button type="button" data-act="${addAct}">${addLabel}</button>
+        </div>
+      </div>`;
+    }
+
+    function readCycleRows(container) {
+      return [...container.querySelectorAll(".row")].map((row) => ({
+        id: row.dataset.id,
+        name: row.querySelector('[data-f="name"]').value.trim(),
+        amount: row.querySelector('[data-f="amount"]').value,
+        frequency: row.querySelector('[data-f="frequency"]').value,
+        nextDate: row.querySelector('[data-f="nextDate"]').value,
+      }));
+    }
+    function readGroups(root, cycle) {
+      return [...root.querySelectorAll(".category")].map((catEl) => ({
+        id: catEl.dataset.id,
+        name: catEl.querySelector('[data-f="catName"]').value.trim(),
+        items: cycle
+          ? readCycleRows(catEl)
+          : [...catEl.querySelectorAll('.row[data-kind="dated"]')].map((row) => ({
+              id: row.dataset.id,
+              name: row.querySelector('[data-f="name"]').value.trim(),
+              amount: row.querySelector('[data-f="amount"]').value,
+              date: row.querySelector('[data-f="date"]').value,
+            })),
+      }));
+    }
+    function collectState() {
+      return {
+        savings: el.savings.value,
+        safetyFloor: el.safetyFloor.value,
+        horizon: el.horizon.value,
+        income: [...el.incomeRows.querySelectorAll(".row")].map((row) => ({
+          id: row.dataset.id,
+          name: row.querySelector('[data-f="name"]').value.trim(),
+          amount: row.querySelector('[data-f="amount"]').value,
+          date: row.querySelector('[data-f="date"]').value,
+        })),
+        hard: readGroups(el.hardGroups, true),
+        soft: readGroups(el.softGroups, true),
+        categories: readGroups(el.categories, false),
+        overrides: { ...liveOverrides },
+        collapsed: readCollapsed(),
+      };
+    }
+    function isGrouped(list) {
+      return Array.isArray(list) && list.length > 0 && Array.isArray(list[0].items);
+    }
+    function regroupFlat(flat, templates) {
+      const remaining = [...(flat || [])];
+      const groups = templates.map((g) => {
+        const items = [];
+        for (const t of g.items) {
+          const i = remaining.findIndex((r) => r.name === t.name);
+          items.push(i >= 0 ? remaining.splice(i, 1)[0] : t);
+        }
+        return { id: uid(), name: g.name, items };
+      });
+      if (remaining.length) groups.push({ id: uid(), name: "Other", items: remaining });
+      return groups;
+    }
+    function render(state) {
+      el.savings.value = state.savings ?? "";
+      el.safetyFloor.value = state.safetyFloor ?? "0";
+      el.horizon.value = state.horizon ?? "12";
+      el.incomeRows.innerHTML = (state.income.length ? state.income : seededState().income).map(incomeHTML).join("");
+      el.hardGroups.innerHTML = (state.hard || []).map((g) => groupHTML("hard", g)).join("");
+      el.softGroups.innerHTML = (state.soft || []).map((g) => groupHTML("soft", g)).join("");
+      el.categories.innerHTML = (state.categories || []).map((g) => groupHTML("dated", g)).join("");
+    }
+    function save() {
+      if (IS_SNAPSHOT) return;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState()));
+    }
+    function load() {
+      const seed = seededState();
+      let state = seed;
+      liveOverrides = {};
+      try {
+        if (IS_SNAPSHOT) {
+          state = { ...seed, ...window.__FORECASTER_SNAPSHOT };
+          liveOverrides = state.overrides && typeof state.overrides === "object" ? { ...state.overrides } : {};
+        } else {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            state = { ...seed, ...saved };
+            if (!isGrouped(state.hard)) state.hard = regroupFlat(state.hard, seed.hard);
+            if (!isGrouped(state.soft)) state.soft = regroupFlat(state.soft, seed.soft);
+            liveOverrides = state.overrides && typeof state.overrides === "object" ? state.overrides : {};
+          }
+        }
+      } catch {
+        liveOverrides = {};
+      }
+      render(state);
+      applyCollapsed(state.collapsed);
+      if (IS_SNAPSHOT && el.snapshotBanner) el.snapshotBanner.hidden = false;
+    }
+
+    function snapshotFileName() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return "funds-forecaster-" + d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + ".html";
+    }
+    async function saveAsFile() {
+      const state = collectState();
+      const payload = "window.__FORECASTER_SNAPSHOT = " + JSON.stringify(state).replace(/</g, "\\u003c") + ";\n";
+      let html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      html = html.replace(/\s*window\.__FORECASTER_SNAPSHOT = [\s\S]*?;\n/, "\n");
+      html = html.replace("<script>", "<script>\n    " + payload);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const name = snapshotFileName();
+      const canPickFile = location.protocol === "https:" && typeof window.showSaveFilePicker === "function";
+      if (canPickFile) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: name,
+            types: [{ description: "HTML snapshot", accept: { "text/html": [".html"] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function occKey(itemId, iso) { return itemId + "|" + iso; }
+    function usedAmount(occ) {
+      const v = liveOverrides[occ.key];
+      if (v !== undefined && String(v).trim() !== "") return v;
+      return occ.planned;
+    }
+    function buildOccurrences(state, start, end) {
+      const out = [];
+      const addHit = (kind, groupName, row, sign, freq, when) => {
+        let d = parseISO(when);
+        if (!d || !row.id) return;
+        const push = (dt) => {
+          if (dt < start || dt > end) return;
+          if (!toCents(row.amount) && !toCents(liveOverrides[occKey(row.id, toISO(dt))])) return;
+          out.push({
+            key: occKey(row.id, toISO(dt)),
+            itemId: row.id,
+            date: toISO(dt),
+            kind,
+            group: groupName,
+            name: row.name || "(unnamed)",
+            planned: row.amount || "",
+            frequency: freq,
+            sign,
+          });
+        };
+        if (freq === "oneOff") {
+          push(d);
+          return;
+        }
+        d = snapToStart(d, freq, start);
+        let guard = 0;
+        while (d <= end && guard++ < 5000) {
+          push(d);
+          d = advance(d, freq);
+        }
+      };
+      for (const r of state.income || []) addHit("income", "Income", r, 1, "oneOff", r.date);
+      for (const g of state.hard || []) {
+        for (const r of g.items || []) addHit("hard", g.name, r, -1, r.frequency || "monthly", r.nextDate);
+      }
+      for (const g of state.soft || []) {
+        for (const r of g.items || []) addHit("soft", g.name, r, -1, r.frequency || "monthly", r.nextDate);
+      }
+      for (const g of state.categories || []) {
+        for (const r of g.items || []) addHit("dated", g.name, r, -1, "oneOff", r.date);
+      }
+      out.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+      return out;
+    }
+    function renderOccurTable(occs) {
+      lastOccs = occs;
+      const filter = el.occurFilter.value;
+      const rows = filter === "all" ? occs : occs.filter((o) => o.kind === filter);
+      const kindLabel = { income: "Income", hard: "Hard", soft: "Soft", dated: "One-off" };
+      el.occurBody.innerHTML = rows.map((o) => {
+        const used = usedAmount(o);
+        const over = liveOverrides[o.key] !== undefined && String(liveOverrides[o.key]).trim() !== "";
+        return `<tr class="${over ? "overridden" : ""}">
+          <td>${o.date}</td>
+          <td class="kind-${o.kind}">${kindLabel[o.kind] || o.kind}</td>
+          <td>${escapeAttr(o.group)}</td>
+          <td>${escapeAttr(o.name)}</td>
+          <td>${o.planned === "" ? "—" : money.format(toCents(o.planned) / 100)}</td>
+          <td><input type="number" min="0" step="0.01" placeholder="—" data-override="${escapeAttr(o.key)}" value="${escapeAttr(over ? liveOverrides[o.key] : "")}" /></td>
+          <td data-used="${escapeAttr(o.key)}">${money.format(toCents(used) / 100)}</td>
+        </tr>`;
+      }).join("");
+      updateOccurTotals(occs);
+    }
+    function updateOccurTotals(occs) {
+      let plannedOut = 0, usedOut = 0, usedIn = 0, overrideN = 0;
+      for (const o of occs) {
+        const used = toCents(usedAmount(o));
+        if (o.sign < 0) {
+          plannedOut += toCents(o.planned);
+          usedOut += used;
+        } else usedIn += used;
+        if (liveOverrides[o.key] !== undefined && String(liveOverrides[o.key]).trim() !== "") overrideN += 1;
+      }
+      el.occurTotals.textContent =
+        occs.length + " hits · outgoings planned " + money.format(plannedOut / 100) +
+        " · used " + money.format(usedOut / 100) +
+        (overrideN ? " · " + overrideN + " override" + (overrideN === 1 ? "" : "s") : "") +
+        (usedIn ? " · income " + money.format(usedIn / 100) : "");
+    }
+
+    function allExpenseRows(state) {
+      const flatten = (groups) => (groups || []).flatMap((g) => g.items || []);
+      const cycle = [...flatten(state.hard), ...flatten(state.soft)].map((r) => ({
+        amountCents: toCents(r.amount),
+        frequency: r.frequency,
+        nextDate: r.nextDate,
+        sign: -1,
+      }));
+      const dated = flatten(state.categories).map((r) => ({
+        amountCents: toCents(r.amount),
+        frequency: "oneOff",
+        nextDate: r.date,
+        sign: -1,
+      }));
+      return cycle.concat(dated);
+    }
+    function itemHits(items, start, end) {
+      const nDays = daysBetween(start, end);
+      const daily = new Array(nDays + 1).fill(0);
+      for (const it of items) {
+        if (!it.amountCents || !it.nextDate) continue;
+        let d = parseISO(it.nextDate);
+        if (!d) continue;
+        if (it.frequency === "oneOff") {
+          const i = daysBetween(start, d);
+          if (i >= 0 && i <= nDays) daily[i] += it.sign * it.amountCents;
+          continue;
+        }
+        d = snapToStart(d, it.frequency, start);
+        let guard = 0;
+        while (d <= end && guard++ < 5000) {
+          const i = daysBetween(start, d);
+          if (i >= 0 && i <= nDays) daily[i] += it.sign * it.amountCents;
+          d = advance(d, it.frequency);
+        }
+      }
+      return daily;
+    }
+    function expenseRates(rows, start, end, horizonMonths) {
+      let cyclicalAnnual = 0, oneOff = 0;
+      for (const row of rows) {
+        if (!row.amountCents) continue;
+        if (row.frequency === "oneOff") {
+          const d = parseISO(row.nextDate);
+          if (d && d >= start && d <= end) oneOff += row.amountCents;
+        } else {
+          cyclicalAnnual += row.amountCents * (PER_YEAR[row.frequency] || 12);
+        }
+      }
+      return {
+        monthly: Math.round(cyclicalAnnual / 12 + oneOff / horizonMonths),
+        annual: cyclicalAnnual + Math.round(oneOff * 12 / horizonMonths),
+      };
+    }
+    function runSim({ startFundsCents, dailyBase, extraWeeklyCents, start }) {
+      const nDays = dailyBase.length - 1;
+      const balances = new Array(nDays + 1);
+      let bal = startFundsCents, minBal = bal, minDay = 0, maxBal = bal;
+      for (let i = 0; i <= nDays; i++) {
+        let flow = dailyBase[i];
+        if (extraWeeklyCents && i % 7 === 0) flow += extraWeeklyCents;
+        bal += flow;
+        balances[i] = bal;
+        if (bal < minBal) { minBal = bal; minDay = i; }
+        if (bal > maxBal) maxBal = bal;
+      }
+      return { balances, minBal, minDay, maxBal, nDays, start, extraWeeklyCents };
+    }
+    function extraWeeklyNeeded(args, floorCents) {
+      if (runSim({ ...args, extraWeeklyCents: 0 }).minBal >= floorCents) return 0;
+      let lo = 0, hi = 100;
+      while (runSim({ ...args, extraWeeklyCents: hi }).minBal < floorCents) {
+        hi *= 2;
+        if (hi > 1e12) return hi;
+      }
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (runSim({ ...args, extraWeeklyCents: mid }).minBal >= floorCents) hi = mid;
+        else lo = mid + 1;
+      }
+      return lo;
+    }
+
+    function forecast(opts) {
+      const skipTable = opts && opts.skipTable;
+      const state = collectState();
+      const start = parseISO(todayISO());
+      const months = Number(state.horizon) || 12;
+      const end = addMonths(start, months);
+      const startFundsCents = toCents(state.savings);
+      const floorCents = toCents(state.safetyFloor);
+      const occs = buildOccurrences(state, start, end);
+      const incomeItems = occs.filter((o) => o.sign > 0).map((o) => ({
+        amountCents: toCents(usedAmount(o)),
+        frequency: "oneOff",
+        nextDate: o.date,
+        sign: 1,
+      }));
+      const expenseItems = occs.filter((o) => o.sign < 0).map((o) => ({
+        amountCents: toCents(usedAmount(o)),
+        frequency: "oneOff",
+        nextDate: o.date,
+        sign: -1,
+      }));
+      const dailyIncome = itemHits(incomeItems, start, end);
+      const dailyExpense = itemHits(expenseItems, start, end);
+      const dailyBase = dailyIncome.map((v, i) => v + dailyExpense[i]);
+      const horizonIncome = incomeItems.reduce((s, r) => {
+        const d = parseISO(r.nextDate);
+        return s + (r.amountCents && d && d >= start && d <= end ? r.amountCents : 0);
+      }, 0);
+      const monthlyIncome = Math.round(horizonIncome / months);
+      const exp = expenseRates(expenseItems, start, end, months);
+      const monthlyGap = monthlyIncome - exp.monthly;
+      const simArgs = { startFundsCents, dailyBase, start };
+      const extraWeek = extraWeeklyNeeded(simArgs, floorCents);
+      const current = runSim({ ...simArgs, extraWeeklyCents: 0 });
+      const withExtra = extraWeek ? runSim({ ...simArgs, extraWeeklyCents: extraWeek }) : null;
+      lastSim = { current, withExtra, floorCents, extraWeek };
+
+      el.monthlyIncome.textContent = money.format(horizonIncome / 100);
+      el.annualIncome.textContent = money.format(monthlyIncome / 100) + " / month equivalent";
+      el.monthlyExpense.textContent = money.format(exp.monthly / 100);
+      el.annualExpense.textContent = money.format(exp.annual / 100) + " / year";
+      el.rateGap.textContent = (monthlyGap < 0 ? "−" : monthlyGap > 0 ? "+" : "") + moneyAbs(monthlyGap);
+      el.rateGap.className = "v " + (monthlyGap < 0 ? "neg" : monthlyGap > 0 ? "pos" : "");
+      el.rateGapNote.textContent = monthlyGap < 0 ? "Shortfall vs monthly-equivalent outgoings" : monthlyGap > 0 ? "Surplus vs monthly-equivalent outgoings" : "Income and outgoings match on a monthly basis";
+      el.trough.textContent = money.format(current.minBal / 100);
+      el.trough.className = "v " + (current.minBal < floorCents ? "neg" : "pos");
+      el.troughDate.textContent = "On " + addDays(start, current.minDay).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+      if (extraWeek <= 0) {
+        el.extraNeed.textContent = "$0.00 / week";
+        el.extraNeed.className = "v pos";
+        el.extraNeedDetail.textContent = "No extra income required — the projected balance stays at or above the floor.";
+        el.extraLegend.hidden = true;
+      } else {
+        el.extraNeed.textContent = money.format(extraWeek / 100) + " / week";
+        el.extraNeed.className = "v warn";
+        el.extraNeedDetail.textContent = money.format(Math.round(extraWeek * 52 / 12) / 100) + " / month · " + money.format((extraWeek * 52) / 100) + " / year  ·  paid every 7 days from today";
+        el.extraLegend.hidden = false;
+      }
+      drawChart(lastSim);
+      if (skipTable) {
+        lastOccs = occs;
+        updateOccurTotals(occs);
+        occs.forEach((o) => {
+          const cell = el.occurBody.querySelector('[data-used="' + CSS.escape(o.key) + '"]');
+          if (cell) cell.textContent = money.format(toCents(usedAmount(o)) / 100);
+          const row = cell && cell.closest("tr");
+          if (row) {
+            const over = liveOverrides[o.key] !== undefined && String(liveOverrides[o.key]).trim() !== "";
+            row.classList.toggle("overridden", over);
+          }
+        });
+      } else {
+        renderOccurTable(occs);
+      }
+    }
+
+    function drawChart(sim) {
+      const svg = el.chart;
+      const W = 800, H = 300;
+      const pad = { l: 58, r: 16, t: 14, b: 34 };
+      const { current, withExtra, floorCents } = sim;
+      const vals = current.balances.concat([floorCents, 0]);
+      if (withExtra) vals.push(...withExtra.balances);
+      let minV = Math.min(...vals), maxV = Math.max(...vals);
+      if (minV === maxV) { minV -= 10000; maxV += 10000; }
+      const span = maxV - minV;
+      minV -= span * 0.08; maxV += span * 0.08;
+      const n = current.nDays;
+      const xAt = (i) => pad.l + (i / Math.max(n, 1)) * (W - pad.l - pad.r);
+      const yAt = (v) => pad.t + (1 - (v - minV) / (maxV - minV)) * (H - pad.t - pad.b);
+      function pathFor(balances) {
+        let d = "";
+        const step = n > 420 ? Math.ceil(n / 420) : 1;
+        for (let i = 0; i <= n; i += step) d += (i === 0 ? "M" : "L") + xAt(i).toFixed(1) + " " + yAt(balances[i]).toFixed(1) + " ";
+        if (n % step !== 0) d += "L" + xAt(n).toFixed(1) + " " + yAt(balances[n]).toFixed(1);
+        return d;
+      }
+      const area = pathFor(current.balances) + ` L ${xAt(n).toFixed(1)} ${yAt(minV).toFixed(1)} L ${xAt(0).toFixed(1)} ${yAt(minV).toFixed(1)} Z`;
+      const monthMarks = [];
+      let cursor = new Date(current.start.getFullYear(), current.start.getMonth(), 1);
+      if (cursor < current.start) cursor = addMonths(cursor, 1);
+      const end = addDays(current.start, n);
+      while (cursor <= end) {
+        const i = Math.max(0, daysBetween(current.start, cursor));
+        const x = xAt(i);
+        monthMarks.push(`<line x1="${x.toFixed(1)}" y1="${pad.t}" x2="${x.toFixed(1)}" y2="${H - pad.b}" stroke="#f0e6d2" />`);
+        monthMarks.push(`<text x="${x.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="11" fill="#6d6256">${cursor.toLocaleDateString("en-AU", { month: "short" })}</text>`);
+        cursor = addMonths(cursor, 1);
+      }
+      let grid = "";
+      for (let t = 0; t <= 4; t++) {
+        const v = minV + (maxV - minV) * (t / 4);
+        const y = yAt(v);
+        grid += `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${W - pad.r}" y2="${y.toFixed(1)}" stroke="#eadfcb" />`;
+        grid += `<text x="${pad.l - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="#6d6256">${money.format(v / 100)}</text>`;
+      }
+      const floorY = yAt(floorCents);
+      svg.innerHTML = `
+        <rect width="${W}" height="${H}" fill="#fffaf0" />
+        ${grid}${monthMarks.join("")}
+        <path d="${area}" fill="#1e3a5f18" />
+        <path d="${pathFor(current.balances)}" fill="none" stroke="#1e3a5f" stroke-width="2.4" />
+        ${withExtra ? `<path d="${pathFor(withExtra.balances)}" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-dasharray="6 5" />` : ""}
+        <line x1="${pad.l}" y1="${floorY.toFixed(1)}" x2="${W - pad.r}" y2="${floorY.toFixed(1)}" stroke="#b45309" stroke-width="1.5" stroke-dasharray="4 4" />
+        <circle cx="${xAt(current.minDay).toFixed(1)}" cy="${yAt(current.minBal).toFixed(1)}" r="4.2" fill="#a33a2c" />
+      `;
+    }
+    function hoverChart(ev) {
+      if (!lastSim) return;
+      const rect = el.chart.getBoundingClientRect();
+      const W = 800, pad = { l: 58, r: 16 };
+      const n = lastSim.current.nDays;
+      const inner = W - pad.l - pad.r;
+      const x = ((ev.clientX - rect.left) / rect.width) * W;
+      let i = Math.round(((x - pad.l) / inner) * n);
+      i = Math.max(0, Math.min(n, i));
+      el.tooltip.style.display = "block";
+      el.tooltip.style.left = ((pad.l + (i / Math.max(n, 1)) * inner) / W * rect.width) + "px";
+      el.tooltip.style.top = "44px";
+      el.tooltip.textContent = addDays(lastSim.current.start, i).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) + " · " + money.format(lastSim.current.balances[i] / 100);
+    }
+
+    function bind() {
+      document.getElementById("addIncome").addEventListener("click", () => {
+        el.incomeRows.insertAdjacentHTML("beforeend", incomeHTML({ id: uid(), name: "", amount: "", date: todayISO() }));
+        save(); forecast();
+      });
+      document.getElementById("addHardGroup").addEventListener("click", () => {
+        el.hardGroups.insertAdjacentHTML("beforeend", groupHTML("hard", group("New category")));
+        save(); forecast();
+      });
+      document.getElementById("addSoftGroup").addEventListener("click", () => {
+        el.softGroups.insertAdjacentHTML("beforeend", groupHTML("soft", group("New category")));
+        save(); forecast();
+      });
+      document.getElementById("addCategory").addEventListener("click", () => {
+        el.categories.insertAdjacentHTML("beforeend", groupHTML("dated", group("New category")));
+        save(); forecast();
+      });
+      document.getElementById("inputs").addEventListener("input", () => { save(); forecast(); });
+      document.getElementById("inputs").addEventListener("click", (ev) => {
+        const btn = ev.target.closest("[data-act]");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const catEl = btn.closest(".category");
+        if (act === "addDated" || act === "addCycle") {
+          const subs = catEl.querySelector(".subs");
+          const kind = catEl.dataset.kind;
+          if (act === "addDated") {
+            subs.insertAdjacentHTML("beforeend", datedHTML({ id: uid(), name: "", amount: "", date: todayISO() }));
+          } else {
+            subs.insertAdjacentHTML("beforeend", cycleHTML(kind, item("", "", "monthly", todayISO())));
+          }
+        } else if (act === "delCat") {
+          catEl.remove();
+        } else if (act === "del") {
+          btn.closest(".row").remove();
+        } else if (act === "dup") {
+          const row = btn.closest(".row");
+          const kind = row.dataset.kind;
+          const dest = kind === "income"
+            ? el.incomeRows
+            : row.closest(".category").querySelector(".subs");
+          if (kind === "income") {
+            dest.insertAdjacentHTML("beforeend", incomeHTML({
+              id: uid(),
+              name: (row.querySelector('[data-f="name"]').value || "Income") + " copy",
+              amount: row.querySelector('[data-f="amount"]').value,
+              date: row.querySelector('[data-f="date"]').value,
+            }));
+          } else {
+            dest.insertAdjacentHTML("beforeend", cycleHTML(kind, {
+              id: uid(),
+              name: (row.querySelector('[data-f="name"]').value || "Item") + " copy",
+              amount: row.querySelector('[data-f="amount"]').value,
+              frequency: row.querySelector('[data-f="frequency"]').value,
+              nextDate: row.querySelector('[data-f="nextDate"]').value,
+            }));
+          }
+        }
+        save(); forecast();
+      });
+      el.resetBtn.addEventListener("click", () => {
+        if (IS_SNAPSHOT) {
+          alert("This is a snapshot file. Open the live forecaster to reset Table 1 lists.");
+          return;
+        }
+        if (!confirm("Replace everything with the Table 1 hard/soft lists?")) return;
+        liveOverrides = {};
+        localStorage.removeItem(STORAGE_KEY);
+        LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+        render(seededState());
+        applyCollapsed({});
+        save();
+        forecast();
+      });
+      el.saveAsBtn.addEventListener("click", () => { saveAsFile(); });
+      document.querySelectorAll("details[data-section]").forEach((d) => {
+        d.addEventListener("toggle", () => save());
+      });
+      el.chart.addEventListener("mousemove", hoverChart);
+      el.chart.addEventListener("mouseleave", () => { el.tooltip.style.display = "none"; });
+      el.occurFilter.addEventListener("change", () => renderOccurTable(lastOccs));
+      el.occurBody.addEventListener("input", (ev) => {
+        const inp = ev.target.closest("[data-override]");
+        if (!inp) return;
+        const key = inp.dataset.override;
+        if (String(inp.value).trim() === "") delete liveOverrides[key];
+        else liveOverrides[key] = inp.value;
+        save();
+        forecast({ skipTable: true });
+      });
+    }
+
+    load();
+    bind();
+    forecast();
+  </script>
+</body>
+</html>

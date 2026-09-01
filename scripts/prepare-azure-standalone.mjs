@@ -19,6 +19,13 @@ cpSync(path.join(root, ".next", "static"), path.join(out, ".next", "static"), {
 });
 cpSync(path.join(root, "public"), path.join(out, "public"), { recursive: true });
 
+const ffRef = path.join(root, "src/modules/funds-forecaster/reference/index.html");
+if (existsSync(ffRef)) {
+  const destDir = path.join(out, "src/modules/funds-forecaster/reference");
+  mkdirSync(destDir, { recursive: true });
+  cpSync(ffRef, path.join(destDir, "index.html"));
+}
+
 const pkgPath = path.join(out, "package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 pkg.scripts = {
