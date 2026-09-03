@@ -239,6 +239,7 @@ export async function harvestPlaymantis(input: {
                 limit: 0,
                 missing: true,
                 fetchedAt,
+                imageUrl: "",
               },
             ];
           }
@@ -253,6 +254,7 @@ export async function harvestPlaymantis(input: {
               limit: 0,
               missing: true,
               fetchedAt,
+              imageUrl: "",
             },
           ]);
         }
