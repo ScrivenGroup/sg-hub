@@ -30,4 +30,38 @@ Canon for agents and humans. Do not contradict **locked** rows. In-app: Internal
 
 ### `dc-agent-intake` — agents (locked)
 
-**Decision:** Before planning or building, read `docs/PLATFORM.md` and `docs/DEV_CHOICES.md`. Do not contradict locked rows.
+**Decision:** Before planning or building, read `docs/PLATFORM.md`, `docs/DEV_CHOICES.md`, and `docs/WEB_DEVELOPMENT.md`. Do not contradict locked rows. Two-agent rules: `docs/TWO_AGENTS.md`.
+
+### `dc-web-stack` — html (locked)
+
+**Decision:** All new hub UI is Next.js App Router + React + TypeScript + Tailwind + SG tokens (Appearance). my-site vanilla HTML/MD3 is a legacy island until the Great Merging. No third front-end kit.
+
+**Why:** Hub products are app rooms (Gantt-class UI). Leaflet HTML cannot host that without a rewrite. One kit so requests do not need stack trivia.
+
+### `dc-leaf-cycle` — leaf (locked)
+
+**Decision:** Leaves ship in order: local dummy → skin location online (`sketched` shell + plan) → skeleton mockup online (`building`, same store types) → clean revision (`live`) → numbered+dated changelog cycles. Details: `docs/WEB_DEVELOPMENT.md`.
+
+### `dc-leaf-contract` — leaf (locked)
+
+**Decision:** Every leaf has a Development surface (changelog + bulk notes). Versions show number and datetime when shipping. Global chrome always has Feedback to one register. Site network is the fast-travel map. Details: `docs/WEB_DEVELOPMENT.md`.
+
+### `dc-design-defaults` — design (locked)
+
+**Decision:** Start from SG chrome and `globals.css` (`sg-card`, `sg-btn-*`, `sg-input`, tokens, Manrope, 10px radius). Hex on badge only unless a ThemeContract. Viewport-capped dialogs. Do not copy my-site MD3 onto hub pages.
+
+### `dc-db-cutover` — data (locked)
+
+**Decision:** Durable data via existing `DATABASE_URL` (Postgres/Neon), evolving `json-store` / `mrt-share`. Simple stores first, then MRT (guest sandbox/share design revisited in that pass). Zip must not ship `data/`. Plan: `docs/NEON_CUTOVER.md`.
+
+### `dc-publish` — publish (locked)
+
+**Decision:** Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = `deploy:prepare` + zip + `az webapp deploy` to `app-scrivengroup`. GitHub Actions auto-deploy is a later slice (this repo has no Actions today). Details: `docs/GIT_AND_RELEASE.md`.
+
+### `dc-great-merge` — merge (locked)
+
+**Decision:** Great Merging of ’26: my-site apps become hub leaves; Cursor implements; Claude/you export files + data (no secret strings). Not a git merge of stacks. Plan: `docs/GREAT_MERGING.md`.
+
+### `dc-two-agents` — agents (locked)
+
+**Decision:** Cursor is the only agent that ships the hub. Claude owns my-site until a leaf moves, then stops editing that leaf. Claude does not zip-deploy `app-scrivengroup`. Treaty: `docs/TWO_AGENTS.md`.

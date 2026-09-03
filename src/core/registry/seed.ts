@@ -124,6 +124,22 @@ export const seedNodes: RegistryNode[] = [
     order: 2,
   },
   {
+    id: "p-mtg-buylist",
+    hubPrefix: "p",
+    slug: "mtg-buylist",
+    title: "MTG Buylist",
+    code: "B85C38",
+    kind: "tool",
+    parentId: "hub-projects",
+    href: "/p/mtg-buylist",
+    accessMode: "per_user",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Harvest Playmantis and MTGMate buylists, then allocate a ManaBox CSV for max store credit.",
+    order: 3,
+  },
+  {
     id: "i-ideas",
     hubPrefix: "i",
     slug: "ideas",
@@ -231,6 +247,71 @@ export const seedNodes: RegistryNode[] = [
 ];
 
 export const seedChangelogs: ChangelogEntry[] = [
+  {
+    id: "cl-mtg-buylist-1",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "plan",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    title: "PM / MM streams, then Compare",
+    body: `## MTG Buylist — development plan
+
+**Badge:** #B85C38 only (global SG theme; no ThemeContract).
+**Access:** per_user — each Entra staff login has their own run. Not a shared office pile. No guest door.
+
+**Job:** A tool, not a collection database. Shared ManaBox CSV, then **isolated store streams** (Playmantis, MTGMate), each allocating what that store will buy. **Compare** is downstream and activates when **two or more** store allocates are completed (future stores plug in the same way). Maximise **store credit** (also show Mate cash). Do not wrap “save 40 Mate files” as the happy path. Zip must not ship \`data/\`. No Neon in v1 — last-run / harvest cache only.
+
+### Workflow
+1. ManaBox CSV (shared)
+2. Playmantis stream — harvest → PM-only allocate
+3. MTGMate stream — console harvest + JSON upload → Mate-only allocate
+4. Compare stores — credit vs credit once >1 store allocate exists
+
+### Harvest
+- **Playmantis:** hub server-fetch \`/search?q=tag:buylist tag:{scryfallId}&type=product&view=buylist-custom\`. Parse \`data-credit-price\` + \`data-buylist-limit\` (search view often omits limit — default want 4 when credit > 0). Ignore Shopify \`products.json\` price. Batch + 429 retry. Join on Scryfall ID + finish.
+- **MTGMate:** \`/buylist/magic_sets/{set}/data\` is login 401 without session. Visual hotlist is incomplete — do not use it. Console paste on mtgmate.com.au (while logged in) fetches unique set \`/data\` and downloads one JSON; upload via hub API (large body). Optional CORS POST when Mate can reach the hub. No Mate password.
+
+### Join
+- Playmantis: Scryfall ID + finish.
+- Mate UUID is not Scryfall. Join Mate on set + normalised name + finish. Suffix stripper (foil / surge / showcase / borderless / etched / collector \`(38)\` / split \`//\`). CSV \`normal\`/\`foil\` → Mate Nonfoil/Foil. Unmatched bucket for suffix growth.
+
+### Allocate
+- Each store stream: identify what can be sold there (\`min(owned, want cap)\`).
+- Compare (when >1 store done): higher **credit** wins. Split stacks allowed.
+- Buckets: Sell Mate / Sell Playmantis / Neither / Unmatched.
+- Mate dump prices are **cents**. Credit vs credit; also show Mate cash.
+
+### WIP / later
+- Mate console harvest is desktop-oriented (F12 → Console). Revisit a **mobile-friendly** Mate capture path.
+- Extra store vendors as new streams + Compare participants.
+
+### Out of v1
+Store cart submit, Mate password on the hub, a second offline app, durable card/inventory database.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.0",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.0",
+    createdAt: "2026-09-03T12:15:00.000Z",
+    title: "Rev 1.0 — Run, join, Compare",
+    body: `## Shipped
+
+- ManaBox CSV → Playmantis + MTGMate streams → Compare (credit winners, Sell qty, Gain %).
+- Mate ambiguous printings: Confirm, Scryfall treatments, exact image-hash join, Wrong printing reopen.
+- Recovered % bands, listed-price basis, collapsible steps, drop-zone uploads, loading banner.
+- Development: release table + WIP plan; Notes stay on per-user JSON until Neon.
+- KanBan tab: shell only (Backlog / Doing / Done placeholders).
+
+## Parked after 1.0
+
+- Combined % cutoff + CK USD FX shop-floor filter.
+- Neon notes / shared ideas.
+- Full KanBan board store.
+- Mobile-friendly Mate harvest.
+`,
+  },
   {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
@@ -600,6 +681,25 @@ export const seedDependencies: DependencyRecord[] = [
     notes:
       "Client secret created Phase 2 — 365-day expiry. Rotate before this date; update Azure App Settings.",
   },
+  {
+    id: "dep-playmantis-buylist",
+    name: "Playmantis buylist search",
+    type: "external",
+    expiresAt: null,
+    externalUrl:
+      "https://playmantis.com.au/search?q=tag:buylist&type=product&view=buylist-custom",
+    notes:
+      "Hub server-fetches /search?q=tag:buylist tag:{scryfallId}&type=product&view=buylist-custom. Parse data-credit-price and data-buylist-limit. Ignore Shopify products.json price. Batch + 429 retry.",
+  },
+  {
+    id: "dep-mtgmate-buylist",
+    name: "MTGMate buylist /data",
+    type: "external",
+    expiresAt: null,
+    externalUrl: "https://www.mtgmate.com.au/buylist/magic_sets/",
+    notes:
+      "Logged-in bookmarklet harvest of /buylist/magic_sets/{set}/data. Unauthenticated fetch is 401. Visual hotlist is incomplete — do not use it. No Mate password stored on the hub.",
+  },
 ];
 
 export const seedIdeas: IdeaRecord[] = [
@@ -678,6 +778,71 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "agents",
     status: "locked",
     decision:
-      "Before planning or building, read `docs/PLATFORM.md` and `docs/DEV_CHOICES.md`. Do not contradict locked rows.",
+      "Before planning or building, read `docs/PLATFORM.md`, `docs/DEV_CHOICES.md`, and `docs/WEB_DEVELOPMENT.md`. Do not contradict locked rows. Two-agent rules: `docs/TWO_AGENTS.md`.",
+  },
+  {
+    id: "dc-web-stack",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "html",
+    status: "locked",
+    decision:
+      "All new hub UI is Next.js App Router + React + TypeScript + Tailwind + SG tokens (Appearance). my-site vanilla HTML/MD3 is a legacy island until the Great Merging. No third front-end kit.",
+    why: "Hub products are app rooms. One kit so requests do not need stack trivia.",
+  },
+  {
+    id: "dc-leaf-cycle",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "leaf",
+    status: "locked",
+    decision:
+      "Leaves ship in order: local dummy → skin location online (sketched shell + plan) → skeleton mockup online (building, same store types) → clean revision (live) → numbered+dated changelog cycles. Details: docs/WEB_DEVELOPMENT.md.",
+  },
+  {
+    id: "dc-leaf-contract",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "leaf",
+    status: "locked",
+    decision:
+      "Every leaf has a Development surface (changelog + bulk notes). Versions show number and datetime when shipping. Global chrome always has Feedback to one register. Site network is the fast-travel map. Details: docs/WEB_DEVELOPMENT.md.",
+  },
+  {
+    id: "dc-design-defaults",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "design",
+    status: "locked",
+    decision:
+      "Start from SG chrome and globals.css (sg-card, sg-btn-*, sg-input, tokens, Manrope, 10px radius). Hex on badge only unless a ThemeContract. Viewport-capped dialogs. Do not copy my-site MD3 onto hub pages.",
+  },
+  {
+    id: "dc-db-cutover",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "data",
+    status: "locked",
+    decision:
+      "Durable data via existing DATABASE_URL (Postgres/Neon), evolving json-store / mrt-share. Simple stores first, then MRT (guest sandbox/share design revisited in that pass). Zip must not ship data/. Plan: docs/NEON_CUTOVER.md.",
+  },
+  {
+    id: "dc-publish",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "publish",
+    status: "locked",
+    decision:
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = deploy:prepare + zip + az webapp deploy to app-scrivengroup. GitHub Actions auto-deploy is a later slice. Details: docs/GIT_AND_RELEASE.md.",
+  },
+  {
+    id: "dc-great-merge",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "merge",
+    status: "locked",
+    decision:
+      "Great Merging of ’26: my-site apps become hub leaves; Cursor implements; Claude/you export files + data (no secret strings). Not a git merge of stacks. Plan: docs/GREAT_MERGING.md.",
+  },
+  {
+    id: "dc-two-agents",
+    createdAt: "2026-09-01T12:00:00.000Z",
+    layer: "agents",
+    status: "locked",
+    decision:
+      "Cursor is the only agent that ships the hub. Claude owns my-site until a leaf moves, then stops editing that leaf. Claude does not zip-deploy app-scrivengroup. Treaty: docs/TWO_AGENTS.md.",
   },
 ];

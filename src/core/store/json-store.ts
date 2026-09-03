@@ -22,6 +22,12 @@ import {
 } from "@/modules/sunwater-mrt/schema";
 import { normalizeScheduleStore } from "@/modules/sunwater-mrt/logic/normalize-store";
 import type { MrtGuestActivity } from "@/modules/sunwater-mrt/share-public";
+import { withAllocateResults } from "@/modules/mtg-buylist/logic/allocate";
+import {
+  emptyMtgBuylistStore,
+  mtgBuylistStoreSchema,
+  type MtgBuylistStore,
+} from "@/modules/mtg-buylist/schema";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -38,6 +44,7 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
     const raw = await fs.readFile(full, "utf8");
     return JSON.parse(raw) as T;
   } catch {
+    await fs.mkdir(path.dirname(full), { recursive: true });
     await fs.writeFile(full, JSON.stringify(fallback, null, 2), "utf8");
     return fallback;
   }
@@ -133,7 +140,18 @@ export async function getMrtGuestActivity(): Promise<MrtGuestActivity[]> {
 }
 
 export async function getDependencies(): Promise<DependencyRecord[]> {
-  return readJson("dependencies.json", seedDependencies);
+  const existing = await readJson("dependencies.json", seedDependencies);
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  let changed = false;
+  for (const seeded of seedDependencies) {
+    if (!byId.has(seeded.id)) {
+      byId.set(seeded.id, seeded);
+      changed = true;
+    }
+  }
+  const out = Array.from(byId.values());
+  if (changed) await writeJson("dependencies.json", out);
+  return out;
 }
 
 export async function getChangelogs(): Promise<ChangelogEntry[]> {
@@ -307,6 +325,96 @@ export async function saveSunwaterMrtStore(
 ): Promise<void> {
   const parsed = scheduleStoreSchema.parse(store);
   await writeJson("sunwater-mrt.json", parsed);
+}
+
+function mtgBuylistFile(userKey: string) {
+  const key = userKey.replace(/[^a-zA-Z0-9._@-]/g, "_").slice(0, 80) || "user";
+  return path.join("mtg-buylist", `${key}.json`);
+}
+
+export async function getMtgBuylistStore(userKey: string): Promise<MtgBuylistStore> {
+  const fallback = emptyMtgBuylistStore();
+  const raw = await readJson(mtgBuylistFile(userKey), fallback);
+  const migrated = migrateMtgBuylistStore(raw);
+  const parsed = mtgBuylistStoreSchema.safeParse(migrated);
+  if (!parsed.success) return fallback;
+  // Recompute stream results so legacy `result` / stale Compare cannot outlive harvests.
+  return withAllocateResults(parsed.data);
+}
+
+/** Drop legacy `result`; fill null stream results if missing. */
+function migrateMtgBuylistStore(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const obj = { ...(raw as Record<string, unknown>) };
+  if ("result" in obj && !("resultCompare" in obj)) {
+    obj.resultCompare = obj.result ?? null;
+  }
+  delete obj.result;
+  if (!("resultPm" in obj)) obj.resultPm = null;
+  if (!("resultMate" in obj)) obj.resultMate = null;
+  if (!("resultCompare" in obj)) obj.resultCompare = null;
+  if (!obj.mateConfirmations || typeof obj.mateConfirmations !== "object") {
+    obj.mateConfirmations = {};
+  }
+  const csv = obj.csv;
+  if (csv && typeof csv === "object") {
+    const bag = csv as Record<string, unknown>;
+    if (typeof bag.priceSource !== "string") bag.priceSource = "other";
+    if (typeof bag.priceCurrency !== "string") bag.priceCurrency = "";
+  }
+  return obj;
+}
+
+export async function saveMtgBuylistStore(
+  userKey: string,
+  store: MtgBuylistStore,
+): Promise<void> {
+  const parsed = mtgBuylistStoreSchema.parse({
+    ...store,
+    updatedAt: new Date().toISOString(),
+  });
+  await writeJson(mtgBuylistFile(userKey), parsed);
+}
+
+export type MateHarvestToken = {
+  userKey: string;
+  setCodes: string[];
+  expiresAt: string;
+};
+
+type MateHarvestTokenFile = {
+  tokens: Record<string, MateHarvestToken>;
+};
+
+export async function saveMateHarvestToken(
+  token: string,
+  record: MateHarvestToken,
+): Promise<void> {
+  const all = await readJson("mtg-buylist-tokens.json", {
+    tokens: {},
+  } as MateHarvestTokenFile);
+  const now = Date.now();
+  for (const [key, value] of Object.entries(all.tokens)) {
+    if (Date.parse(value.expiresAt) < now) delete all.tokens[key];
+  }
+  all.tokens[token] = record;
+  await writeJson("mtg-buylist-tokens.json", all);
+}
+
+export async function consumeMateHarvestToken(
+  token: string,
+): Promise<MateHarvestToken | null> {
+  const all = await readJson("mtg-buylist-tokens.json", {
+    tokens: {},
+  } as MateHarvestTokenFile);
+  const record = all.tokens[token];
+  if (!record) return null;
+  if (Date.parse(record.expiresAt) < Date.now()) {
+    delete all.tokens[token];
+    await writeJson("mtg-buylist-tokens.json", all);
+    return null;
+  }
+  return record;
 }
 
 export async function addFeedback(

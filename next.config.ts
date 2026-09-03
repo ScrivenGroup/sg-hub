@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
       "./src/modules/funds-forecaster/reference/index.html",
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
 };
 
 export default nextConfig;

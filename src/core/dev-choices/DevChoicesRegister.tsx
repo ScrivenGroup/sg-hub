@@ -12,6 +12,12 @@ const LAYER_OPTIONS = [
   "agents",
   "reuse",
   "janitor",
+  "html",
+  "leaf",
+  "design",
+  "data",
+  "publish",
+  "merge",
 ];
 
 export function DevChoicesRegister({ items }: { items: DevChoiceRecord[] }) {

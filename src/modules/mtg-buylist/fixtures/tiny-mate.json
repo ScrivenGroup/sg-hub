@@ -1,0 +1,50 @@
+{
+  "title": "Tiny Mate fixture",
+  "uuid_data": {
+    "9a1671ce-b89d-5105-aa8c-7cf051fb2803": {
+      "uuid": "9a1671ce-b89d-5105-aa8c-7cf051fb2803",
+      "name": "Ageless Entity",
+      "buy_price": 50,
+      "credit_price": 63,
+      "set_code": "ddh",
+      "quantity": 4,
+      "finish": "Nonfoil"
+    },
+    "f70452a1-164f-5158-bf45-e2ba1b36c213": {
+      "uuid": "f70452a1-164f-5158-bf45-e2ba1b36c213",
+      "name": "Searing Meditation",
+      "buy_price": 20,
+      "credit_price": 25,
+      "set_code": "ddh",
+      "quantity": 0,
+      "finish": "Nonfoil"
+    },
+    "d55bdf4e-5dfd-5f7f-ad05-9ab560272acc": {
+      "uuid": "d55bdf4e-5dfd-5f7f-ad05-9ab560272acc",
+      "name": "Forest (38)",
+      "buy_price": 2,
+      "credit_price": 3,
+      "set_code": "ddh",
+      "quantity": 4,
+      "finish": "Nonfoil"
+    },
+    "aaaaaaaa-1111-2222-3333-444444444444": {
+      "uuid": "aaaaaaaa-1111-2222-3333-444444444444",
+      "name": "Dragon Showcase Foil",
+      "buy_price": 400,
+      "credit_price": 500,
+      "set_code": "dmu",
+      "quantity": 2,
+      "finish": "Foil"
+    },
+    "745696ae-75b4-5564-a849-b23a5e6a1223": {
+      "uuid": "745696ae-75b4-5564-a849-b23a5e6a1223",
+      "name": "Pain // Suffering",
+      "buy_price": 20,
+      "credit_price": 25,
+      "set_code": "ddh",
+      "quantity": 4,
+      "finish": "Nonfoil"
+    }
+  }
+}

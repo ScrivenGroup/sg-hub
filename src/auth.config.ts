@@ -80,7 +80,8 @@ export const authConfig = {
       if (
         pathname.startsWith("/login") ||
         pathname.startsWith("/api/auth") ||
-        pathname === "/w/sunwater-mrt/guest"
+        pathname === "/w/sunwater-mrt/guest" ||
+        pathname === "/api/mtg-buylist/mate-ingest"
       ) {
         return true;
       }
