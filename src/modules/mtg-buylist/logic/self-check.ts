@@ -252,7 +252,13 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
 
   const streamsPmOnly = withAllocateResults({
     ...emptyMtgBuylistStore(),
-    csv: { filename: "t.csv", uploadedAt: "2026-09-03T00:00:00.000Z", rows: csv },
+    csv: {
+      filename: "t.csv",
+      uploadedAt: "2026-09-03T00:00:00.000Z",
+      rows: csv,
+      priceSource: "other",
+      priceCurrency: "AUD",
+    },
     playmantis: { fetchedAt: "2026-09-03T00:00:00.000Z", offers: pm },
     mate: null,
   });
@@ -321,6 +327,9 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     quantity: 1,
     scryfallId: "fa0554fc-9448-4ae2-8712-4f4f7af3c7b4",
     rarity: "rare",
+    purchasePriceCents: 68,
+    purchaseCurrency: "AUD",
+    frameEffects: [] as string[],
   };
   if (findMate(eagleRow, indexMateOffers(ambiguousEagles))) {
     messages.push("Ambiguous Mate printings (same name/finish, different image) must not auto-join");
@@ -431,6 +440,8 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     quantity: 1,
     scryfallId: "eeeeeeee-1111-2222-3333-444444444444",
     rarity: "rare",
+    purchasePriceCents: 180,
+    purchaseCurrency: "AUD",
     frameEffects: ["extendedart"],
   };
   const eaVariants = listMateVariants(eaRow, eaOffers);

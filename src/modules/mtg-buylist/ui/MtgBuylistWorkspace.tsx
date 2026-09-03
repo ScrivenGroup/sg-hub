@@ -614,8 +614,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             filter={pmFilter}
             onFilter={setPmFilter}
             creditTotal={store.resultPm?.totals.playmantisCreditCents ?? 0}
-            priceSource={store.csv.priceSource}
-            priceCurrency={store.csv.priceCurrency}
+            priceSource={store.csv?.priceSource}
+            priceCurrency={store.csv?.priceCurrency}
             onDownload={() =>
               downloadText(
                 "mtg-buylist-playmantis.csv",
@@ -745,8 +745,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             onFilter={setMateFilter}
             creditTotal={store.resultMate?.totals.mateCreditCents ?? 0}
             cashTotal={store.resultMate?.totals.mateCashCents ?? 0}
-            priceSource={store.csv.priceSource}
-            priceCurrency={store.csv.priceCurrency}
+            priceSource={store.csv?.priceSource}
+            priceCurrency={store.csv?.priceCurrency}
             onConfirmMate={confirmMateVariant}
             onRejectMate={rejectMateVariant}
             onDownload={() =>
@@ -780,8 +780,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             mateCredit={store.resultCompare.totals.mateCreditCents}
             mateCash={store.resultCompare.totals.mateCashCents}
             pmCredit={store.resultCompare.totals.playmantisCreditCents}
-            priceSource={store.csv.priceSource}
-            priceCurrency={store.csv.priceCurrency}
+            priceSource={store.csv?.priceSource}
+            priceCurrency={store.csv?.priceCurrency}
             onDownload={() => {
               downloadText(
                 "mtg-buylist-compare.csv",
