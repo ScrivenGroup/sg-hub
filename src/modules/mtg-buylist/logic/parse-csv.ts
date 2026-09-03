@@ -86,6 +86,7 @@ export function parseManaBoxCsv(text: string): ManaBoxRow[] {
       purchasePriceCents,
       purchaseCurrency:
         currencyI >= 0 ? (cells[currencyI] || "").trim().toUpperCase() : "",
+      frameEffects: [],
     });
   }
   return out;
