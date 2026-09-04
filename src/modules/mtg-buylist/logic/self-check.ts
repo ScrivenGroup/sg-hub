@@ -1,7 +1,7 @@
 import { allocate, withAllocateResults } from "./allocate";
 import { parseManaBoxCsv, majorityPurchaseCurrency } from "./parse-csv";
 import { parseMateJson } from "./parse-mate";
-import { parsePlaymantisHtml, resolveOffersForScryfallId } from "./playmantis";
+import { parsePlaymantisHtml, resolveOffersForScryfallId, scryfallIdsNeedingPlaymantisFetch } from "./playmantis";
 import { csvJoinKeys, mateCollectorFromName, normalizeCardName } from "./names";
 import { emptyMtgBuylistStore } from "../schema";
 import {
@@ -144,8 +144,41 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
       o.finish.toLowerCase() === "nonfoil" &&
       !o.missing,
   );
-  if (!armorNonfoil || armorNonfoil.creditCents !== 50 || armorNonfoil.limit !== 4) {
-    messages.push("Armor Wars search HTML should parse $0.50 credit and default want limit 4");
+  if (!armorNonfoil || armorNonfoil.creditCents !== 50 || armorNonfoil.limit !== 0) {
+    messages.push("Armor Wars nonfoil inventory 4 should parse remaining want 0 (4 − stock)");
+  }
+
+  const multilineInvHtml = `<div class="buylist-grid" id="buylist-grid-container">
+      <div class="buylist-card" 
+           data-product-id="1"
+           data-title="dearly departed"
+           data-colors=""
+           data-type="">
+        <p class="card-set">Innistrad</p>
+        <select class="finish-dropdown">
+                <option value="1" 
+                        data-variant-title="Nonfoil" 
+                        data-credit-price="0.5"
+                        data-inventory="4">
+                  Nonfoil
+                </option>
+                <option value="2" 
+                        data-variant-title="Foil" 
+                        data-credit-price="0.5"
+                        data-inventory="0">
+                  Foil
+                </option>
+        </select>
+      </div>
+</div>`;
+  const multilinePm = parsePlaymantisHtml(
+    multilineInvHtml,
+    "2026-09-03T00:00:00.000Z",
+    "d008061f-cda4-4bcf-b6b3-d1b4a251cc66",
+  );
+  const multilineNonfoil = multilinePm.find((o) => o.finish.toLowerCase() === "nonfoil" && !o.missing);
+  if (!multilineNonfoil || multilineNonfoil.limit !== 0) {
+    messages.push("Multiline option tags with data-inventory=4 should parse remaining want 0");
   }
 
   const mismatchedUuidHtml = `<div class="buylist-grid">
@@ -156,17 +189,167 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     </select>
   </div>
 </div>`;
-  const rebound = resolveOffersForScryfallId(
+  const reboundNameOnly = resolveOffersForScryfallId(
     parsePlaymantisHtml(mismatchedUuidHtml, "2026-09-03T00:00:00.000Z"),
     "11a13397-1d31-4257-87c2-a757a751c601",
     "Armor Wars",
   );
+  if (reboundNameOnly.length) {
+    messages.push("Name search must not bind when image UUID ≠ CSV Scryfall ID");
+  }
+  const reboundUuidTag = resolveOffersForScryfallId(
+    parsePlaymantisHtml(mismatchedUuidHtml, "2026-09-03T00:00:00.000Z"),
+    "11a13397-1d31-4257-87c2-a757a751c601",
+    "Armor Wars",
+    { uuidTag: true },
+  );
   if (
-    rebound.length !== 1 ||
-    rebound[0].scryfallId !== "11a13397-1d31-4257-87c2-a757a751c601" ||
-    rebound[0].missing
+    reboundUuidTag.length !== 1 ||
+    reboundUuidTag[0].scryfallId !== "11a13397-1d31-4257-87c2-a757a751c601" ||
+    reboundUuidTag[0].creditCents !== 50
   ) {
-    messages.push("Image UUID ≠ CSV Scryfall ID should still bind to the CSV id (false not-found)");
+    messages.push("UUID-tag search should take the tagged product even when image UUID differs");
+  }
+
+  const fieldOfSoulsCsvId = "aaaaaaaa-1111-2222-3333-444444444444";
+  const fieldOfSoulsOtherSet = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="2" data-title="field of souls">
+    <img src="//playmantis.com.au/cdn/shop/files/bbbbbbbb-1111-2222-3333-444444444444.jpg">
+    <p class="card-set">Tempest</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.80">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const fieldBound = resolveOffersForScryfallId(
+    parsePlaymantisHtml(fieldOfSoulsOtherSet, "2026-09-03T00:00:00.000Z"),
+    fieldOfSoulsCsvId,
+    "Field of Souls",
+  );
+  if (fieldBound.length) {
+    messages.push("Field of Souls reprint in another set must not bind on name");
+  }
+
+  const blazingCsvId = "cccccccc-1111-2222-3333-444444444444";
+  const blazingOtherSet = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="3" data-title="blazing specter">
+    <img src="//playmantis.com.au/cdn/shop/files/dddddddd-1111-2222-3333-444444444444.jpg">
+    <p class="card-set">Invasion</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="1.20">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const blazingBound = resolveOffersForScryfallId(
+    parsePlaymantisHtml(blazingOtherSet, "2026-09-03T00:00:00.000Z"),
+    blazingCsvId,
+    "Blazing Specter",
+  );
+  if (blazingBound.length) {
+    messages.push("Blazing Specter reprint in another set must not bind on name");
+  }
+
+  const lightningCsvId = "eeeeeeee-1111-2222-3333-444444444444";
+  const lightningSameSet = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="4" data-title="lightning reaver">
+    <img src="//playmantis.com.au/cdn/shop/files/ffffffff-1111-2222-3333-444444444444.jpg">
+    <p class="card-set">Alara Reborn</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="2.50">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const lightningBound = resolveOffersForScryfallId(
+    parsePlaymantisHtml(lightningSameSet, "2026-09-03T00:00:00.000Z"),
+    lightningCsvId,
+    "Lightning Reaver",
+    { uuidTag: true },
+  );
+  if (
+    lightningBound.length !== 1 ||
+    lightningBound[0].scryfallId !== lightningCsvId ||
+    lightningBound[0].creditCents !== 250
+  ) {
+    messages.push("UUID-tag first product should bind even when image UUID differs");
+  }
+
+  const searingId = "6f5e0200-21c9-4926-b238-3f9b1f5fc6ed";
+  const mindBendHtml = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="9" data-title="mind bend">
+    <img src="//playmantis.com.au/cdn/shop/files/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg">
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.40">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const mindBendBound = resolveOffersForScryfallId(
+    parsePlaymantisHtml(mindBendHtml, "2026-09-03T00:00:00.000Z", searingId, "Searing Meditation"),
+    searingId,
+    "Searing Meditation",
+  );
+  if (mindBendBound.length) {
+    messages.push("Mind Bend HTML must not bind to Searing Meditation even with UUID fallback");
+  }
+  const mismatchRetry = scryfallIdsNeedingPlaymantisFetch({
+    ids: [searingId],
+    namesById: { [searingId]: "Searing Meditation" },
+    existing: [
+      {
+        scryfallId: searingId,
+        title: "Mind Bend",
+        finish: "nonfoil",
+        creditCents: 40,
+        limit: 4,
+        missing: false,
+        fetchedAt: "2026-09-03T00:00:00.000Z",
+        imageUrl: "",
+        setName: "",
+      },
+    ],
+  });
+  if (!mismatchRetry.includes(searingId)) {
+    messages.push("Stored Playmantis title mismatch must be retried on harvest");
+  }
+  const missingOnce = scryfallIdsNeedingPlaymantisFetch({
+    ids: [searingId],
+    namesById: { [searingId]: "Searing Meditation" },
+    existing: [
+      {
+        scryfallId: searingId,
+        title: "Searing Meditation",
+        finish: "nonfoil",
+        creditCents: 0,
+        limit: 0,
+        missing: true,
+        fetchedAt: "2026-09-03T00:00:00.000Z",
+        imageUrl: "",
+        setName: "",
+      },
+    ],
+    skipIds: [searingId],
+  });
+  if (missingOnce.length) {
+    messages.push("Missing Playmantis stubs already fetched this click must not loop");
+  }
+  const uuidDriftKeep = scryfallIdsNeedingPlaymantisFetch({
+    ids: [fieldOfSoulsCsvId],
+    namesById: { [fieldOfSoulsCsvId]: "Field of Souls" },
+    existing: [
+      {
+        scryfallId: fieldOfSoulsCsvId,
+        title: "Field of Souls",
+        finish: "nonfoil",
+        creditCents: 80,
+        limit: 4,
+        missing: false,
+        fetchedAt: "2026-09-03T00:00:00.000Z",
+        imageUrl: "https://playmantis.com.au/cdn/shop/files/bbbbbbbb-1111-2222-3333-444444444444.jpg",
+        setName: "",
+      },
+    ],
+  });
+  if (!uuidDriftKeep.includes(fieldOfSoulsCsvId)) {
+    messages.push("Title-matched stored offer must still refetch so remaining want can update");
   }
   if (normalizeCardName("Armor Wars (Showcase - Panel)").name !== "armor wars") {
     messages.push("Showcase - Panel parenthetical should strip for title match");
@@ -243,11 +426,15 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     playmantisOffers: armorHtml,
   });
   const armorSell = pmOnly.buckets.playmantis.find((l) => l.name === "Armor Wars");
-  if (!armorSell || armorSell.quantity !== 1) {
-    messages.push("Armor Wars PM-only allocate should Sell Playmantis, not Unmatched");
+  if (armorSell) {
+    messages.push("Armor Wars nonfoil at max stock should not Sell Playmantis");
   }
   if (pmOnly.buckets.unmatched.some((l) => l.name === "Armor Wars")) {
     messages.push("Armor Wars must not land in Unmatched when Playmantis shows credit");
+  }
+  const armorNeither = pmOnly.buckets.neither.find((l) => l.name === "Armor Wars");
+  if (!armorNeither || armorNeither.quantity !== 1) {
+    messages.push("Armor Wars at max Playmantis stock should sit in Neither (want 0)");
   }
 
   const streamsPmOnly = withAllocateResults({
@@ -283,11 +470,11 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   if (
     streamRows.length !== 1 ||
     streamRows[0].have !== 1 ||
-    streamRows[0].wanted !== 4 ||
-    streamRows[0].sell !== 1 ||
-    streamRows[0].tone !== "sell"
+    streamRows[0].wanted !== 0 ||
+    streamRows[0].sell !== 0 ||
+    streamRows[0].tone !== "capped"
   ) {
-    messages.push("PM stream row should show have/wanted/sell for Armor Wars");
+    messages.push("PM stream row at max stock should be want 0 / capped, not sellable");
   }
 
   const ambiguousEagles: MateOffer[] = [

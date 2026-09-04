@@ -55,6 +55,8 @@ export const playmantisOfferSchema = z.object({
   missing: z.boolean().optional().default(false),
   fetchedAt: z.string(),
   imageUrl: z.string().optional().default(""),
+  /** From Playmantis search `<p class="card-set">`. Empty on collection HTML. */
+  setName: z.string().optional().default(""),
 });
 
 export const allocateLineSchema = z.object({

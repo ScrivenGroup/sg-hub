@@ -158,7 +158,7 @@ export function CardNameCell({
             <PreviewIcon label="Playmantis match" url={playmantisImageUrl || ""} letter="P" />
           ) : null}
         </>
-      ) : showStore ? (
+      ) : showStore && storeImageUrl ? (
         <PreviewIcon label="Store match" url={storeImageUrl} letter="S" />
       ) : null}
       <span className="font-medium">{name}</span>

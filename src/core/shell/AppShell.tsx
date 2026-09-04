@@ -10,11 +10,13 @@ export async function AppShell({
   children,
   currentHref,
   mainClassName,
+  frameClassName,
   title,
 }: {
   children: React.ReactNode;
   currentHref: string;
   mainClassName?: string;
+  frameClassName?: string;
   title?: React.ReactNode;
 }) {
   const session = await auth();
@@ -37,7 +39,9 @@ export async function AppShell({
       .toUpperCase() ?? "?";
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--page)] text-[var(--ink)]">
+    <div
+      className={`flex min-h-dvh flex-col bg-[var(--page)] text-[var(--ink)] ${frameClassName ?? ""}`}
+    >
       <a href="#main" className="sg-skip print:hidden">
         Skip to content
       </a>

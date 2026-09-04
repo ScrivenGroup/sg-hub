@@ -20,6 +20,7 @@ export default async function MtgBuylistPage() {
         href={MTG_BUYLIST_HREF}
         title="MTG Buylist"
         intent="Staff Microsoft sign-in required. This run is yours alone — no guest door."
+        canRaise={false}
       >
         <div className="sg-card">
           <p className="font-medium">Sign in to run this tool</p>

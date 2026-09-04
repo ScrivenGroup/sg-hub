@@ -16,6 +16,12 @@ import type {
   NoteRecord,
 } from "@/core/contracts/types";
 import {
+  emptyKanbanBoard,
+  type KanbanBoard,
+} from "@/core/kanban/schema";
+import { boardFromUnknown } from "@/core/kanban/pack";
+import { mergeKanbanSeed } from "@/core/kanban/seed";
+import {
   emptyScheduleStore,
   scheduleStoreSchema,
   type ScheduleStore,
@@ -28,6 +34,23 @@ import {
   mtgBuylistStoreSchema,
   type MtgBuylistStore,
 } from "@/modules/mtg-buylist/schema";
+import {
+  dualWriteJson,
+  pgGetChangelogs,
+  pgGetDependencies,
+  pgGetDevChoices,
+  pgGetFeedback,
+  pgGetIdeas,
+  pgGetNotes,
+  pgInsertDevChoice,
+  pgInsertFeedback,
+  pgReplaceChangelogs,
+  pgReplaceDependencies,
+  pgReplaceDevChoices,
+  pgReplaceIdeas,
+  pgReplaceNotes,
+  usePostgres,
+} from "@/core/store/pg";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -139,8 +162,16 @@ export async function getMrtGuestActivity(): Promise<MrtGuestActivity[]> {
   return readJson("mrt-guest-activity.json", [] as MrtGuestActivity[]);
 }
 
+async function persistSimpleJson<T>(file: string, value: T): Promise<void> {
+  if (!usePostgres() || dualWriteJson()) {
+    await writeJson(file, value);
+  }
+}
+
 export async function getDependencies(): Promise<DependencyRecord[]> {
-  const existing = await readJson("dependencies.json", seedDependencies);
+  const existing = usePostgres()
+    ? await pgGetDependencies()
+    : await readJson("dependencies.json", seedDependencies);
   const byId = new Map(existing.map((row) => [row.id, row]));
   let changed = false;
   for (const seeded of seedDependencies) {
@@ -150,12 +181,17 @@ export async function getDependencies(): Promise<DependencyRecord[]> {
     }
   }
   const out = Array.from(byId.values());
-  if (changed) await writeJson("dependencies.json", out);
+  if (changed) {
+    if (usePostgres()) await pgReplaceDependencies(out);
+    await persistSimpleJson("dependencies.json", out);
+  }
   return out;
 }
 
 export async function getChangelogs(): Promise<ChangelogEntry[]> {
-  const existing = await readJson("changelogs.json", seedChangelogs);
+  const existing = usePostgres()
+    ? await pgGetChangelogs()
+    : await readJson("changelogs.json", seedChangelogs);
   const byId = new Map(existing.map((c) => [c.id, c]));
   let changed = false;
   for (const seeded of seedChangelogs) {
@@ -205,7 +241,8 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    await writeJson("changelogs.json", out);
+    if (usePostgres()) await pgReplaceChangelogs(out);
+    await persistSimpleJson("changelogs.json", out);
   }
   return out;
 }
@@ -218,19 +255,36 @@ export async function getChangelogsForNode(
 }
 
 export async function getIdeas(): Promise<IdeaRecord[]> {
+  if (usePostgres()) {
+    const rows = await pgGetIdeas();
+    if (rows.length > 0) return rows;
+    await pgReplaceIdeas(seedIdeas);
+    await persistSimpleJson("ideas.json", seedIdeas);
+    return seedIdeas;
+  }
   return readJson("ideas.json", seedIdeas);
 }
 
 export async function getNotes(): Promise<NoteRecord[]> {
+  if (usePostgres()) {
+    const rows = await pgGetNotes();
+    if (rows.length > 0) return rows;
+    await pgReplaceNotes(seedNotes);
+    await persistSimpleJson("notes.json", seedNotes);
+    return seedNotes;
+  }
   return readJson("notes.json", seedNotes);
 }
 
 export async function getFeedback(): Promise<FeedbackRecord[]> {
+  if (usePostgres()) return pgGetFeedback();
   return readJson("feedback.json", [] as FeedbackRecord[]);
 }
 
 export async function getDevChoices(): Promise<DevChoiceRecord[]> {
-  const existing = await readJson("dev-choices.json", seedDevChoices);
+  const existing = usePostgres()
+    ? await pgGetDevChoices()
+    : await readJson("dev-choices.json", seedDevChoices);
   const byId = new Map(existing.map((row) => [row.id, row]));
   let changed = false;
   for (const seeded of seedDevChoices) {
@@ -258,7 +312,8 @@ export async function getDevChoices(): Promise<DevChoiceRecord[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    await writeJson("dev-choices.json", out);
+    if (usePostgres()) await pgReplaceDevChoices(out);
+    await persistSimpleJson("dev-choices.json", out);
   }
   return out;
 }
@@ -273,7 +328,8 @@ export async function addDevChoice(
     createdAt: new Date().toISOString(),
   };
   all.unshift(record);
-  await writeJson("dev-choices.json", all);
+  if (usePostgres()) await pgInsertDevChoice(record);
+  await persistSimpleJson("dev-choices.json", all);
   await appendDevChoicesDoc(record);
   return record;
 }
@@ -376,6 +432,36 @@ export async function saveMtgBuylistStore(
   await writeJson(mtgBuylistFile(userKey), parsed);
 }
 
+function kanbanFile(nodeId: string) {
+  const key = nodeId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "board";
+  return path.join("kanban", `${key}.json`);
+}
+
+export async function getKanbanBoard(nodeId: string): Promise<KanbanBoard> {
+  const fallback = emptyKanbanBoard(nodeId);
+  const raw = await readJson(kanbanFile(nodeId), fallback);
+  const board = boardFromUnknown(nodeId, raw);
+  const { board: merged, added } = mergeKanbanSeed(board);
+  if (added) await saveKanbanBoard(merged);
+  return added ? merged : board;
+}
+
+export async function saveKanbanBoard(board: KanbanBoard): Promise<void> {
+  await writeJson(kanbanFile(board.nodeId), board);
+}
+
+export async function upsertChangelogEntries(
+  entries: ChangelogEntry[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  const all = await getChangelogs();
+  const byId = new Map(all.map((row) => [row.id, row]));
+  for (const entry of entries) byId.set(entry.id, entry);
+  const out = Array.from(byId.values());
+  if (usePostgres()) await pgReplaceChangelogs(out);
+  await persistSimpleJson("changelogs.json", out);
+}
+
 export type MateHarvestToken = {
   userKey: string;
   setCodes: string[];
@@ -428,7 +514,8 @@ export async function addFeedback(
     status: "open",
   };
   all.unshift(record);
-  await writeJson("feedback.json", all);
+  if (usePostgres()) await pgInsertFeedback(record);
+  await persistSimpleJson("feedback.json", all);
   await appendFeedbackInbox(record);
   return record;
 }

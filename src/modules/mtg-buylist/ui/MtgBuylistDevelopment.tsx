@@ -1,8 +1,15 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { ChangelogEntry } from "@/core/contracts/types";
+import { DevHostStrip } from "@/core/kanban/ui/DevHostStrip";
+import { InboxPanel } from "@/core/kanban/ui/InboxPanel";
+import { KanbanBoard } from "@/core/kanban/ui/KanbanBoard";
+import type { DevHostKind, DevTab } from "@/core/kanban/host";
+import type { KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
 import { parserSelfCheckAction, saveBuylistNotesAction } from "../actions";
+import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
 
 function releaseSort(a: ChangelogEntry, b: ChangelogEntry) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -28,11 +35,20 @@ function ChangelogCard({ entry }: { entry: ChangelogEntry }) {
 export function MtgBuylistDevelopment({
   changelogs,
   notes,
+  board,
+  hostKind,
+  host,
+  initialTab,
 }: {
   changelogs: ChangelogEntry[];
   notes: string;
+  board: KanbanBoardData;
+  hostKind: DevHostKind;
+  host: string;
+  initialTab: DevTab;
 }) {
-  const [tab, setTab] = useState<"changelog" | "notes">("changelog");
+  const router = useRouter();
+  const [tab, setTab] = useState<DevTab>(initialTab);
   const [draft, setDraft] = useState(notes);
   const [check, setCheck] = useState("");
   const [pending, startTransition] = useTransition();
@@ -47,28 +63,53 @@ export function MtgBuylistDevelopment({
   }, [changelogs]);
 
   const expanded = releases.find((r) => r.id === expandedId) || releases[0] || null;
+  const openInboxCount = board.ideas.filter((i) => i.status === "open").length;
+  const devHref = `${MTG_BUYLIST_HREF}/development`;
+
+  function go(next: DevTab) {
+    setTab(next);
+    router.replace(`${devHref}?tab=${next}`, { scroll: false });
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0">
+        <DevHostStrip kind={hostKind} host={host} />
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2">
         <button
           type="button"
           className={tab === "changelog" ? "sg-btn-primary" : "sg-btn-secondary"}
-          onClick={() => setTab("changelog")}
+          onClick={() => go("changelog")}
         >
           Changelog
         </button>
         <button
           type="button"
           className={tab === "notes" ? "sg-btn-primary" : "sg-btn-secondary"}
-          onClick={() => setTab("notes")}
+          onClick={() => go("notes")}
         >
           Notes
+        </button>
+        <button
+          type="button"
+          className={tab === "kanban" ? "sg-btn-primary" : "sg-btn-secondary"}
+          onClick={() => go("kanban")}
+        >
+          KanBan
+        </button>
+        <button
+          type="button"
+          className={tab === "inbox" ? "sg-btn-primary" : "sg-btn-secondary"}
+          onClick={() => go("inbox")}
+        >
+          Inbox
+          {openInboxCount > 0 ? ` (${openInboxCount})` : ""}
         </button>
       </div>
 
       {tab === "changelog" ? (
-        <section className="space-y-6">
+        <section className="min-h-0 flex-1 space-y-6 overflow-y-auto">
           <div className="sg-card overflow-x-auto">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
               Releases
@@ -165,17 +206,19 @@ export function MtgBuylistDevelopment({
             {check ? <pre className="sg-prose mt-3 text-sm">{check}</pre> : null}
           </div>
         </section>
-      ) : (
-        <section className="space-y-3">
+      ) : null}
+
+      {tab === "notes" ? (
+        <section className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto">
           <p className="text-sm text-[var(--muted)]">
             Staff scratchpad for this leaf. Saved with your last-run JSON store (per login). Neon /
             shared notes come later — until then these notes can reset on a restage that clears{" "}
-            <code className="text-xs">data/</code>.
+            <code className="text-xs">data/</code>. Structured ideas belong in Inbox.
           </p>
           <textarea
-            className="sg-input min-h-64"
+            className="sg-input min-h-64 flex-1"
             value={draft}
-            placeholder="Loose ideas for MTG Buylist. Promote durable work into KanBan later."
+            placeholder="Loose notes for MTG Buylist."
             onChange={(e) => setDraft(e.target.value)}
           />
           <button
@@ -191,7 +234,34 @@ export function MtgBuylistDevelopment({
             Save notes
           </button>
         </section>
-      )}
+      ) : null}
+
+      {tab === "kanban" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <KanbanBoard
+            board={board}
+            nodeId={MTG_BUYLIST_NODE_ID}
+            leafTitle="MTG Buylist"
+            leafHref={MTG_BUYLIST_HREF}
+            revalidateHref={devHref}
+            hostKind={hostKind}
+          />
+        </div>
+      ) : null}
+
+      {tab === "inbox" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <InboxPanel
+            board={board}
+            nodeId={MTG_BUYLIST_NODE_ID}
+            leafTitle="MTG Buylist"
+            leafHref={MTG_BUYLIST_HREF}
+            revalidateHref={devHref}
+            inboxHref={`${devHref}?tab=inbox`}
+            hostKind={hostKind}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

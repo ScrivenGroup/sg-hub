@@ -140,3 +140,43 @@ export function uniqueScryfallIds(rows: ManaBoxRow[]): string[] {
   }
   return [...ids];
 }
+
+function csvEscape(value: string): string {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+/** Reconstruct a ManaBox-shaped CSV from the stored run (not a byte-identical original). */
+export function manaBoxRowsToCsv(rows: ManaBoxRow[]): string {
+  const headers = [
+    "Name",
+    "Set code",
+    "Set name",
+    "Collector number",
+    "Foil",
+    "Rarity",
+    "Quantity",
+    "Scryfall ID",
+    "Purchase price",
+    "Purchase price currency",
+  ];
+  const lines = [headers.join(",")];
+  for (const row of rows) {
+    const price = row.purchasePriceCents > 0 ? (row.purchasePriceCents / 100).toFixed(2) : "";
+    lines.push(
+      [
+        csvEscape(row.name),
+        csvEscape(row.setCode),
+        csvEscape(row.setName || ""),
+        csvEscape(row.collectorNumber || ""),
+        csvEscape(row.foil),
+        csvEscape(row.rarity || ""),
+        String(row.quantity),
+        csvEscape(row.scryfallId || ""),
+        price,
+        csvEscape((row.purchaseCurrency || "").toUpperCase()),
+      ].join(","),
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}

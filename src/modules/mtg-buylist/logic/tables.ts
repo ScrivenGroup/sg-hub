@@ -138,13 +138,42 @@ export function recoveryBandClass(band: RecoveryBand): string {
     return "text-[var(--rag-amber)]";
   }
   if (band === "weak") {
-    return "text-[var(--muted)]";
+    return "font-medium text-[var(--rag-red)]";
   }
   return "text-[var(--muted)]";
 }
 
-export const RECOVERY_LEGEND =
-  "Gain colours: >100% strong green (sell) · ≥80% green (good) · ≥70% amber (floor) · under $2 listed, ≥50¢ offer also amber-ok · below that grey.";
+export const RECOVERY_BAND_CHIPS: {
+  band: RecoveryBand;
+  label: string;
+  hint: string;
+  color: "green" | "amber" | "red";
+}[] = [
+  {
+    band: "excellent",
+    label: ">100%",
+    hint: "Store credit beats listed — strong sell",
+    color: "green",
+  },
+  {
+    band: "good",
+    label: "≥80%",
+    hint: "Typical good store rate",
+    color: "green",
+  },
+  {
+    band: "ok",
+    label: "≥70%",
+    hint: "Weak-store floor. Under $2 listed, ≥50¢ offer also counts as ok.",
+    color: "amber",
+  },
+  {
+    band: "weak",
+    label: "<70%",
+    hint: "Below the floor",
+    color: "red",
+  },
+];
 
 function variantLabel(offer: MateOffer, index: number): string {
   const treatment = offer.name.match(/\(([^)]+)\)\s*$/);
@@ -199,7 +228,10 @@ export function buildPmStreamRows(
       cashCents: 0,
       tone,
       ownedImageUrl: scryfallImageUrl(row.scryfallId),
-      storeImageUrl: offer?.imageUrl || scryfallImageUrl(offer?.scryfallId || row.scryfallId),
+      storeImageUrl:
+        offer && !offer.missing
+          ? offer.imageUrl || scryfallImageUrl(offer.scryfallId)
+          : "",
       ambiguous: false,
       variants: [],
       listedCents: row.purchasePriceCents || 0,
@@ -420,7 +452,9 @@ export function buildCompareRows(
       playmantisWanted,
       playmantisSell: toPm,
       playmantisImageUrl:
-        play?.imageUrl || scryfallImageUrl(play?.scryfallId || row.scryfallId),
+        play && !play.missing
+          ? play.imageUrl || scryfallImageUrl(play.scryfallId)
+          : "",
       winner,
       ownedImageUrl: scryfallImageUrl(row.scryfallId),
       sellable,

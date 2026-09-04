@@ -313,6 +313,79 @@ Store cart submit, Mate password on the hub, a second offline app, durable card/
 `,
   },
   {
+    id: "cl-mtg-buylist-1.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.1",
+    createdAt: "2026-09-04T05:35:00.000Z",
+    title: "Rev 1.1 — Harvest feedback, Playmantis matching",
+    body: `## Shipped
+
+- Playmantis harvest: overlay with live counts, batches of 8, no infinite retry of not-found. Re-click still retries empties and title mismatches.
+- CSV filename is a download link. Clear this run is a red-bordered button. Section headers stick under chrome.
+- RAG above tables is coloured chips with tooltips. Mate cash in summaries is informational, not a peer headline.
+- Playmantis harvest uses the same Scryfall-ID tag search as their CSV import (tag:buylist tag:{id}). Name search is only a fallback that still requires data-scryfall-id. Remaining want follows their import (4 minus listed stock). Each harvest re-fetches matched cards so want 0 stays current when their stock fills.
+- Compare: winner cell stays green; the other store is grey when it wants 0, unchanged when it still wants some.
+
+## Parked after 1.0
+
+- Combined % cutoff + CK USD FX shop-floor filter.
+- Neon notes / shared ideas.
+- Mobile-friendly Mate harvest.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.2",
+    createdAt: "2026-09-04T09:10:00.000Z",
+    title: "Rev 1.2 — Inbox, KanBan, Raise an idea",
+    body: `## Shipped
+
+- Development tabs: Changelog | Notes | KanBan | Inbox. Inbox is raw notes (ids visible), not tickets. KanBan is Later / Open / Done / Archived with category badges and optional swimlanes.
+- Raise an idea lives next to Run and Development on every Buylist page, and again on Inbox.
+- Development uses the full viewport. Host strip is ON LIVE vs VIA LOCALHOST. Localhost can meter change-since-live against a captured baseline.
+- This zip seeds the current Inbox notes and Later tickets onto live on first load (by id). Zip still does not copy \`data/\`.
+
+## Versioning from 1.2
+
+- Each **live** update: 1.x → 1.(x+1).
+- Changes while developing toward the next live: 1.x.y (starts after this ship).
+- 2.0 / 3.0 only when asked.
+
+## Parked
+
+- Combined % cutoff + CK USD FX shop-floor filter.
+- Neon notes / shared board.
+- Expandable changelog rows and a standing 1.(x+1)(wip) table row.
+- Grey behind want qty = 0.
+- Testing sub-tab for parser fixtures.
+- “Get the $20 back” bulk-to-credit scenario.
+- Mobile Mate harvest (tickets already on Later).
+`,
+  },
+  {
+    id: "cl-mtg-buylist-kanban",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "1.3",
+    createdAt: "2026-09-04T09:10:00.000Z",
+    title: "1.3 (wip) — Inbox follow-through",
+    body: `## Next live (1.3)
+
+Standing WIP row until 1.3 ships. Inbox notes stay raw until a session splits them.
+
+- Changelog: expandable release rows; keep a 1.(next)(wip) row on the summary table.
+- Testing sub-tab for parser fixture check (out of Changelog).
+- Grey behind want qty = 0 in summary tables.
+- “Get the $20 back” — bulk buy vs store credit scenario.
+- Mobile Mate harvest (Later tickets \`kt-mate-mobile-ux\`, \`kt-mate-mobile-data\`).
+
+**Still true:** KanBan is informational. Sessions write tickets. Completing work drives Changelog. Zip does not copy \`data/\`; Inbox/KanBan ids in the live zip seed on first load only.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

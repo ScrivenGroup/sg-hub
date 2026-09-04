@@ -1,0 +1,88 @@
+import { formatDeltaSummary, type KanbanDelta } from "./fingerprint";
+import type { KanbanBoard, KanbanInboxNote } from "./schema";
+import { COLUMN_LABELS, LANE_LABELS } from "./schema";
+
+export function buildSessionPrompt(opts: {
+  leafTitle: string;
+  leafHref: string;
+  nodeId: string;
+  idea: KanbanInboxNote;
+  board: KanbanBoard;
+  delta: KanbanDelta;
+}): string {
+  const { leafTitle, leafHref, nodeId, idea, board, delta } = opts;
+  const openTickets = board.tickets.filter((t) => t.column !== "archived");
+  const ticketLines =
+    openTickets.length === 0
+      ? "- (none)"
+      : openTickets
+          .map(
+            (t) =>
+              `- \`${t.id}\` [${COLUMN_LABELS[t.column]} / ${LANE_LABELS[t.lane]}] ${t.title}${
+                t.sourceIdeaId ? ` · sourceIdeaId ${t.sourceIdeaId}` : " · ad-hoc"
+              }`,
+          )
+          .join("\n");
+
+  const packExample = {
+    boardId: nodeId,
+    revisionExpected: board.revision,
+    archiveIdeaIds: [idea.id],
+    tickets: [
+      {
+        id: "kt-example",
+        title: "Short ticket title",
+        body: "What to do. Cite PLATFORM / WEB_DEVELOPMENT. Not a copy of the raw note.",
+        lane: "behaviour",
+        column: "later",
+        sourceIdeaId: idea.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+    changelogFragments: [],
+  };
+
+  return `You are working in the ScrivenGroup hub on leaf **${leafTitle}** (\`${leafHref}\`, nodeId \`${nodeId}\`).
+
+Open Development Inbox: \`${leafHref}/development?tab=inbox\`
+Open Development KanBan: \`${leafHref}/development?tab=kanban\`
+
+## Host
+This Cursor session is **offline / localhost**. Live Azure is a different \`data/\` disk. Do not assume the live board matches this snapshot. After you publish a snapshot **on live**, refresh \`liveBaseline\` on localhost so the change-since-live meter can drop.
+
+## Job
+One chat = one job (\`dc-sessions\`). Plan first unless told to skip. Produce and move Kanban **tickets**; do not dump transcripts.
+
+Read before building: \`docs/PLATFORM.md\`, \`docs/DEV_CHOICES.md\`, \`docs/WEB_DEVELOPMENT.md\`.
+
+## Source raw inbox note (not a ticket)
+- **id:** \`${idea.id}\` (cite this on every ticket you create from it)
+- **title:** ${idea.title}
+- **body:**
+${idea.body || "(empty)"}
+
+Do **not** turn this raw note into a single ticket. Split into as many tickets as needed. Each ticket gets a **category** (colour badge / swimlane): experience, structure, behaviour, data, platform. Keep \`sourceIdeaId: "${idea.id}"\`. When those tickets are saved in the session pack, **archive this raw id** (do not delete the note).
+
+## Current board snapshot (revision ${board.revision})
+${ticketLines}
+
+${formatDeltaSummary(delta)}
+
+## What to do
+1. Plan the work (reviewable plan).
+2. Split the raw note into tickets with a category badge. User-facing KanBan is informational — they do not action cards. Columns are Later → Open → Done. Raw notes live on the Inbox tab, not on the board.
+3. Emit a **session pack** JSON (schema below) the user can **Publish snapshot** on live (and on localhost while developing).
+4. As you work, move tickets: later → open → done. Archive when closed.
+5. **Actioning tickets drives the changelog** on the same Development page (WIP and/or release). Completing work is not column-only.
+6. Extra work the user asks for in this session that was never an inbox note still gets tickets + changelog; those tickets omit \`sourceIdeaId\` (ad-hoc).
+7. Prefer small publishes so the change-since-live meter stays out of red (10+).
+
+## Session pack schema
+Paste this shape into Development → KanBan → Publish snapshot. Upserts tickets by id; archives listed raw ids; does not clobber tickets missing from the pack.
+
+\`\`\`json
+${JSON.stringify(packExample, null, 2)}
+\`\`\`
+`;
+}

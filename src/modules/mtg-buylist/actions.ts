@@ -13,7 +13,7 @@ import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/al
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
 import { parseMateJson } from "./logic/parse-mate";
-import { harvestPlaymantis } from "./logic/playmantis";
+import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
 import { buildMateImageLinks } from "./logic/mate-image-join";
 import { enrichRowsFromScryfall } from "./logic/scryfall";
 import { runParserSelfCheck } from "./logic/self-check";
@@ -38,7 +38,7 @@ export async function attachMateImageLinks(store: MtgBuylistStore): Promise<MtgB
   }
 }
 
-const PLAYMANTIS_BATCH_IDS = 32;
+const PLAYMANTIS_BATCH_IDS = 8;
 
 export type StaffIdentity = { userKey: string; label: string };
 
@@ -88,6 +88,12 @@ async function persist(userKey: string, store: MtgBuylistStore) {
   revalidatePath(MTG_BUYLIST_HREF);
   revalidatePath(`${MTG_BUYLIST_HREF}/development`);
   return next;
+}
+
+/** Harvest mid-slices: write offers only. Allocate + revalidate on the last slice. */
+async function persistPlaymantisOffers(userKey: string, store: MtgBuylistStore) {
+  await saveMtgBuylistStore(userKey, store);
+  return store;
 }
 
 /**
@@ -187,25 +193,31 @@ export async function uploadCsvAction(
   }
 }
 
-export async function harvestPlaymantisAction() {
+export async function harvestPlaymantisAction(skipIds: string[] = []) {
   const loaded = await loadStore();
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
 
   const ids = uniqueScryfallIds(loaded.store.csv.rows);
   const namesById: Record<string, string> = {};
+  const setNamesById: Record<string, string> = {};
+  const setCodesById: Record<string, string> = {};
   for (const row of loaded.store.csv.rows) {
     const id = row.scryfallId.trim().toLowerCase();
-    if (id && !namesById[id]) namesById[id] = row.name;
+    if (id && !namesById[id]) {
+      namesById[id] = row.name;
+      setNamesById[id] = row.setName || "";
+      setCodesById[id] = row.setCode || "";
+    }
   }
   const existing = loaded.store.playmantis?.offers || [];
-  const haveGood = new Set(
-    existing
-      .filter((o) => !o.missing)
-      .map((o) => o.scryfallId.trim().toLowerCase()),
-  );
-  const remaining = ids.filter((id) => !haveGood.has(id));
-  const slice = remaining.slice(0, PLAYMANTIS_BATCH_IDS);
+  const work = scryfallIdsNeedingPlaymantisFetch({
+    ids,
+    namesById,
+    existing,
+    skipIds,
+  });
+  const slice = work.slice(0, PLAYMANTIS_BATCH_IDS);
   if (!slice.length) {
     const store = withAllocateResults(loaded.store);
     return {
@@ -215,31 +227,45 @@ export async function harvestPlaymantisAction() {
       done: ids.length,
       total: ids.length,
       remaining: 0,
+      fetchedIds: [] as string[],
     };
   }
 
   try {
+    const sliceSet = new Set(slice.map((id) => id.trim().toLowerCase()));
     const fresh = await harvestPlaymantis({
       scryfallIds: slice,
       namesById,
+      setNamesById,
+      setCodesById,
+      existing: existing.filter((o) => sliceSet.has(o.scryfallId.trim().toLowerCase())),
     });
-    // Always drop prior rows for the requested CSV ids (clears stale missing stubs).
-    const sliceSet = new Set(slice.map((id) => id.trim().toLowerCase()));
     const offers = [
       ...existing.filter((o) => !sliceSet.has(o.scryfallId.trim().toLowerCase())),
       ...fresh,
     ];
-    const store = await persist(loaded.staff.userKey, {
+    const nextStore = {
       ...loaded.store,
       playmantis: {
         fetchedAt: new Date().toISOString(),
         offers,
       },
-    });
-    const haveAfter = new Set(
-      offers.filter((o) => !o.missing).map((o) => o.scryfallId.trim().toLowerCase()),
-    );
-    const still = ids.filter((id) => !haveAfter.has(id)).length;
+    };
+    const remaining = Math.max(0, work.length - slice.length);
+    const store =
+      remaining === 0
+        ? await persist(loaded.staff.userKey, nextStore)
+        : await persistPlaymantisOffers(loaded.staff.userKey, nextStore);
+    const attempted = new Set([
+      ...skipIds.map((id) => id.trim().toLowerCase()),
+      ...slice,
+    ]);
+    const still = scryfallIdsNeedingPlaymantisFetch({
+      ids,
+      namesById,
+      existing: offers,
+      skipIds: [...attempted],
+    }).length;
     return {
       ok: true as const,
       store,
@@ -247,6 +273,7 @@ export async function harvestPlaymantisAction() {
       done: ids.length - still,
       total: ids.length,
       remaining: still,
+      fetchedIds: slice,
     };
   } catch (error) {
     return {

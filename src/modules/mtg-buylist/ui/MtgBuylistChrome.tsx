@@ -16,20 +16,35 @@ export function MtgBuylistChrome({
   title,
   intent,
   children,
+  wide,
+  canRaise = true,
 }: {
   href: string;
   title: string;
   intent: string;
   children?: ReactNode;
+  /** Fill the viewport (KanBan / Development). */
+  wide?: boolean;
+  canRaise?: boolean;
 }) {
   const node = getNodeByHref(MTG_BUYLIST_HREF);
 
   return (
-    <AppShell currentHref={href}>
-      <PageNav href={MTG_BUYLIST_HREF} />
-      <header className="mb-6">
+    <AppShell
+      currentHref={href}
+      frameClassName={wide ? "h-dvh max-h-dvh overflow-hidden" : undefined}
+      mainClassName={
+        wide
+          ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 pb-4 pt-6"
+          : undefined
+      }
+    >
+      <div className="shrink-0">
+        <PageNav href={MTG_BUYLIST_HREF} />
+      </div>
+      <header className={wide ? "mb-2 shrink-0" : "mb-4 shrink-0"}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+          <h1 className={wide ? "text-2xl font-semibold tracking-tight" : "text-3xl font-semibold tracking-tight"}>{title}</h1>
           {node ? <CodeBadge node={node} /> : null}
           {node ? <StatusPill status={node.status} /> : null}
         </div>
@@ -41,8 +56,8 @@ export function MtgBuylistChrome({
             : ""}
         </p>
       </header>
-      <MtgBuylistNav currentHref={href} />
-      {children}
+      <MtgBuylistNav currentHref={href} canRaise={canRaise} />
+      <div className={wide ? "flex min-h-0 flex-1 flex-col" : undefined}>{children}</div>
     </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   clearBuylistRunAction,
@@ -12,14 +13,14 @@ import {
   rejectMateVariantAction,
   uploadCsvAction,
 } from "../actions";
-import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency } from "../logic/parse-csv";
+import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency, manaBoxRowsToCsv } from "../logic/parse-csv";
 import {
   buildCompareRows,
   buildMateStreamRows,
   buildPmStreamRows,
   compareRowsCsv,
   formatRecovered,
-  RECOVERY_LEGEND,
+  RECOVERY_BAND_CHIPS,
   recoveryBand,
   recoveryBandClass,
   recoveredPercent,
@@ -65,7 +66,7 @@ function CollapsibleSection({
   });
   return (
     <details
-      className="sg-card group overflow-hidden p-0"
+      className="sg-card group p-0"
       open={open}
       onToggle={(e) => {
         const next = e.currentTarget.open;
@@ -73,7 +74,7 @@ function CollapsibleSection({
         sessionStorage.setItem(storageKey, next ? "1" : "0");
       }}
     >
-      <summary className="sticky top-0 z-20 cursor-pointer list-none border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 font-medium shadow-sm [&::-webkit-details-marker]:hidden">
+      <summary className="sticky top-14 z-20 cursor-pointer list-none border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 font-medium shadow-sm [&::-webkit-details-marker]:hidden">
         <span className="inline-flex items-center gap-2">
           <span className="text-[var(--muted)]" aria-hidden>
             {open ? "▾" : "▸"}
@@ -146,7 +147,7 @@ function LoadingBanner({ status, pending }: { status: string; pending: boolean }
   if (!pending && !status) return null;
   return (
     <div
-      className="sticky top-0 z-30 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm shadow-md"
+      className="sticky top-14 z-30 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm shadow-md"
       role="status"
       aria-live="polite"
     >
@@ -158,6 +159,85 @@ function LoadingBanner({ status, pending }: { status: string; pending: boolean }
       ) : null}
       <span>{status || "Working…"}</span>
     </div>
+  );
+}
+
+function BusyOverlay({ status }: { status: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[2147483000] flex items-center justify-center bg-[color-mix(in_srgb,var(--ink)_40%,transparent)] p-4"
+      role="alertdialog"
+      aria-busy="true"
+      aria-live="assertive"
+      aria-label={status || "Working"}
+    >
+      <div className="sg-card max-w-md space-y-3 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-block h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--ink)]"
+            aria-hidden
+          />
+          <p className="font-medium">{status || "Working…"}</p>
+        </div>
+        <p className="text-sm text-[var(--muted)]">
+          Leave this page alone until this finishes. Counts update here as each batch lands.
+        </p>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function CsvFilenameLink({
+  filename,
+  csvText,
+}: {
+  filename: string;
+  csvText: string;
+}) {
+  return (
+    <a
+      href="#download-csv"
+      className="font-medium text-[var(--ink)] underline decoration-[var(--ink)] underline-offset-2 hover:opacity-80"
+      onClick={(e) => {
+        e.preventDefault();
+        downloadText(filename.endsWith(".csv") ? filename : `${filename}.csv`, csvText);
+      }}
+    >
+      {filename}
+    </a>
+  );
+}
+
+function RecoveryLegend() {
+  const colorVar: Record<(typeof RECOVERY_BAND_CHIPS)[number]["color"], string> = {
+    green: "var(--rag-green)",
+    amber: "var(--rag-amber)",
+    red: "var(--rag-red)",
+  };
+  return (
+    <ul className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+      {RECOVERY_BAND_CHIPS.map((chip) => (
+        <li key={chip.band}>
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5"
+            title={chip.hint}
+          >
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: colorVar[chip.color] }}
+              aria-hidden
+            />
+            <span className="tabular-nums font-medium">{chip.label}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -218,6 +298,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   const [expiresAt, setExpiresAt] = useState("");
   const [copied, setCopied] = useState("");
   const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
   const [pmFilter, setPmFilter] = useState<StreamFilter>("all");
   const [mateFilter, setMateFilter] = useState<StreamFilter>("all");
   const [compareFilter, setCompareFilter] = useState<CompareFilter>("all");
@@ -354,17 +435,22 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   ) {
     setError("");
     setStatus(working);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.error || "That step failed");
+    setBusy(true);
+    void (async () => {
+      try {
+        const result = await fn();
+        if (!result.ok) {
+          setError(result.error || "That step failed");
+          setStatus("");
+          return;
+        }
+        if (result.store) setStore(result.store);
         setStatus("");
-        return;
+        router.refresh();
+      } finally {
+        setBusy(false);
       }
-      if (result.store) setStore(result.store);
-      setStatus("");
-      router.refresh();
-    });
+    })();
   }
 
   function confirmCsvUpload() {
@@ -384,8 +470,9 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
 
   function uploadMateFile(file: File) {
     setError("");
-    setStatus("Uploading Mate JSON…");
-    startTransition(async () => {
+    setStatus("Uploading Mate JSON… leave this page alone");
+    setBusy(true);
+    void (async () => {
       try {
         const form = new FormData();
         form.append("file", file);
@@ -414,8 +501,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       } catch (err) {
         setError(err instanceof Error ? err.message : "Mate upload failed");
         setStatus("");
+      } finally {
+        setBusy(false);
       }
-    });
+    })();
   }
 
   function acceptCsvFile(file: File) {
@@ -444,20 +533,21 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy={busy}>
+      {busy ? <BusyOverlay status={status} /> : null}
       {error ? (
         <p className="sg-card border-[var(--rag-red)] text-sm" role="alert">
           {error}
         </p>
       ) : null}
-      <LoadingBanner status={status} pending={pending} />
+      {!busy ? <LoadingBanner status={status} pending={pending} /> : null}
 
       <CollapsibleSection id="csv" title="1. ManaBox CSV" defaultOpen>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
-            className="sg-btn-ghost text-sm"
-            disabled={pending}
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-4 text-sm font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
+            disabled={pending || busy}
             onClick={() => run(() => clearBuylistRunAction(), "Clearing run…")}
           >
             Clear this run
@@ -470,7 +560,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         </p>
         <FileDropZone
           accept=".csv,text/csv"
-          disabled={pending}
+          disabled={pending || busy}
           label="Choose ManaBox CSV or drop it here"
           hint="Click this box — .csv up to ~1000 cards"
           onFile={acceptCsvFile}
@@ -478,7 +568,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         {pendingCsv ? (
           <div className="mt-3 space-y-3 rounded border border-[var(--border)] p-3">
             <p className="text-sm">
-              {pendingCsv.filename} ready. Where does ManaBox draw these listed prices from?
+              <CsvFilenameLink filename={pendingCsv.filename} csvText={pendingCsv.text} /> ready.
+              Where does ManaBox draw these listed prices from?
             </p>
             <label className="block text-sm">
               Price source
@@ -513,7 +604,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             <button
               type="button"
               className="sg-btn-primary disabled:opacity-50"
-              disabled={pending}
+              disabled={pending || busy}
               onClick={() => confirmCsvUpload()}
             >
               Use this CSV
@@ -523,7 +614,11 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         {store.csv ? (
           <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
             <p className="text-sm text-[var(--muted)]">
-              {store.csv.filename}: {store.csv.rows.length} printings, {csvSets.length} sets.
+              <CsvFilenameLink
+                filename={store.csv.filename}
+                csvText={manaBoxRowsToCsv(store.csv.rows)}
+              />
+              : {store.csv.rows.length} printings, {csvSets.length} sets.
               Uploaded {new Date(store.csv.uploadedAt).toLocaleString()}. Price basis:{" "}
               {PRICE_SOURCE_LABELS[store.csv.priceSource]} ·{" "}
               {store.csv.priceCurrency || "currency unknown"}.{" "}
@@ -545,7 +640,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             <button
               type="button"
               className="sg-btn-secondary shrink-0 text-sm"
-              disabled={pending}
+              disabled={pending || busy}
               onClick={() =>
                 run(() => enrichCsvTreatmentsAction(), "Asking Scryfall for treatments…")
               }
@@ -560,39 +655,42 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
 
       <CollapsibleSection id="pm" title="2. Playmantis stream" defaultOpen={Boolean(store.csv)}>
         <p className="text-sm text-[var(--muted)]">
-          Harvest Playmantis alone. Join on Scryfall ID + finish. Re-click harvest to retry empties
-          (image UUID mismatches are rebound to your CSV id). Batches ~32 IDs per server call;
-          this button loops until done.
+          Harvest Playmantis alone. Same lookup as their CSV import: Scryfall ID tag search,
+          then that product — no name or set guessing. Remaining want is 4 minus listed stock
+          (already at max shows as want 0, grey). Each harvest re-checks stock so want stays
+          current. Re-click also retries empties. Batches of 8; this button loops until done.
         </p>
         <button
           type="button"
           className="sg-btn-primary disabled:opacity-50"
-          disabled={pending || !store.csv}
+          disabled={pending || busy || !store.csv}
           onClick={() => {
-            const loop = async () => {
+            void (async () => {
               setError("");
-              setStatus("Harvesting Playmantis…");
-              let remaining = 1;
-              let last = store;
-              while (remaining > 0) {
-                const result = await harvestPlaymantisAction();
-                if (!result.ok) {
-                  setError(result.error);
-                  setStatus("");
-                  return;
+              setBusy(true);
+              const skipIds: string[] = [];
+              setStatus("Harvesting Playmantis… leave this page alone");
+              try {
+                while (true) {
+                  const result = await harvestPlaymantisAction(skipIds);
+                  if (!result.ok) {
+                    setError(result.error);
+                    setStatus("");
+                    return;
+                  }
+                  skipIds.push(...result.fetchedIds);
+                  setStore(result.store);
+                  setStatus(
+                    `Playmantis ${result.done} / ${result.total} — leave this page alone`,
+                  );
+                  if (result.remaining <= 0) break;
                 }
-                last = result.store;
-                setStore(result.store);
-                remaining = result.remaining;
-                setStatus(`Playmantis ${result.done} / ${result.total} Scryfall IDs`);
+                setStatus("Playmantis harvest finished.");
+                router.refresh();
+              } finally {
+                setBusy(false);
               }
-              setStore(last);
-              setStatus("Playmantis harvest finished.");
-              router.refresh();
-            };
-            startTransition(() => {
-              void loop();
-            });
+            })();
           }}
         >
           Harvest Playmantis
@@ -639,23 +737,28 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           <button
             type="button"
             className="sg-btn-primary disabled:opacity-50"
-            disabled={pending || !store.csv}
+            disabled={pending || busy || !store.csv}
             onClick={() => {
               setError("");
               setStatus("Creating harvest token…");
-              startTransition(async () => {
-                const result = await createMateHarvestAction(window.location.origin);
-                if (!result.ok) {
-                  setError(result.error);
-                  setStatus("");
-                  return;
+              setBusy(true);
+              void (async () => {
+                try {
+                  const result = await createMateHarvestAction(window.location.origin);
+                  if (!result.ok) {
+                    setError(result.error);
+                    setStatus("");
+                    return;
+                  }
+                  setHarvestScript(result.script);
+                  setBookmarklet(result.bookmarklet);
+                  setSetCodes(result.setCodes);
+                  setExpiresAt(result.expiresAt);
+                  setStatus(`Token ready until ${new Date(result.expiresAt).toLocaleTimeString()}.`);
+                } finally {
+                  setBusy(false);
                 }
-                setHarvestScript(result.script);
-                setBookmarklet(result.bookmarklet);
-                setSetCodes(result.setCodes);
-                setExpiresAt(result.expiresAt);
-                setStatus(`Token ready until ${new Date(result.expiresAt).toLocaleTimeString()}.`);
-              });
+              })();
             }}
           >
             Prepare Mate harvest
@@ -710,7 +813,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         ) : null}
         <FileDropZone
           accept=".json,.customization,application/json"
-          disabled={pending || !store.csv}
+          disabled={pending || busy || !store.csv}
           label="Choose Mate harvest JSON or drop it here"
           hint="Click this box — .json / .customization (runs image joins after upload)"
           onFile={uploadMateFile}
@@ -726,7 +829,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             <button
               type="button"
               className="sg-btn-secondary shrink-0 text-sm"
-              disabled={pending}
+              disabled={pending || busy}
               onClick={() =>
                 run(() => refreshMateImageLinksAction(), "Matching Mate images to Scryfall…")
               }
@@ -878,24 +981,25 @@ function StreamTable({
   return (
     <div className="mt-4 border-t border-[var(--border)] pt-4">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <dl className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <dt className="text-xs text-[var(--muted)]">
-              {mode === "pm" ? "Playmantis credit" : "Mate credit"}
-            </dt>
-            <dd className="text-lg font-semibold">{money(creditTotal)}</dd>
-          </div>
-          {mode === "mate" ? (
+        <div className="space-y-1">
+          <dl className="grid gap-3 sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-[var(--muted)]">Mate cash</dt>
-              <dd className="text-lg font-semibold">{money(cashTotal || 0)}</dd>
+              <dt className="text-xs text-[var(--muted)]">
+                {mode === "pm" ? "Playmantis credit" : "Mate credit"}
+              </dt>
+              <dd className="text-lg font-semibold">{money(creditTotal)}</dd>
+              {mode === "mate" ? (
+                <p className="text-xs text-[var(--muted)]">
+                  cash {money(cashTotal || 0)} (informational, not compared)
+                </p>
+              ) : null}
             </div>
-          ) : null}
-          <div>
-            <dt className="text-xs text-[var(--muted)]">Sell copies</dt>
-            <dd className="text-lg font-semibold">{sellCopies}</dd>
-          </div>
-        </dl>
+            <div>
+              <dt className="text-xs text-[var(--muted)]">Sell copies</dt>
+              <dd className="text-lg font-semibold">{sellCopies}</dd>
+            </div>
+          </dl>
+        </div>
         <button type="button" className="sg-btn-secondary" onClick={onDownload}>
           Download CSV
         </button>
@@ -925,7 +1029,7 @@ function StreamTable({
         . Hover O = owned, S = store match.
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <p className="mb-2 text-xs text-[var(--muted)]">{RECOVERY_LEGEND}</p>
+      <RecoveryLegend />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[44rem] text-left text-sm">
           <thead className="bg-[var(--surface)]">
@@ -1143,17 +1247,18 @@ function CompareTable({
 
   const winCell =
     "rounded px-1.5 py-0.5 font-semibold bg-[color-mix(in_srgb,var(--rag-green)_22%,transparent)]";
+  const loseCell =
+    "rounded px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--muted)_18%,transparent)] text-[var(--muted)]";
 
   return (
     <div>
-      <dl className="mb-3 grid gap-3 sm:grid-cols-3">
+      <dl className="mb-3 grid gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-xs text-[var(--muted)]">Mate credit</dt>
           <dd className="text-lg font-semibold">{money(mateCredit)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-[var(--muted)]">Mate cash</dt>
-          <dd className="text-lg font-semibold">{money(mateCash)}</dd>
+          <p className="text-xs text-[var(--muted)]">
+            cash {money(mateCash)} (informational, not compared)
+          </p>
         </div>
         <div>
           <dt className="text-xs text-[var(--muted)]">Playmantis credit</dt>
@@ -1198,7 +1303,7 @@ function CompareTable({
         printings in the Mate stream — Compare then shows one row. Hover O = owned only.
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <p className="mb-2 text-xs text-[var(--muted)]">{RECOVERY_LEGEND}</p>
+      <RecoveryLegend />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[42rem] text-left text-sm">
           <thead className="bg-[var(--surface)]">
@@ -1220,6 +1325,7 @@ function CompareTable({
                 row={row}
                 filter={filter}
                 winCell={winCell}
+                loseCell={loseCell}
               />
             ))}
           </tbody>
@@ -1269,10 +1375,12 @@ function CompareRowBlock({
   row,
   filter,
   winCell,
+  loseCell,
 }: {
   row: CompareRow;
   filter: CompareFilter;
   winCell: string;
+  loseCell: string;
 }) {
   const sell =
     filter === "mate"
@@ -1308,6 +1416,14 @@ function CompareRowBlock({
           ? "bg-[color-mix(in_srgb,var(--muted)_8%,transparent)]"
           : "";
 
+  function storeCellClass(isWinner: boolean, wanted: number): string | undefined {
+    if (isWinner) return winCell;
+    if (row.winner === "mate" || row.winner === "playmantis") {
+      if (!(wanted > 0)) return loseCell;
+    }
+    return undefined;
+  }
+
   return (
     <tr className={`border-t border-[var(--border)] ${rowTone}`}>
       <td className="py-1.5">
@@ -1335,7 +1451,10 @@ function CompareRowBlock({
       <td className="py-1.5 tabular-nums">{money(row.listedCents)}</td>
       <td className="py-1.5 tabular-nums">
         <span
-          className={row.winner === "mate" || row.winner === "split" ? winCell : undefined}
+          className={storeCellClass(
+            row.winner === "mate" || row.winner === "split",
+            row.mateWanted,
+          )}
           title={
             row.mateAmbiguous
               ? "Ambiguous — confirm a printing in the Mate stream"
@@ -1353,9 +1472,10 @@ function CompareRowBlock({
       </td>
       <td className="py-1.5 tabular-nums">
         <span
-          className={
-            row.winner === "playmantis" || row.winner === "split" ? winCell : undefined
-          }
+          className={storeCellClass(
+            row.winner === "playmantis" || row.winner === "split",
+            row.playmantisWanted,
+          )}
           title={row.playmantisWanted ? `Want ${row.playmantisWanted}` : "Not buying"}
         >
           {row.playmantisCreditCents > 0

@@ -1,0 +1,86 @@
+# Hub web development (locked handbook)
+
+Canon for **how** we build ScrivenGroup HTML and leaves. Locked one-liners live in [`DEV_CHOICES.md`](./DEV_CHOICES.md) and Internal → Development choices (`/i/dev-choices`). Do not contradict locked rows.
+
+**Decision (2026-09-01):** all new hub UI is Next.js App Router + React + TypeScript + Tailwind + SG tokens. my-site’s hand-written HTML/MD3 is a **legacy island** until the Great Merging. Do not start a third front-end kit.
+
+How to ask (if you do not know what is hard): say **what the user must do**, not which `.html` file to edit. Easy vs hard cheat-sheet is in the 1 Sep 2026 stack conversation; default: *“Build it as a hub room: React + Tailwind + SG chrome.”*
+
+---
+
+## 1. Leaf development cycle
+
+A **leaf** is a registry card (sub-hub or tool): `/w/{slug}`, `/p/{slug}`, `/i/{slug}`, `/s/{slug}`.
+
+| Stage | Status | What exists | Dummy data |
+| ----- | ------ | ----------- | ---------- |
+| 1. Local dummy | not on the map yet | Mock on localhost only (or a Development-tab museum). Not a second repo. | Fine, but use **hub types** if it will graduate |
+| 2. Skin the location online | `sketched` | Registry node + route + featureless `SubHubShell` + changelog **plan**. No fake buttons. | None |
+| 3. Skeleton the mockup online | `building` | Real routes/chrome; screens may be incomplete. Dummy **must** use the same store/types as production. | Yes, same store |
+| 4. Clean revision | `live` | Real capability. Changelog **release** with **version number + datetime** | Production data (after DB cutover: Postgres) |
+| 5. Leaf cycles | still `live` | Small slices: plan → build → localhost review → commit (when you say) → live (when you say). Each slice gets a changelog release when it ships. | — |
+
+Do not skip stage 2 (a live URL with a plan) just because a dummy exists on a laptop.
+
+---
+
+## 2. Consistent functional elements
+
+Every **leaf** (not every inner tab) eventually has:
+
+| Element | Rule | Today (gap) |
+| ------- | ---- | ----------- |
+| **Development** | A Development surface with (1) changelog / plan and (2) a **bulk text notes** area for that leaf. | MRT has both. Sketched leaves show changelog on the shell only; notes are missing. Add notes when the leaf leaves `sketched`. |
+| **Versions** | Show **numeric version + datetime** in the leaf header when `live` / shipping (MRT pattern). Changelog rows carry `version` + `createdAt`. **MTG Buylist:** each live update increments 1.x → 1.(x+1). In-dev patches will be 1.x.y. Major N.0 only when asked. | MRT yes. Buylist 1.2. Other leaves: changelog dates only until first release. |
+| **Feedback** | Global header (and mobile FAB) **always** has Feedback. Writes **one** register: `/i/feedback` + `data/feedback.json` (Postgres after cutover). Guests may be excluded (MRT). | Done in `AppShell`. |
+| **Site map / fast travel** | **Site network** in chrome is the fast-travel map (Home → Hubs → cards). Definition is the same map for reading. Product interiors are inside a card, not extra map nodes (v1). | Done. Do not invent a second sitemap widget. |
+
+Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).
+
+---
+
+## 3. Consistent design / layout (starting library)
+
+**Do not copy my-site MD3.** Start from this kit; ThemeContract only when a leaf explicitly opts in.
+
+### Chrome
+
+- Sticky header, `bg-[var(--surface)]`, hairline `border-[var(--border)]`.
+- Page ground `var(--page)` `#F5F5F4`; ink `var(--ink)` `#3C3C3B`.
+- Typeface **Manrope**. Radius **10px**.
+- Logo left; optional centred leaf title; actions right.
+
+### Page body
+
+- `PageNav` then `<h1 className="text-3xl font-semibold tracking-tight">` + `CodeBadge` + `StatusPill`.
+- Description in `text-[var(--muted)]`.
+- Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` (44px min height).
+- Inputs: `sg-input`. Long text: `sg-prose`.
+
+### Tables
+
+- Prefer simple HTML tables or existing MRT table CSS **inside that leaf**. Do not import a new table library.
+- Header row: muted, medium weight. Numeric cells tabular if lots of numbers.
+
+### Dialogs
+
+- Viewport-capped overlay (see PLATFORM.md / `EffortPopupShell`): grid overlay, flex column dialog, scrollport `min-height: 0; overflow-y: auto`. Footer stays on screen. Esc closes.
+
+### Colour
+
+- Product **6-hex code → badge only**.
+- RAG: `--rag-green` / `--rag-amber` / `--rag-red`.
+- Dark/car ThemeContract (Fuel Tracker) is **opt-in later**, not a global theme.
+
+Tokens live in `src/app/globals.css` and System → Appearance.
+
+---
+
+## 4. Stack (do not fork)
+
+| Use | Stack |
+| --- | ----- |
+| This hub (all new leaves) | Next 15 App Router, React 19, TS, Tailwind 4, Zod, Auth.js + Entra |
+| Persistence | `json-store` now → Neon/Postgres via same store (`dc-db-cutover`) |
+| my-site | Static HTML + Express + Prisma + Azure SQL until merged; then **retire** that leaf on my-site |
+| Never | New Vite/CRA/Next repo, MUI/shadcn/Radix/Bootstrap, MD3 on hub pages, standalone `.html` as the demo (`dc-demo-artifact`) |
