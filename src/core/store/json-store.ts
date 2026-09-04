@@ -49,7 +49,7 @@ import {
   pgReplaceDevChoices,
   pgReplaceIdeas,
   pgReplaceNotes,
-  usePostgres,
+  postgresEnabled,
 } from "@/core/store/pg";
 
 const dataDir = path.join(process.cwd(), "data");
@@ -163,13 +163,13 @@ export async function getMrtGuestActivity(): Promise<MrtGuestActivity[]> {
 }
 
 async function persistSimpleJson<T>(file: string, value: T): Promise<void> {
-  if (!usePostgres() || dualWriteJson()) {
+  if (!postgresEnabled() || dualWriteJson()) {
     await writeJson(file, value);
   }
 }
 
 export async function getDependencies(): Promise<DependencyRecord[]> {
-  const existing = usePostgres()
+  const existing = postgresEnabled()
     ? await pgGetDependencies()
     : await readJson("dependencies.json", seedDependencies);
   const byId = new Map(existing.map((row) => [row.id, row]));
@@ -182,14 +182,14 @@ export async function getDependencies(): Promise<DependencyRecord[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    if (usePostgres()) await pgReplaceDependencies(out);
+    if (postgresEnabled()) await pgReplaceDependencies(out);
     await persistSimpleJson("dependencies.json", out);
   }
   return out;
 }
 
 export async function getChangelogs(): Promise<ChangelogEntry[]> {
-  const existing = usePostgres()
+  const existing = postgresEnabled()
     ? await pgGetChangelogs()
     : await readJson("changelogs.json", seedChangelogs);
   const byId = new Map(existing.map((c) => [c.id, c]));
@@ -241,7 +241,7 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    if (usePostgres()) await pgReplaceChangelogs(out);
+    if (postgresEnabled()) await pgReplaceChangelogs(out);
     await persistSimpleJson("changelogs.json", out);
   }
   return out;
@@ -255,7 +255,7 @@ export async function getChangelogsForNode(
 }
 
 export async function getIdeas(): Promise<IdeaRecord[]> {
-  if (usePostgres()) {
+  if (postgresEnabled()) {
     const rows = await pgGetIdeas();
     if (rows.length > 0) return rows;
     await pgReplaceIdeas(seedIdeas);
@@ -266,7 +266,7 @@ export async function getIdeas(): Promise<IdeaRecord[]> {
 }
 
 export async function getNotes(): Promise<NoteRecord[]> {
-  if (usePostgres()) {
+  if (postgresEnabled()) {
     const rows = await pgGetNotes();
     if (rows.length > 0) return rows;
     await pgReplaceNotes(seedNotes);
@@ -277,12 +277,12 @@ export async function getNotes(): Promise<NoteRecord[]> {
 }
 
 export async function getFeedback(): Promise<FeedbackRecord[]> {
-  if (usePostgres()) return pgGetFeedback();
+  if (postgresEnabled()) return pgGetFeedback();
   return readJson("feedback.json", [] as FeedbackRecord[]);
 }
 
 export async function getDevChoices(): Promise<DevChoiceRecord[]> {
-  const existing = usePostgres()
+  const existing = postgresEnabled()
     ? await pgGetDevChoices()
     : await readJson("dev-choices.json", seedDevChoices);
   const byId = new Map(existing.map((row) => [row.id, row]));
@@ -312,7 +312,7 @@ export async function getDevChoices(): Promise<DevChoiceRecord[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    if (usePostgres()) await pgReplaceDevChoices(out);
+    if (postgresEnabled()) await pgReplaceDevChoices(out);
     await persistSimpleJson("dev-choices.json", out);
   }
   return out;
@@ -328,7 +328,7 @@ export async function addDevChoice(
     createdAt: new Date().toISOString(),
   };
   all.unshift(record);
-  if (usePostgres()) await pgInsertDevChoice(record);
+  if (postgresEnabled()) await pgInsertDevChoice(record);
   await persistSimpleJson("dev-choices.json", all);
   await appendDevChoicesDoc(record);
   return record;
@@ -458,7 +458,7 @@ export async function upsertChangelogEntries(
   const byId = new Map(all.map((row) => [row.id, row]));
   for (const entry of entries) byId.set(entry.id, entry);
   const out = Array.from(byId.values());
-  if (usePostgres()) await pgReplaceChangelogs(out);
+  if (postgresEnabled()) await pgReplaceChangelogs(out);
   await persistSimpleJson("changelogs.json", out);
 }
 
@@ -514,7 +514,7 @@ export async function addFeedback(
     status: "open",
   };
   all.unshift(record);
-  if (usePostgres()) await pgInsertFeedback(record);
+  if (postgresEnabled()) await pgInsertFeedback(record);
   await persistSimpleJson("feedback.json", all);
   await appendFeedbackInbox(record);
   return record;

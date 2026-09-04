@@ -86,7 +86,7 @@ export function databaseUrl(): string {
   return (process.env.DATABASE_URL ?? "").trim();
 }
 
-export function usePostgres(): boolean {
+export function postgresEnabled(): boolean {
   return Boolean(databaseUrl());
 }
 
