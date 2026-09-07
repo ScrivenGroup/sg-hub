@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "deploy:prepare": "node scripts/prepare-azure-standalone.mjs",
-    "deploy:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-linux-zip.ps1",
+    "deploy:zip": "node scripts/run-deploy-zip.mjs",
     "deploy:azure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-with-az.ps1"
   },
   "dependencies": {

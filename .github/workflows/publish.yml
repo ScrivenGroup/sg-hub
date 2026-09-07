@@ -1,0 +1,75 @@
+# Shop window: tag or Run workflow. Push to main is not live.
+name: Publish shop window
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "hub-*"
+      - "v*"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: azure
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare standalone zip folder
+        run: npm run deploy:prepare
+
+      - name: Zip (forward-slash paths, exclude data/)
+        run: npm run deploy:zip
+
+      - name: Fail if zip includes data/
+        run: |
+          if unzip -Z1 scrivengroup-deploy.zip | grep -E '^data(/|$)'; then
+            echo "zip must not include data/"
+            exit 1
+          fi
+          echo "zip has no data/ entries"
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy zip (OIDC, SCM Basic Auth stays Off)
+        run: |
+          az webapp deploy \
+            --resource-group rg-scrivengroup \
+            --name app-scrivengroup \
+            --src-path scrivengroup-deploy.zip \
+            --type zip \
+            --async true
+
+      - name: Confirm SCM Basic Auth still Off
+        run: |
+          allow=$(az resource show \
+            --resource-group rg-scrivengroup \
+            --name scm \
+            --namespace Microsoft.Web \
+            --parent sites/app-scrivengroup \
+            --resource-type basicPublishingCredentialsPolicies \
+            --query properties.allow -o tsv)
+          echo "scm basic auth allow=$allow"
+          if [ "$allow" != "false" ]; then
+            echo "SCM Basic Auth must stay Off"
+            exit 1
+          fi

@@ -110,6 +110,8 @@ npm run deploy:azure   → az webapp deploy (Entra). SCM Basic Auth stays Off
 
 App Service settings: `SCM_DO_BUILD_DURING_DEPLOYMENT=false`, `ENABLE_ORYX_BUILD=false`, startup `node server.js`.
 
+**Make it live:** GitHub Actions on tag `hub-*`/`v*` or **Run workflow** (OIDC). Push `main` is not live. Laptop `deploy:azure` is fallback.
+
 Dev machine: Windows. Host: Linux x64. Publish-profile script is **legacy**.
 
 ### 6. Tooling (dev-time only)

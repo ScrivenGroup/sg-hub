@@ -17,7 +17,11 @@ Phase 2 App Settings must already include Entra + `AUTH_URL` + `AUTH_SECRET` + `
 
 **Why the first deploy failed:** Deployments Preview ran `npm run build` inside the zip. Our zip is already built (standalone) and has no `src/app`, so Next failed. New zip makes `build` a no-op; disable Oryx as above.
 
-## Default deploy — Azure CLI (no SCM Basic Auth)
+## Default live path — GitHub Actions (OIDC)
+
+Tag `hub-*` / `v*` on `main`, or **Actions → Publish shop window → Run workflow**. Cloud builds the same zip and `az webapp deploy`. **Push `main` is not live.** SCM Basic Auth stays Off.
+
+## Fallback — Azure CLI on the station laptop
 
 Requires [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) once, then `az login` (browser) when the session expires.
 

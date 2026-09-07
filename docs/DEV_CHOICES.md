@@ -56,7 +56,11 @@ Canon for agents and humans. Do not contradict **locked** rows. In-app: Internal
 
 ### `dc-publish` — publish (locked)
 
-**Decision:** Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = `deploy:prepare` + zip + `az webapp deploy` to `app-scrivengroup`. GitHub Actions auto-deploy is a later slice (this repo has no Actions today). Details: `docs/GIT_AND_RELEASE.md`.
+**Decision:** Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = tag `hub-*`/`v*` or GitHub **Run workflow** (same zip via OIDC onto `app-scrivengroup`). Hand zip is fallback. Push/merge `main` is not live. Details: `docs/GIT_AND_RELEASE.md`.
+
+### `dc-versioning` — versioning (locked)
+
+**Decision:** Hub train is SemVer `MAJOR.MINOR`: each live publish bumps **MINOR**; **PATCH** is an emergency hotfix; **MAJOR** only if Bill asks. Each leaf has its own SemVer; unchanged leaves do not bump. Localhost slices may use PATCH until that leaf ships in a hub train. Details: `docs/GIT_AND_RELEASE.md`.
 
 ### `dc-great-merge` — merge (locked)
 
