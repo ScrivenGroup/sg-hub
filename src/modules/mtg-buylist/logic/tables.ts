@@ -9,6 +9,7 @@ import {
 } from "./allocate";
 import { mateImageUrl, scryfallImageUrl } from "./images";
 import { csvFinishToMate, normalizeCardName, normalizeFinish, normalizeSetCode } from "./names";
+import { manaBoxRowsToCsv } from "./parse-csv";
 
 /** Either store lists at least this credit → “money card” for put-aside. */
 export const MONEY_CREDIT_CENTS = 200;
@@ -609,6 +610,69 @@ export function compareRowsCsv(rows: CompareRow[]): string {
     );
   }
   return `${lines.join("\n")}\n`;
+}
+
+export type ManaBoxPackingKind = "playmantis" | "mate" | "unsold";
+
+function packingQty(row: CompareRow, kind: ManaBoxPackingKind): number {
+  if (kind === "playmantis") return Math.max(0, row.playmantisSell);
+  if (kind === "mate") return Math.max(0, row.mateSell);
+  return Math.max(0, row.have - row.mateSell - row.playmantisSell);
+}
+
+/**
+ * Starting ManaBox CSV, filtered to Compare Sell qty (or leftover Have).
+ * Re-import “unsold” into ManaBox; store files are packing lists with sell counts.
+ */
+export function manaBoxPackingCsv(
+  csvRows: ManaBoxRow[],
+  compare: CompareRow[],
+  kind: ManaBoxPackingKind,
+): string {
+  const byKey = new Map(compare.map((row) => [row.rowKey, row]));
+  const out: ManaBoxRow[] = [];
+  for (const row of csvRows) {
+    const hit = byKey.get(manaBoxRowKey(row));
+    if (!hit) continue;
+    const quantity = packingQty(hit, kind);
+    if (quantity <= 0) continue;
+    out.push({ ...row, quantity });
+  }
+  return manaBoxRowsToCsv(out);
+}
+
+/** Quantity mode for a Compare filter’s ManaBox template export. */
+export type ManaBoxFilterQty = "have" | "sell" | "mate" | "playmantis" | "unsold";
+
+export function manaBoxQtyForCompareFilter(filter: string): ManaBoxFilterQty {
+  if (filter === "mate") return "mate";
+  if (filter === "playmantis") return "playmantis";
+  if (filter === "unsold") return "unsold";
+  if (filter === "sellable") return "sell";
+  return "have";
+}
+
+/** Original ManaBox columns for the Compare rows in the active filter. */
+export function manaBoxFilteredCsv(
+  csvRows: ManaBoxRow[],
+  compareSubset: CompareRow[],
+  qty: ManaBoxFilterQty,
+): string {
+  const byKey = new Map(compareSubset.map((row) => [row.rowKey, row]));
+  const out: ManaBoxRow[] = [];
+  for (const row of csvRows) {
+    const hit = byKey.get(manaBoxRowKey(row));
+    if (!hit) continue;
+    const quantity =
+      qty === "have"
+        ? hit.have
+        : qty === "sell"
+          ? hit.mateSell + hit.playmantisSell
+          : packingQty(hit, qty);
+    if (quantity <= 0) continue;
+    out.push({ ...row, quantity });
+  }
+  return manaBoxRowsToCsv(out);
 }
 
 function csvCell(value: string): string {

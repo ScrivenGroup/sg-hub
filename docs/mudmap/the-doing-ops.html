@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Doing · How you use it</title>
+  <style>
+    :root {
+      --paper: #efe2c4; --ink: #241c14; --soft: #5e4f3d; --line: #8a7358;
+      --doing: #3f7a5c; --pin: #9b2e2e; --brain: #3d4a6b; --thing: #3e6ea3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font: 15px/1.45 "Segoe UI", Candara, sans-serif;
+      background: repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px), var(--paper);
+    }
+    .sheet { max-width: 980px; margin: 0 auto; padding: 1rem 1.1rem 2.8rem; }
+    a.back { color: var(--soft); font-size: .9rem; }
+    header {
+      display: flex; justify-content: space-between; align-items: end; gap: 1rem;
+      border-bottom: 3px solid var(--ink); padding-bottom: .55rem; margin: .35rem 0 .7rem;
+    }
+    h1 { margin: 0; font: 700 clamp(1.5rem, 3vw, 2rem)/1.1 Palatino, Georgia, serif; }
+    .stamp {
+      border: 2px solid var(--pin); color: var(--pin);
+      font: 700 11px/1.15 "Courier New", monospace; letter-spacing: .1em;
+      text-transform: uppercase; padding: .35rem .45rem; transform: rotate(2deg); white-space: nowrap;
+    }
+    .lede { color: var(--soft); margin: 0 0 1rem; max-width: 48rem; }
+    h2 {
+      font: 700 1.2rem/1.2 Palatino, Georgia, serif;
+      border-left: 8px solid var(--doing);
+      padding-left: .5rem; margin: 1.4rem 0 .55rem;
+    }
+    h2.brain { border-left-color: var(--brain); }
+    h3 { margin: .9rem 0 .35rem; font-size: 1rem; }
+    ul, ol { padding-left: 1.15rem; }
+    li { margin: .28rem 0; }
+    .callout {
+      border: 2px solid var(--pin); background: #fff3c4;
+      padding: .75rem .9rem; margin: .8rem 0 1rem;
+    }
+    .callout b { color: var(--pin); }
+    .grid2 {
+      display: grid; grid-template-columns: 1.1fr 1fr; gap: .7rem;
+    }
+    @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+    .card {
+      border: 1px solid var(--line); background: rgba(255,255,255,.55);
+      padding: .7rem .75rem;
+    }
+    .card h3 { margin-top: 0; }
+    .dir {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .78rem; line-height: 1.4;
+      background: #1e2430; color: #e8dcc4;
+      padding: .85rem .9rem; border: 2px solid var(--ink);
+      overflow: auto; white-space: pre;
+    }
+    .dir .brain { color: #9db7e8; }
+    .dir .doing { color: #9fd0a8; }
+    .dir .thing { color: #8ec0e8; }
+    .dir .c { color: #8a9bb0; }
+    .dir .hot { color: #e6c85c; }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.4); font-size: .9rem; margin: .4rem 0 1rem; }
+    th, td { border: 1px solid var(--line); padding: .45rem .55rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0,0,0,.06); }
+    .flow {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .4rem; margin: .5rem 0 1rem;
+    }
+    .flow .step {
+      border: 1px solid var(--ink); background: #fff; padding: .55rem .5rem;
+      min-height: 5.2rem;
+    }
+    .flow .step b {
+      display: block; font-size: .7rem; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--soft); margin-bottom: .2rem;
+    }
+    .note { color: var(--soft); font-size: .88rem; border-left: 3px solid var(--line); padding-left: .65rem; }
+    footer {
+      margin-top: 1.3rem; padding-top: .55rem; border-top: 1px solid var(--line);
+      color: var(--soft); font-size: .82rem;
+    }
+    code { font-size: .9em; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <a class="back" href="the-doing.html">← The Doing</a>
+    · <a class="back" href="the-doing-path.html">Hurdles &amp; path</a>
+    · <a class="back" href="atlas.html">Atlas</a>
+    · <a class="back" href="index.html">Level 0</a>
+
+    <header>
+      <h1>How you use The Doing</h1>
+      <div class="stamp">Ops guide<br />28 Aug 2026 · rev B</div>
+    </header>
+    <p class="lede">
+      Your use case: <b>open Cursor → ask for something</b> that might touch many hats and many environments.
+      You should almost <b>never touch folders yourself</b>. Front desk is usually in <b>Plan</b> mode.
+      One primary session decides; workers do jobs and report back. The pack is Cursor’s brain — including <b>zip &amp; go</b> to another machine from chat only.
+    </p>
+
+    <div class="callout">
+      <b>Hard rule for you:</b> talk to Front desk. Don’t create folders, rename trees, or “just tidy the disk.”
+      That is Janitor / Front desk work. Your job is wishes + decisions.
+    </div>
+
+    <!-- ========== SKELETON ========== -->
+    <h2 class="brain">1. What it looks like — the Cursor brain pack</h2>
+    <p>
+      One portable folder (name TBD; shown here as <code>cursor-brain</code>).
+      It sits beside your Things, or wraps them. It is <b>not</b> ScrivenGroup.
+      ScrivenGroup is a Thing. The brain is The Doing.
+    </p>
+
+    <div class="dir"><span class="brain">cursor-brain/</span>                 <span class="c">← portable pack = Cursor’s overall brain</span>
+  <span class="hot">BOOTSTRAP.md</span>               <span class="c">← how to open this on a new PC</span>
+  <span class="hot">README.md</span>                   <span class="c">← human entry: “how I work”</span>
+
+  <span class="doing">doing/</span>                       <span class="c">← school office / memory palace</span>
+    <span class="doing">handbook/</span>
+      WORDS.md                 <span class="c">← Product Ticket Board Hat Temp</span>
+      HATS.md                  <span class="c">← allowed / forbidden</span>
+      RITUAL.md                <span class="c">← open Cursor → ask → what happens</span>
+      AUTHORITY.md             <span class="c">← one primary boss; workers report back</span>
+      PLAN-SHAPE.md            <span class="c">← plans must be role-ticket shaped</span>
+      VOICE.md                 <span class="c">← ELI5 · bullets/tables · actions last · no user pep-talk</span>
+    <span class="doing">board/</span>
+      INDEX.md                 <span class="c">← what’s true right now</span>
+      THINGS.md                <span class="c">← list of worlds + status</span>
+      PRIMARY.md               <span class="c">← which chat/thread is Front desk now</span>
+    <span class="doing">tickets/</span>
+      open/                    <span class="c">← one file per ticket</span>
+      done/
+      reports/                 <span class="c">← worker → primary write-backs</span>
+    <span class="doing">housekeeping/</span>
+      CHECKLIST.md             <span class="c">← monthly review script</span>
+      LOG.md                   <span class="c">← what we cleaned / moved / why</span>
+    <span class="doing">portable/</span>
+      EXPORT.md                <span class="c">← “zip &amp; go” instructions for agents</span>
+      IMPORT.md                <span class="c">← new-machine paste prompt</span>
+
+  <span class="brain">.cursor/</span>                     <span class="c">← agents auto-read this when pack is the workspace</span>
+    rules/
+      00-doing-intake.mdc     <span class="c">← always: Front desk first</span>
+      05-authority.mdc         <span class="c">← workers ≠ new boss</span>
+      10-board-truth.mdc       <span class="c">← board beats chat memory</span>
+      20-no-user-disk.mdc      <span class="c">← don’t ask human to touch folders</span>
+      30-plan-by-hats.mdc      <span class="c">← plans list tickets by hat</span>
+      40-voice-eli5.mdc        <span class="c">← ELI5 · tables · actions last · spoon-feed</span>
+    skills/                    <span class="c">← optional pack skills (landscape, etc.)</span>
+
+  <span class="brain">templates/</span>
+    new-thing/                 <span class="c">← starter kit + design/standards stubs</span>
+      DESIGN.md                <span class="c">← intent locked by human; craft by agents</span>
+      STANDARDS.md             <span class="c">← tokens, icons, patterns (agent-proposed, human-locked)</span>
+
+  <span class="c">mudmap/</span>                      <span class="c">← optional copy of these teaching maps</span>
+
+<span class="thing"># Sibling Things (not inside the brain, but known to the board)</span>
+<span class="thing">scrivengroup/</span>                   <span class="c">← current Thing</span>
+<span class="thing">funds-forecaster/</span>               <span class="c">← other world / experiment</span>
+<span class="thing">gannt-chart/</span>                    <span class="c">← other world / experiment</span></div>
+
+    <div class="grid2" style="margin-top:.8rem">
+      <div class="card">
+        <h3>Brain pack does</h3>
+        <ul>
+          <li>Remembers the school rules</li>
+          <li>Holds the board + tickets</li>
+          <li>Forces intake behaviour</li>
+          <li>Owns housekeeping history</li>
+          <li>Travels to a new PC with you</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Brain pack does not</h3>
+        <ul>
+          <li>Replace a Thing’s own code rules (e.g. ScrivenGroup <code>PLATFORM.md</code>)</li>
+          <li>Store giant build artifacts</li>
+          <li>Be edited by hand as a hobby</li>
+          <li>Invent status the board doesn’t have</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="note">
+      Future-proof trick: Things can come and go. The brain pack stays.
+      A new computer = copy/clone the brain pack + open it → you’re pre-organised before the next Thing exists.
+    </p>
+
+    <!-- ========== DAILY USE ========== -->
+    <h2>2. How you use it day to day</h2>
+    <p>
+      <b>You open the brain pack as the Cursor workspace</b> (not a random subfolder), then you talk.
+      For Front desk, prefer <b>Plan mode</b> (not always — but default when steering).
+    </p>
+
+    <div class="flow">
+      <div class="step"><b>1. Open</b>Open <code>cursor-brain</code> (or campus root that includes it + Things).</div>
+      <div class="step"><b>2. Ask</b>Plain wish in Plan mode when steering.</div>
+      <div class="step"><b>3. Intake</b><b>Front desk</b> only. Reads handbook + board + PRIMARY.</div>
+      <div class="step"><b>4. Plan by hats</b>Ambiguous wishes → options per hat. You pick.</div>
+      <div class="step"><b>5. Dispatch</b>Worker chats get tickets. They report back; they don’t re-boss.</div>
+      <div class="step"><b>6. You decide</b>Intent + priorities only. Disk = agents.</div>
+    </div>
+
+    <h3>Plan mode must shape results as role-tickets</h3>
+    <p>
+      Vague wishes are often <b>multi-hat</b>. Front desk must not pick one silently.
+      Plans end as a table of proposed tickets: <b>Hat · Thing · Job · Done-when · Risks</b>.
+    </p>
+    <table>
+      <thead><tr><th>You say</th><th>Bad Front desk</th><th>Good Front desk (Plan)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>“Looks messy, please clean”</td>
+          <td>Starts deleting folders <i>or</i> redesigns the website without asking</td>
+          <td>
+            Offers options, e.g.<br />
+            <b>A · Janitor</b> — campus/disk + board harvest<br />
+            <b>B · Builder</b> — restructure Thing UI pages<br />
+            <b>C · Both</b> — two tickets, Janitor first<br />
+            You choose → tickets written
+          </td>
+        </tr>
+        <tr>
+          <td>“Make it feel more premium”</td>
+          <td>Rewrites random CSS in Plan chat</td>
+          <td>
+            <b>Reviewer/Front desk</b> — clarify intent (space, type, motion)<br />
+            <b>Builder</b> — apply against locked <code>STANDARDS.md</code><br />
+            Propose craft options; you lock intent
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <b>All planning chats (especially Front desk):</b> structure the output as hat-scoped tickets.
+      If a wish could be Janitor <i>or</i> Builder, show both. Never collapse ambiguity into one silent choice.
+    </div>
+
+    <h3>What “just ask” is allowed to mean</h3>
+    <table>
+      <thead><tr><th>You say</th><th>Front desk must do</th><th>Must not do</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>“Make the homepage prettier”</td>
+          <td>Name Thing · check STANDARDS · ticketize Builder (and Reviewer if needed)</td>
+          <td>Start rewriting CSS in the intake / Plan chat</td>
+        </tr>
+        <tr>
+          <td>“I have a new product idea”</td>
+          <td>Park on board · or propose <code>templates/new-thing</code> ticket</td>
+          <td>Spawn a random folder with a half app</td>
+        </tr>
+        <tr>
+          <td>“Everything feels messy”</td>
+          <td>Show hat options (disk vs UI vs both); then ticketize</td>
+          <td>Ask you to drag folders in Explorer</td>
+        </tr>
+        <tr>
+          <td>“Do the thing and also organise and also review”</td>
+          <td>Split into ≥2 tickets / hats; keep this chat as Primary</td>
+          <td>Wear all hats in one melting chat</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ========== AUTHORITY ========== -->
+    <h2>3. One primary boss — no session fights</h2>
+    <p>
+      Every new chat can feel like “I’m in charge now.” That causes fights: Session A decides X, Session B undoes X.
+      We kill that with an authority ladder.
+    </p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Who may decide</h3>
+        <ol>
+          <li><b>You</b> — intent, priorities, locks</li>
+          <li><b>Primary session</b> — Front desk (usually Plan). Writes tickets + board. Owns the thread of work.</li>
+          <li><b>Board / locked files</b> — beat any worker opinion</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Who may only do + report</h3>
+        <ul>
+          <li><b>Worker sessions</b> — Builder / Janitor / Reviewer</li>
+          <li>Execute <b>one ticket</b></li>
+          <li>Write a <b>report</b> back (<code>tickets/reports/</code> + board update)</li>
+          <li>Escalate blockers to Primary — never invent a new plan of record</li>
+        </ul>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Rule</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Primary is named</b></td>
+          <td><code>doing/board/PRIMARY.md</code> says which Front desk thread is live. Workers read it.</td>
+        </tr>
+        <tr>
+          <td><b>Workers are not bosses</b></td>
+          <td>A Builder must not rewrite campus structure, rename words, or open rival tickets “while here.”</td>
+        </tr>
+        <tr>
+          <td><b>Disagreement → board, not debate</b></td>
+          <td>If two sessions conflict, board + Primary win. Loser becomes a Janitor harvest or a new ticket proposal for Primary.</td>
+        </tr>
+        <tr>
+          <td><b>Report shape</b></td>
+          <td>Worker ends with: done / blocked · files touched · board rows updated · questions for Primary (not new doctrine).</td>
+        </tr>
+        <tr>
+          <td><b>Sub-agents</b></td>
+          <td>Errands inside one worker ticket. They die at the bell. They never become a second Primary.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <b>Iron rule:</b> Sub-sessions <i>do the job</i> and <i>report back</i> to the primary Front desk session.
+      They do not become the next new boss. If they need a decision, they stop and escalate.
+    </div>
+
+    <h3>When a worker chat starts</h3>
+    <ul>
+      <li>Paste / open the <b>ticket file</b> (law for this sitting).</li>
+      <li>Read PRIMARY + board row + Thing handbook if building.</li>
+      <li>Do only the ticket. No “while we’re here” doctrine.</li>
+      <li>Write report → update board → stop. Primary (or you) continues the story.</li>
+    </ul>
+
+    <!-- ========== AGENTS UNDERSTAND ========== -->
+    <h2>4. How agents understand the structure (without you nagging)</h2>
+    <p>Agents don’t “remember last month.” The pack is their memory and manners.</p>
+    <table>
+      <thead><tr><th>Mechanism</th><th>Job</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Rules</b> (<code>.cursor/rules</code>)</td>
+          <td>Auto-load. Intake, board truth, “don’t make the human touch disk.”</td>
+          <td>Inside brain pack</td>
+        </tr>
+        <tr>
+          <td><b>Handbook</b></td>
+          <td>Words, hats, ritual. Short. Locked.</td>
+          <td><code>doing/handbook/</code></td>
+        </tr>
+        <tr>
+          <td><b>Board + tickets</b></td>
+          <td>What’s true / what’s next. Forms, not vibes.</td>
+          <td><code>doing/board/</code>, <code>doing/tickets/</code></td>
+        </tr>
+        <tr>
+          <td><b>Thing rules</b></td>
+          <td>Product-specific law (stack, deploy, hubs).</td>
+          <td>Inside each Thing (e.g. ScrivenGroup)</td>
+        </tr>
+        <tr>
+          <td><b>Skills</b></td>
+          <td>Optional specialised manners (landscape maps, etc.).</td>
+          <td>Personal skills and/or pack skills</td>
+        </tr>
+        <tr>
+          <td><b>Mudmap</b></td>
+          <td>Teaches <i>you</i>; agents may read it but rules+board are law.</td>
+          <td>These HTML pages</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <b>Priority order for a temp:</b> ticket → PRIMARY → board → doing handbook → Thing handbook → chat history last.
+      If chat and board disagree, <b>board + Primary win</b> — then Janitor fixes the leftover story.
+    </div>
+
+    <!-- ========== DESIGN / THING CRAFT ========== -->
+    <h2>5. Consistency in The Thing (design, icons, standards)</h2>
+    <p>
+      You guide <b>intent / structure / function</b>. Agents bring craft from a world of knowledge —
+      but craft must land in <b>locked files</b>, or every Builder reinvents the look.
+    </p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>You lock</h3>
+        <ul>
+          <li>What the Thing is for</li>
+          <li>Structure (hubs, flows, what’s in/out)</li>
+          <li>Function requirements</li>
+          <li>Design <b>intent</b> (“calm”, “dense data”, “playful map”)</li>
+          <li>Which proposed standard wins when options are shown</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Agents propose &amp; implement</h3>
+        <ul>
+          <li>Best-practice patterns, a11y, layout systems</li>
+          <li>Icon set candidates, type scale, tokens</li>
+          <li>Component conventions</li>
+          <li>Write them into <code>STANDARDS.md</code> / design tokens</li>
+          <li>Builders obey locks; they don’t “improve” by silent drift</li>
+        </ul>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Layer</th><th>Where it lives</th><th>How it stays consistent</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Intent</b></td>
+          <td>Thing <code>DESIGN.md</code> (short, human-locked)</td>
+          <td>Front desk asks before changing intent</td>
+        </tr>
+        <tr>
+          <td><b>Standards</b></td>
+          <td>Thing <code>STANDARDS.md</code> + tokens/code</td>
+          <td>Agent proposes → you lock → Builders must match</td>
+        </tr>
+        <tr>
+          <td><b>Template seed</b></td>
+          <td>Brain <code>templates/new-thing/</code></td>
+          <td>New worlds start with empty-but-shaped DESIGN/STANDARDS stubs</td>
+        </tr>
+        <tr>
+          <td><b>Review</b></td>
+          <td>Reviewer hat ticket</td>
+          <td>“Does this match STANDARDS?” yes/no — not a redesign cosplay</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Agents can have the best ideas — that’s the point. The ritual is:
+      <b>propose → you lock → implement against the lock</b>.
+      Without the middle step, “best ideas” become session fights again.
+    </p>
+
+    <!-- ========== FUTURE PROOF + ZIP ========== -->
+    <h2>6. Future-proofing + zip &amp; go</h2>
+    <ul>
+      <li><b>Stable words</b> — never rename Product / Ticket / Board / Hat / Temp for fun.</li>
+      <li><b>Brain ≠ Thing</b> — product code never becomes the only place rules live.</li>
+      <li><b>Board schema stays boring</b> — add columns rarely; prefer new ticket types over clever formats.</li>
+      <li><b>Template for new Things</b> — birthing a world is a ticket using <code>templates/new-thing</code>, not a vibe folder.</li>
+      <li><b>Authority files travel with the pack</b> — PRIMARY, AUTHORITY, PLAN-SHAPE are part of the brain.</li>
+      <li><b>Version the ritual, not the lore</b> — housekeeping log records moves so future-you knows why.</li>
+    </ul>
+
+    <h3>Zip &amp; go (zero Explorer — chat only)</h3>
+    <p>
+      Goal: on machine A you type one prompt; on machine B you paste one prompt.
+      No manual zip UI, no “now open this folder and click…” beyond opening Cursor once.
+    </p>
+    <table>
+      <thead><tr><th>Machine</th><th>You type in chat</th><th>Agent does</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>A · Export</b></td>
+          <td><code>Zip and go</code></td>
+          <td>
+            Follow <code>doing/portable/EXPORT.md</code>:
+            freeze board note · package <code>cursor-brain</code> (and optional Thing list) into a single archive
+            in a known path · print a short <b>Import prompt</b> you can copy
+          </td>
+        </tr>
+        <tr>
+          <td><b>B · Import</b></td>
+          <td>Paste the Import prompt (from EXPORT) into a fresh Cursor chat</td>
+          <td>
+            Follow <code>IMPORT.md</code>: unpack · verify handbook/rules · set PRIMARY ·
+            open Mission Control summary · ask “ready for a new Thing?” —
+            still no human disk tourism
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      Getting the archive <i>across</i> machines (USB, cloud, email) is the only physics problem.
+      Ideal agent behaviour: produce the file + the pasteable prompt; you only move the file if the agent can’t reach cloud.
+      Prefer: agent uploads/downloads when credentials exist; otherwise one drag of a single zip is the maximum human disk touch — never a tree tour.
+    </p>
+
+    <h3>New Thing on the new machine</h3>
+    <ol>
+      <li>Import finishes (brain alive).</li>
+      <li>You say: “Start a new Thing called ___ using the template.”</li>
+      <li>Front desk (Plan) tickets it · Builder materialises from <code>templates/new-thing</code> · board gains a world row.</li>
+    </ol>
+
+    <!-- ========== HOUSEKEEPING ========== -->
+    <h2>7. +1 month review / clean / reorganise</h2>
+    <p>Housekeeping is a <b>scheduled Janitor job</b>, not a weekend of Explorer.</p>
+    <table>
+      <thead><tr><th>Cadence</th><th>You say</th><th>Agent does</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Weekly (light)</td>
+          <td>“Housekeeping light”</td>
+          <td>Harvest open chats leftovers → board; close stale tickets; no big moves</td>
+        </tr>
+        <tr>
+          <td>Monthly (real)</td>
+          <td>“Run monthly housekeeping”</td>
+          <td>Follow <code>housekeeping/CHECKLIST.md</code>; propose moves; wait for your yes; log in <code>LOG.md</code></td>
+        </tr>
+        <tr>
+          <td>Emergency mess</td>
+          <td>“Everything feels messy”</td>
+          <td>Same as monthly, but Front desk scopes first</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Monthly checklist (what the file will contain)</h3>
+    <ul>
+      <li>Are five words still stable?</li>
+      <li>Any tickets older than N days? park / kill / split</li>
+      <li>Any Thing folders not on <code>THINGS.md</code>? register or quarantine</li>
+      <li>Any board rows with no home on disk? fix or park</li>
+      <li>Experiments still experiments — or promote / archive</li>
+      <li>Update mudmap “you are here” + housekeeping LOG</li>
+      <li><b>No surprise reorg</b> — propose tree diff first; you approve; then execute</li>
+    </ul>
+
+    <!-- ========== YOU ARE HERE ========== -->
+    <h2>8. You are here</h2>
+    <div class="callout">
+      <ul style="margin:.2rem 0">
+        <li>Ops rev B+ locked: Plan-by-hats · one Primary · design locks · zip&amp;go · <b>ELI5 spoon-feed voice</b>.</li>
+        <li><b>Pack not created on disk yet.</b> When you say go, agents create <code>cursor-brain/</code> including AUTHORITY, PLAN-SHAPE, portable EXPORT/IMPORT.</li>
+        <li>Until then: use this page as the target picture; ScrivenGroup keeps its own Thing rules.</li>
+      </ul>
+    </div>
+
+    <footer>
+      The Doing · ops guide rev B · Plan-by-hats · one Primary · zip &amp; go · human intent, agent craft
+    </footer>
+  </div>
+</body>
+</html>

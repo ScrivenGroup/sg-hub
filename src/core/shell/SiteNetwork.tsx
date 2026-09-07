@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useId, useState } from "react";
 import type { RegistryNode } from "@/core/contracts/types";
 import { ShellModal } from "@/core/shell/ShellModal";
+import { SiteNetworkNestedList } from "@/core/shell/SiteNetworkTree";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 
 type Props = {
@@ -46,39 +47,35 @@ export function SiteNetwork({ hubs, childrenByHub, currentHref }: Props) {
             Close
           </button>
         </div>
-        <ul className="space-y-3">
-          <li>
+        <SiteNetworkNestedList
+          hubs={hubs}
+          childrenByHub={childrenByHub}
+          home={
             <MapLink
               href="/home"
               label="Home"
               current={currentHref === "/home"}
               onNavigate={onClose}
             />
-          </li>
-          {hubs.map((hub) => (
-            <li key={hub.id} className="space-y-1">
-              <MapLink
-                href={hub.href}
-                label={hub.title}
-                current={currentHref === hub.href}
-                onNavigate={onClose}
-              />
-              <ul className="ml-4 space-y-1 border-l border-[var(--border)] pl-3">
-                {(childrenByHub[hub.id] ?? []).map((child) => (
-                  <li key={child.id}>
-                    <MapLink
-                      href={child.href}
-                      label={child.title}
-                      current={currentHref === child.href}
-                      badge={child}
-                      onNavigate={onClose}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+          }
+          renderHub={(hub) => (
+            <MapLink
+              href={hub.href}
+              label={hub.title}
+              current={currentHref === hub.href}
+              onNavigate={onClose}
+            />
+          )}
+          renderChild={(child) => (
+            <MapLink
+              href={child.href}
+              label={child.title}
+              current={currentHref === child.href}
+              badge={child}
+              onNavigate={onClose}
+            />
+          )}
+        />
       </ShellModal>
     </>
   );

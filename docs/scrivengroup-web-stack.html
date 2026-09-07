@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ScrivenGroup web stack — 1 September 2026</title>
+  <style>
+    :root {
+      --ink: #3c3c3b;
+      --page: #f5f5f4;
+      --surface: #ffffff;
+      --muted: #6b6b69;
+      --border: #d4d4d2;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 2.25rem 1.25rem 4rem; }
+    header { margin-bottom: 1.75rem; }
+    h1 { font-size: 1.85rem; letter-spacing: -0.03em; margin: 0 0 0.4rem; }
+    h2 { font-size: 1.25rem; letter-spacing: -0.02em; margin: 2rem 0 0.75rem; }
+    h3 { font-size: 1.05rem; margin: 1.4rem 0 0.5rem; }
+    p { margin: 0 0 0.85rem; }
+    .lede { color: var(--muted); font-size: 0.95rem; }
+    .kicker { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+    .breath {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      font-weight: 600;
+    }
+    .meta { font-size: 0.88rem; color: var(--muted); }
+    .meta a { color: var(--ink); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.88rem;
+      margin: 0 0 1rem;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { background: #ececec; font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.86em;
+      background: #ececec;
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+    li { margin: 0.25rem 0; }
+    .note {
+      border-left: 3px solid var(--ink);
+      padding: 0.2rem 0 0.2rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      table, pre, .breath { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="kicker">Standalone brief · snapshot 1 September 2026</div>
+      <h1>ScrivenGroup web stack</h1>
+      <p class="lede">One-page human brief, then the comparison axes an agent should score. Do not treat planned items as shipped. Versions from <code>package.json</code> / <code>package-lock.json</code>.</p>
+      <p class="meta">
+        Live: <a href="https://app-scrivengroup-ebcdarc2cwbtcjaa.australiaeast-01.azurewebsites.net">app-scrivengroup</a> (Australia East)
+        · Intended domain: scriven.group
+        · Repo package: scrivengroup 0.1.0 (private)
+      </p>
+    </header>
+
+    <h2>ELI5</h2>
+    <p>ScrivenGroup is <strong>one office building</strong>, not a street of separate shops.</p>
+    <p>You enter through a locked front door. On the live site that door is <strong>Microsoft work login</strong>. On a developer laptop it can be a simple name box. Reception is Home. Four floors: <strong>Work</strong>, <strong>Projects</strong>, <strong>Internal</strong>, and <strong>System</strong>. Each product is a <strong>room on a floor</strong> — not its own building with its own paint and keys.</p>
+    <p>The building is <strong>Next.js</strong>: it draws the pages you see <em>and</em> does the back-office work (save a file, check a password) in the same program. <strong>React</strong> is how the pages are assembled. <strong>TypeScript</strong> is a spell-check so names and shapes stay consistent. <strong>Tailwind</strong> plus a few house colours (ink, page, surface) keep rooms looking like the same company. The typeface is <strong>Manrope</strong>.</p>
+    <p>When you change something, the server usually writes a <strong>JSON file</strong> into a folder on disk — a labelled folder in a filing cabinet. There is <strong>no production database in the app code yet</strong>. A Postgres host (<strong>Neon</strong>) is the planned upgrade; the connection string may already exist on Azure. That is a new records room, not knocking the building down.</p>
+    <p>The building sits on a rented plot in <strong>Australia East</strong>: <strong>Azure App Service</strong>, Linux, <strong>Node 20</strong>. Developers build on Windows, zip a ready-to-run copy, and upload it. Azure is told <strong>not</strong> to rebuild on arrival.</p>
+    <p class="breath">One app. One host. Files for now. Microsoft login. No extra UI kit. No second framework.</p>
+    <p class="note" style="margin-top:1rem">Metaphor map: building = the Next.js app · floors = /w /p /i /s · rooms = registry nodes · filing cabinet = data/*.json · landlord = Azure App Service · doorman = Auth.js + Entra.</p>
+
+    <h2>What a comparing agent should score</h2>
+    <p>Two sites can show the same hubs and still differ on every layer below the screenshot. Map the other product onto the left column. Do not infer a missing layer from a competing screenshot.</p>
+    <table>
+      <thead>
+        <tr><th>Axis</th><th>ScrivenGroup (factual)</th><th>Not this</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Product shape</td><td>Modular monolith. Four hubs (<code>/w</code> <code>/p</code> <code>/i</code> <code>/s</code>). Registry-driven IA</td><td>Microfrontends, multi-repo apps, WordPress multisite</td></tr>
+        <tr><td>Rendering</td><td>Next.js App Router: React Server Components, Server Actions, some Client Components. Node SSR. <code>output: "standalone"</code>. Not static export</td><td>Vite CSR SPA, Astro/Eleventy SSG-only, PHP templates, Blazor WASM</td></tr>
+        <tr><td>UI framework</td><td>React 19.1.0</td><td>Vue, Svelte, Angular, htmx, Razor, WordPress PHP</td></tr>
+        <tr><td>App framework</td><td>Next.js 15.5.23 App Router (not Pages Router)</td><td>Remix, Nuxt, SvelteKit, Django, Rails, ASP.NET MVC</td></tr>
+        <tr><td>Language</td><td>TypeScript 5, <code>strict: true</code>, target ES2017, path alias <code>@/*</code> → <code>src/*</code></td><td>Plain JS, Python, PHP, C#, Go</td></tr>
+        <tr><td>CSS</td><td>Tailwind CSS 4.3.3 + CSS custom properties. No MUI / shadcn / Radix / Bootstrap in dependencies</td><td>Component-library design systems, CSS-in-JS, SCSS toolchain</td></tr>
+        <tr><td>Typeface</td><td>Manrope via <code>next/font/google</code></td><td>System-only, Adobe Fonts, self-hosted kits</td></tr>
+        <tr><td>Validation</td><td>Zod 4.4.3 where forms/APIs need it</td><td>Yup, class-validator, none</td></tr>
+        <tr><td>Auth library</td><td>Auth.js (<code>next-auth</code> 5.0.0-beta.32)</td><td>Clerk, Cognito SDK, Passport-only, custom JWT</td></tr>
+        <tr><td>Identity provider (live)</td><td>Microsoft Entra ID (OIDC)</td><td>Google-only, Auth0, magic-link SaaS</td></tr>
+        <tr><td>Session</td><td>JWT session cookie (no Auth.js database adapter). <code>trustHost: true</code>. Custom page <code>/login</code></td><td>Server session store, Redis sessions</td></tr>
+        <tr><td>Extra auth doors</td><td><code>DEV_AUTH=true</code> Dev Login (local). MRT guest share-password (scoped to <code>/w/sunwater-mrt</code>)</td><td>Public unauthenticated app</td></tr>
+        <tr><td>Persistence now</td><td>Node <code>fs</code> JSON under <code>data/</code>. Guest MRT copies under <code>data/mrt-sandboxes/</code></td><td>Postgres/MySQL/Mongo in the running app</td></tr>
+        <tr><td>Persistence planned</td><td>Neon Postgres via <code>DATABASE_URL</code>. No Drizzle/Prisma/pg client in this repo today</td><td>“Already on Neon” is false</td></tr>
+        <tr><td>Hosting class</td><td>Azure App Service PaaS, Linux, Node 20 LTS, Australia East</td><td>Vercel, Netlify, Cloudflare Workers, AWS ECS/EKS, IIS, shared PHP</td></tr>
+        <tr><td>Azure names</td><td>RG <code>rg-scrivengroup</code>, app <code>app-scrivengroup</code></td><td>—</td></tr>
+        <tr><td>Runtime process</td><td><code>node server.js</code> from Next standalone output</td><td><code>next start</code> from source on the host, Oryx rebuild</td></tr>
+        <tr><td>Package manager</td><td>npm (<code>package-lock.json</code>)</td><td>pnpm, yarn, bun</td></tr>
+        <tr><td>Local dev</td><td><code>next dev --turbopack</code> → http://localhost:3000</td><td>Vite 5173, etc.</td></tr>
+        <tr><td>Images</td><td><code>next/image</code>; linux <code>sharp</code> injected at deploy prepare</td><td>Unoptimized <code>&lt;img&gt;</code> only</td></tr>
+        <tr><td>SEO</td><td><code>robots: { index: false, follow: false }</code></td><td>Public marketing index</td></tr>
+        <tr><td>Tests</td><td>No Jest / Vitest / Playwright / Cypress in package.json</td><td>—</td></tr>
+        <tr><td>CI/CD</td><td>No GitHub Actions. Agent-run zip deploy</td><td>GitHub Actions → Vercel</td></tr>
+        <tr><td>Observability</td><td>No Sentry / App Insights / analytics SDK</td><td>—</td></tr>
+        <tr><td>Queues / cache / realtime</td><td>None (no Redis, GraphQL, websocket lib)</td><td>—</td></tr>
+        <tr><td>Containers</td><td>No Dockerfile in repo</td><td>Kubernetes/Compose</td></tr>
+        <tr><td>i18n</td><td>English UI, <code>lang="en"</code></td><td>next-intl, etc.</td></tr>
+        <tr><td>Client state lib</td><td>None (React + server). No Redux / Zustand / TanStack Query</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Hobby hosting: prefer App Service Free F1 or Basic B1; do not take paid Azure Postgres Flexible Server at hobby cost. Neon (or Supabase) is the planned Postgres host, portable via <code>DATABASE_URL</code>.</p>
+
+    <h2>What actually runs</h2>
+    <h3>1. Browser</h3>
+    <ul>
+      <li>HTML from Next App Router (mostly Server Components).</li>
+      <li>Client JS only where <code>"use client"</code> is used.</li>
+      <li>CSS tokens: <code>--ink</code> #3c3c3b, <code>--page</code> #f5f5f4, surface, border, muted, RAG colours. Product hex codes colour <strong>badges only</strong> unless a ThemeContract exists.</li>
+      <li>Skip link, 44px targets, reduced-motion kill switch.</li>
+    </ul>
+    <h3>2. Next.js app (<code>src/</code>)</h3>
+    <table>
+      <thead><tr><th>Path</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/app/</code></td><td>Routes: /login, /home, /w/*, /p/*, /i/*, /s/*, api/auth/[...nextauth]</td></tr>
+        <tr><td><code>src/core/</code></td><td>Shell, registry, JSON store, feedback, access RAG</td></tr>
+        <tr><td><code>src/modules/</code></td><td>Product UI (sunwater-mrt, funds-forecaster, …)</td></tr>
+        <tr><td><code>src/auth.ts</code></td><td>Auth.js providers</td></tr>
+        <tr><td><code>src/auth.config.ts</code></td><td>JWT callbacks, authorized gate</td></tr>
+        <tr><td><code>src/middleware.ts</code></td><td>Auth.js middleware; matcher skips static assets</td></tr>
+      </tbody>
+    </table>
+    <p>Mutations use Next <strong>Server Actions</strong>, not a separate public REST API.</p>
+    <h3>3. Auth gate</h3>
+    <p>Allow <code>/login</code>, <code>/api/auth/*</code>, <code>/w/sunwater-mrt/guest</code>; otherwise require a session. MRT guests may only use <code>/w/sunwater-mrt</code> and children. Guest share expiry lives on the JWT.</p>
+    <p>Live env: <code>AUTH_SECRET</code>, <code>AUTH_URL</code>, Entra id/secret/issuer, <code>DEV_AUTH=false</code>. Local: <code>DEV_AUTH=true</code> enables Dev Login.</p>
+    <h3>4. Data</h3>
+    <p>JSON files, seed-merge into existing files, Zod schemas where module stores need them. Same types for demo and production so the store can graduate without a rewrite. <code>DATABASE_URL</code> may exist on App Service. <strong>No ORM and no Postgres client in source.</strong></p>
+    <h3>5. Build and deploy</h3>
+    <pre>npm run build          → next build (standalone)
+npm run deploy:prepare → copy .next/standalone + static + public; start = node server.js; linux sharp
+npm run deploy:zip     → zip with forward-slash paths (Linux Kudu)
+npm run deploy:azure   → az webapp deploy (Entra). SCM Basic Auth stays Off</pre>
+    <p>App Service: <code>SCM_DO_BUILD_DURING_DEPLOYMENT=false</code>, <code>ENABLE_ORYX_BUILD=false</code>, startup <code>node server.js</code>. Dev machine Windows. Host Linux x64. Publish-profile script is legacy.</p>
+    <h3>6. Tooling (dev-time only)</h3>
+    <p>ESLint 9 + eslint-config-next. PostCSS = Tailwind 4 plugin. No Prettier package.</p>
+
+    <h2>Locked product rules (not stack accidents)</h2>
+    <ol>
+      <li><strong>Extend this app only</strong> — no second Vite/CRA/Next repo, no parallel design system.</li>
+      <li><strong>Keep chrome</strong> — AppShell, Site network, Feedback, Profile, PageNav.</li>
+      <li><strong>Registry</strong> — Home cards, Site network, Definition maps come from RegistryNode in <code>src/core/registry/seed.ts</code>.</li>
+      <li><strong>Access</strong> — shared | restricted | per_user. <strong>Status</strong> — sketched | building | live. Sketched = featureless shell + changelog plan, no fake UI.</li>
+      <li><strong>Work hub is a studio</strong> — do not treat /w/ as the client’s production host.</li>
+      <li><strong>Guest demo</strong> is a share link, not a static HTML export of the Next app.</li>
+    </ol>
+
+    <h2>Dependency versions (locked-in-repo)</h2>
+    <table>
+      <thead><tr><th>Package</th><th>Version</th></tr></thead>
+      <tbody>
+        <tr><td>next</td><td>15.5.23</td></tr>
+        <tr><td>react / react-dom</td><td>19.1.0</td></tr>
+        <tr><td>next-auth</td><td>5.0.0-beta.32</td></tr>
+        <tr><td>zod</td><td>4.4.3</td></tr>
+        <tr><td>tailwindcss</td><td>4.3.3</td></tr>
+        <tr><td>typescript</td><td>^5</td></tr>
+        <tr><td>@types/node</td><td>^20</td></tr>
+        <tr><td>eslint</td><td>^9</td></tr>
+        <tr><td>eslint-config-next</td><td>15.5.23</td></tr>
+      </tbody>
+    </table>
+    <p>Azure runtime <strong>Node 20 LTS</strong>. TypeScript compile target <strong>ES2017</strong>.</p>
+
+    <h2>Do not advertise as present</h2>
+    <ul>
+      <li>Neon/Postgres, Drizzle, and <code>DATABASE_URL</code> usage in application code</li>
+      <li>Custom domain TLS on scriven.group (may need B1; can stay on *.azurewebsites.net)</li>
+      <li>Automated CI, test runner, error tracking, CDN product, Redis, GraphQL</li>
+      <li>Client Entra for external customer users on this host</li>
+    </ul>
+  </main>
+</body>
+</html>

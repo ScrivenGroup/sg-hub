@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 export default async function MtgBuylistKanbanPage() {
   const session = await auth();
   if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
-  redirect(`${MTG_BUYLIST_HREF}/development?tab=kanban`);
+  redirect(`${MTG_BUYLIST_HREF}/development?tab=all`);
 }

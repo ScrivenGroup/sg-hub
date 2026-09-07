@@ -7,7 +7,7 @@ alwaysApply: true
 
 This workspace is **one** Next.js hub (`scrivengroup`), not a folder of separate apps.
 
-Before building or framing a product module, read [`docs/PLATFORM.md`](docs/PLATFORM.md). Also use [`docs/MODULES.md`](docs/MODULES.md), [`docs/STANDARDS.md`](docs/STANDARDS.md), [`docs/intent/`](docs/intent/), [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md), and [`src/core/checklist.md`](src/core/checklist.md).
+Before building or framing a product module, read [`docs/PLATFORM.md`](docs/PLATFORM.md), [`docs/DEV_CHOICES.md`](docs/DEV_CHOICES.md), and [`docs/WEB_DEVELOPMENT.md`](docs/WEB_DEVELOPMENT.md). Also use [`docs/MODULES.md`](docs/MODULES.md), [`docs/STANDARDS.md`](docs/STANDARDS.md), [`docs/intent/`](docs/intent/), [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md), and [`src/core/checklist.md`](src/core/checklist.md).
 
 ## Hard constraints
 

@@ -1,0 +1,14 @@
+---
+description: Hub HTML/UI kit — React+Tailwind+SG, not my-site MD3, no third stack
+alwaysApply: true
+---
+
+# Hub web development
+
+Locked: `dc-web-stack`, `dc-leaf-cycle`, `dc-leaf-contract`, `dc-design-defaults`. Handbook: [`docs/WEB_DEVELOPMENT.md`](docs/WEB_DEVELOPMENT.md).
+
+- **New UI** = Next App Router + React + TS + Tailwind + SG tokens. No new Vite/CRA/Next repo. No MUI/shadcn/Bootstrap/MD3 on hub pages.
+- **Leaf cycle:** dummy → `sketched` shell + plan → `building` skeleton (same store types) → `live` → version **number + datetime**.
+- **Chrome:** `AppShell` (Home, Site network, Feedback → one register, Profile), `PageNav`. Starting classes: `sg-card`, `sg-btn-primary` / `secondary` / `ghost`, `sg-input`.
+- Hex = **badge only** unless a ThemeContract. Dialogs: viewport-capped (PLATFORM / EffortPopupShell).
+- How to take requests: product behaviour, not “edit the HTML file.”

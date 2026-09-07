@@ -39,8 +39,10 @@ export default async function MtgBuylistDevelopmentPage({
     <MtgBuylistChrome
       href={`${MTG_BUYLIST_HREF}/development`}
       title="Development"
-      intent="Release table, WIP plan, staff notes, Inbox ideas, and a KanBan snapshot of tickets. Notes are per login JSON until Neon. Inbox and KanBan share one leaf board."
+      intent="Release table, WIP plan, staff notes, Inbox, and a KanBan snapshot. Notes are per login until Neon. Inbox and KanBan share one leaf board."
       wide
+      hostKind={kind}
+      host={host}
     >
       <MtgBuylistDevelopment
         changelogs={changelogs}

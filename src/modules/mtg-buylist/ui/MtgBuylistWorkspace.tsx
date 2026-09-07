@@ -20,6 +20,8 @@ import {
   buildPmStreamRows,
   compareRowsCsv,
   formatRecovered,
+  manaBoxFilteredCsv,
+  manaBoxQtyForCompareFilter,
   RECOVERY_BAND_CHIPS,
   recoveryBand,
   recoveryBandClass,
@@ -36,6 +38,7 @@ import {
   type PriceSource,
 } from "../schema";
 import { CardNameCell } from "./CardNameCell";
+import { InfoTip } from "@/core/ui/InfoTip";
 
 function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -48,11 +51,13 @@ function readFileText(file: File): Promise<string> {
 function CollapsibleSection({
   id,
   title,
+  hint,
   defaultOpen,
   children,
 }: {
   id: string;
   title: string;
+  hint?: string;
   defaultOpen: boolean;
   children: ReactNode;
 }) {
@@ -74,15 +79,23 @@ function CollapsibleSection({
         sessionStorage.setItem(storageKey, next ? "1" : "0");
       }}
     >
-      <summary className="sticky top-14 z-20 cursor-pointer list-none border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 font-medium shadow-sm [&::-webkit-details-marker]:hidden">
+      <summary className="sticky top-14 z-20 cursor-pointer list-none border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2 font-medium shadow-sm [&::-webkit-details-marker]:hidden">
         <span className="inline-flex items-center gap-2">
           <span className="text-[var(--muted)]" aria-hidden>
             {open ? "▾" : "▸"}
           </span>
           {title}
+          {hint ? (
+            <span
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <InfoTip label={hint} />
+            </span>
+          ) : null}
         </span>
       </summary>
-      <div className="space-y-3 px-4 py-4">{children}</div>
+      <div className="space-y-3 px-4 py-3">{children}</div>
     </details>
   );
 }
@@ -103,7 +116,7 @@ function FileDropZone({
   const [dragOver, setDragOver] = useState(false);
   return (
     <label
-      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
+      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-4 py-3 text-center transition-colors ${
         disabled
           ? "cursor-not-allowed opacity-50"
           : "hover:border-[var(--ink)] hover:bg-[color-mix(in_srgb,var(--ink)_6%,transparent)]"
@@ -261,7 +274,24 @@ function toneClass(tone: StreamTone): string {
 }
 
 type StreamFilter = "all" | "sell" | "capped" | "skip";
-type CompareFilter = "all" | "sellable" | "capped" | "notfound" | "mate" | "playmantis";
+type CompareFilter =
+  | "all"
+  | "sellable"
+  | "capped"
+  | "notfound"
+  | "mate"
+  | "playmantis"
+  | "unsold";
+
+const COMPARE_FILTERS: { id: CompareFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "sellable", label: "Sellable" },
+  { id: "capped", label: "Want full" },
+  { id: "notfound", label: "Not found" },
+  { id: "mate", label: "Mate picklist" },
+  { id: "playmantis", label: "Playmantis picklist" },
+  { id: "unsold", label: "Not sold" },
+];
 
 function filterStreamRows(rows: StreamRow[], filter: StreamFilter): StreamRow[] {
   if (filter === "sell") {
@@ -281,6 +311,9 @@ function filterStreamRows(rows: StreamRow[], filter: StreamFilter): StreamRow[] 
 function filterCompareRows(rows: CompareRow[], filter: CompareFilter): CompareRow[] {
   if (filter === "mate") return rows.filter((r) => r.mateSell > 0);
   if (filter === "playmantis") return rows.filter((r) => r.playmantisSell > 0);
+  if (filter === "unsold") {
+    return rows.filter((r) => r.have - r.mateSell - r.playmantisSell > 0);
+  }
   if (filter === "sellable") return rows.filter((r) => r.sellable);
   if (filter === "capped") return rows.filter((r) => r.wantFull);
   if (filter === "notfound") return rows.filter((r) => r.notFound);
@@ -311,6 +344,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   } | null>(null);
   const [priceSource, setPriceSource] = useState<PriceSource>("tcgplayer");
   const [priceCurrency, setPriceCurrency] = useState("AUD");
+
+  useEffect(() => {
+    setStore(initialStore);
+  }, [initialStore.updatedAt]);
 
   const csvSets = useMemo(
     () => (store.csv ? uniqueSetCodes(store.csv.rows) : []),
@@ -361,7 +398,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   );
   const compareRows = useMemo(
     () =>
-      store.csv && store.resultCompare
+      store.csv && (store.playmantis || store.mate)
         ? buildCompareRows(
             store.csv.rows,
             store.mate?.offers || [],
@@ -369,7 +406,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             mateResolveOpts,
           )
         : [],
-    [store.csv, store.mate, store.playmantis, store.resultCompare, mateResolveOpts],
+    [store.csv, store.mate, store.playmantis, mateResolveOpts],
   );
 
   function confirmMateVariant(rowKey: string, mateUuid: string, currentlyConfirmed: boolean) {
@@ -453,6 +490,44 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     })();
   }
 
+  function missingIdCount(next: MtgBuylistStore): number {
+    return new Set(
+      (next.playmantis?.offers || [])
+        .filter((o) => o.missing)
+        .map((o) => o.scryfallId.trim().toLowerCase()),
+    ).size;
+  }
+
+  async function harvestPlaymantisLoop(opts: {
+    missingOnly: boolean;
+    label: string;
+    gapMs: number;
+  }): Promise<MtgBuylistStore | null> {
+    const skipIds: string[] = [];
+    let last: MtgBuylistStore | null = null;
+    while (true) {
+      const result = await harvestPlaymantisAction(skipIds, {
+        missingOnly: opts.missingOnly,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        setStatus("");
+        return null;
+      }
+      skipIds.push(...result.fetchedIds);
+      last = result.store;
+      setStore(result.store);
+      setStatus(
+        opts.missingOnly
+          ? `${opts.label} · ${result.remaining} left — leave this page alone`
+          : `${opts.label} ${result.done} / ${result.total} — leave this page alone`,
+      );
+      if (result.remaining <= 0) break;
+      await new Promise((resolve) => setTimeout(resolve, opts.gapMs));
+    }
+    return last;
+  }
+
   function confirmCsvUpload() {
     if (!pendingCsv) return;
     const currency = priceCurrency.trim().toUpperCase();
@@ -469,8 +544,19 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   }
 
   function uploadMateFile(file: File) {
+    const megabytes = file.size / (1024 * 1024);
+    if (file.size > 32 * 1024 * 1024) {
+      setError(
+        `Mate JSON is ${megabytes.toFixed(1)} MB — over the 32 MB upload limit.`,
+      );
+      return;
+    }
     setError("");
-    setStatus("Uploading Mate JSON… leave this page alone");
+    setStatus(
+      megabytes >= 4
+        ? `Uploading ${megabytes.toFixed(1)} MB Mate JSON… leave this page alone`
+        : "Uploading Mate JSON… leave this page alone",
+    );
     setBusy(true);
     void (async () => {
       try {
@@ -480,12 +566,29 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           method: "POST",
           body: form,
         });
-        const data = (await res.json()) as {
+        const raw = await res.text();
+        let data: {
           ok: boolean;
           error?: string;
           store?: MtgBuylistStore;
-          summary?: { offers: number; sets: number };
+          summary?: {
+            offers: number;
+            sets: number;
+            harvestedOffers?: number;
+            harvestedSets?: number;
+          };
         };
+        try {
+          data = JSON.parse(raw) as typeof data;
+        } catch {
+          setError(
+            res.status === 413
+              ? `Mate JSON is too large (${megabytes.toFixed(1)} MB) for this server.`
+              : `Mate upload failed (${res.status}).`,
+          );
+          setStatus("");
+          return;
+        }
         if (!data.ok) {
           setError(data.error || `Mate upload failed (${res.status})`);
           setStatus("");
@@ -494,7 +597,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         if (data.store) setStore(data.store);
         setStatus(
           data.summary
-            ? `Mate snapshot: ${data.summary.offers} offers across ${data.summary.sets} sets (image joins applied).`
+            ? data.summary.harvestedOffers &&
+              data.summary.harvestedOffers > data.summary.offers
+              ? `Mate snapshot: ${data.summary.offers} offers across ${data.summary.sets} CSV sets (kept from ${data.summary.harvestedOffers} in the harvest).`
+              : `Mate snapshot: ${data.summary.offers} offers across ${data.summary.sets} sets (image joins applied).`
             : "Mate JSON uploaded.",
         );
         router.refresh();
@@ -534,6 +640,14 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
 
   return (
     <div className="space-y-4" aria-busy={busy}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div role="tablist" aria-label="Runs" className="flex flex-wrap">
+          <button type="button" role="tab" aria-selected className="sg-tab">
+            This run
+          </button>
+        </div>
+        <InfoTip label="This run is the only slot today. Parallel runs (several independent CSV/harvest sessions) are a future idea — logged in this leaf’s Inbox." />
+      </div>
       {busy ? <BusyOverlay status={status} /> : null}
       {error ? (
         <p className="sg-card border-[var(--rag-red)] text-sm" role="alert">
@@ -542,22 +656,23 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       ) : null}
       {!busy ? <LoadingBanner status={status} pending={pending} /> : null}
 
-      <CollapsibleSection id="csv" title="1. ManaBox CSV" defaultOpen>
+      <CollapsibleSection
+        id="csv"
+        title="1. ManaBox CSV"
+        hint="Shared input for every store. Purchase price comes from the CSV; ManaBox source (CK / TCGPlayer / Scryfall) is asked once per upload."
+        defaultOpen
+      >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
-            className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-4 text-sm font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
+            style={{ minHeight: "var(--sg-btn-height)" }}
             disabled={pending || busy}
             onClick={() => run(() => clearBuylistRunAction(), "Clearing run…")}
           >
             Clear this run
           </button>
         </div>
-        <p className="text-sm text-[var(--muted)]">
-          Shared input for every store stream. Stored as this run only — not a second card database.
-          Purchase price comes from the CSV; the ManaBox price source (CK / TCGPlayer / Scryfall)
-          is not in the file, so we ask once per upload.
-        </p>
         <FileDropZone
           accept=".csv,text/csv"
           disabled={pending || busy}
@@ -613,29 +728,19 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         ) : null}
         {store.csv ? (
           <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-            <p className="text-sm text-[var(--muted)]">
+            <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
               <CsvFilenameLink
                 filename={store.csv.filename}
                 csvText={manaBoxRowsToCsv(store.csv.rows)}
               />
-              : {store.csv.rows.length} printings, {csvSets.length} sets.
-              Uploaded {new Date(store.csv.uploadedAt).toLocaleString()}. Price basis:{" "}
-              {PRICE_SOURCE_LABELS[store.csv.priceSource]} ·{" "}
-              {store.csv.priceCurrency || "currency unknown"}.{" "}
-              {store.csv.rows.some((r) => (r.frameEffects || []).length > 0) ? (
-                <>
-                  Scryfall treatments on{" "}
-                  {store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/
-                  {store.csv.rows.length} (Extended Art / borderless / showcase used for Mate
-                  auto-match).
-                </>
-              ) : (
-                <>
-                  No Scryfall treatments yet — use{" "}
-                  <strong>Refresh Scryfall treatments</strong> so Extended Art can auto-match
-                  (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis).
-                </>
-              )}
+              · {store.csv.rows.length} printings · {csvSets.length} sets
+              <InfoTip
+                label={`${new Date(store.csv.uploadedAt).toLocaleString()}. Price basis: ${PRICE_SOURCE_LABELS[store.csv.priceSource]} · ${store.csv.priceCurrency || "currency unknown"}. ${
+                  store.csv.rows.some((r) => (r.frameEffects || []).length > 0)
+                    ? `Scryfall treatments on ${store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/${store.csv.rows.length} (used for Mate auto-match).`
+                    : "No Scryfall treatments yet — Refresh Scryfall treatments so Extended Art can auto-match (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis)."
+                }`}
+              />
             </p>
             <button
               type="button"
@@ -653,48 +758,81 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection id="pm" title="2. Playmantis stream" defaultOpen={Boolean(store.csv)}>
-        <p className="text-sm text-[var(--muted)]">
-          Harvest Playmantis alone. Same lookup as their CSV import: Scryfall ID tag search,
-          then that product — no name or set guessing. Remaining want is 4 minus listed stock
-          (already at max shows as want 0, grey). Each harvest re-checks stock so want stays
-          current. Re-click also retries empties. Batches of 8; this button loops until done.
-        </p>
-        <button
-          type="button"
-          className="sg-btn-primary disabled:opacity-50"
-          disabled={pending || busy || !store.csv}
-          onClick={() => {
-            void (async () => {
-              setError("");
-              setBusy(true);
-              const skipIds: string[] = [];
-              setStatus("Harvesting Playmantis… leave this page alone");
-              try {
-                while (true) {
-                  const result = await harvestPlaymantisAction(skipIds);
-                  if (!result.ok) {
-                    setError(result.error);
-                    setStatus("");
-                    return;
+      <CollapsibleSection
+        id="pm"
+        title="2. Playmantis stream"
+        hint="Scryfall ID tag first. Empty tag page uses their on-site title search (`title:*word*`) and binds the same name (prefers your set). Want = 4 minus listed stock. Harvest then retries not-found IDs slower (keeps cards already found). Leave the page alone while it runs."
+        defaultOpen={Boolean(store.csv)}
+      >
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="sg-btn-primary disabled:opacity-50"
+            disabled={pending || busy || !store.csv}
+            onClick={() => {
+              void (async () => {
+                setError("");
+                setBusy(true);
+                setStatus("Harvesting Playmantis… leave this page alone");
+                try {
+                  const after = await harvestPlaymantisLoop({
+                    missingOnly: false,
+                    label: "Harvesting Playmantis",
+                    gapMs: 400,
+                  });
+                  if (!after) return;
+                  const stillMissing = missingIdCount(after);
+                  if (stillMissing > 0) {
+                    setStatus(
+                      `Retrying ${stillMissing} unfound — slower pass, leave this page alone`,
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 1500));
+                    const retried = await harvestPlaymantisLoop({
+                      missingOnly: true,
+                      label: "Retrying unfound",
+                      gapMs: 1200,
+                    });
+                    if (!retried) return;
                   }
-                  skipIds.push(...result.fetchedIds);
-                  setStore(result.store);
-                  setStatus(
-                    `Playmantis ${result.done} / ${result.total} — leave this page alone`,
-                  );
-                  if (result.remaining <= 0) break;
+                  setStatus("Playmantis harvest finished.");
+                  router.refresh();
+                } finally {
+                  setBusy(false);
                 }
-                setStatus("Playmantis harvest finished.");
-                router.refresh();
-              } finally {
-                setBusy(false);
-              }
-            })();
-          }}
-        >
-          Harvest Playmantis
-        </button>
+              })();
+            }}
+          >
+            Harvest Playmantis
+          </button>
+          <button
+            type="button"
+            className="sg-btn-secondary disabled:opacity-50"
+            disabled={pending || busy || !store.csv || pmMissing === 0}
+            onClick={() => {
+              void (async () => {
+                setError("");
+                setBusy(true);
+                setStatus(
+                  `Retrying ${pmMissing} unfound — leave this page alone`,
+                );
+                try {
+                  const retried = await harvestPlaymantisLoop({
+                    missingOnly: true,
+                    label: "Retrying unfound",
+                    gapMs: 1200,
+                  });
+                  if (!retried) return;
+                  setStatus("Unfound retry finished.");
+                  router.refresh();
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+          >
+            Retry not found
+          </button>
+        </div>
         <p className="mt-3 text-sm text-[var(--muted)]">
           Looked up {pmDone} / {pmTotal} Scryfall IDs
           {store.playmantis
@@ -728,11 +866,12 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         )}
       </CollapsibleSection>
 
-      <CollapsibleSection id="mate" title="3. MTGMate stream" defaultOpen={Boolean(store.csv)}>
-        <p className="text-sm text-[var(--muted)]">
-          Harvest Mate alone (console script + JSON upload). Large files use the upload API.
-          Ambiguous bare-name printings are joined by exact image match to Scryfall when possible.
-        </p>
+      <CollapsibleSection
+        id="mate"
+        title="3. MTGMate stream"
+        hint="Harvest Mate alone (console script + JSON upload). Large files use the upload API. Ambiguous printings are joined by exact image match to Scryfall when possible."
+        defaultOpen={Boolean(store.csv)}
+      >
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -815,16 +954,16 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           accept=".json,.customization,application/json"
           disabled={pending || busy || !store.csv}
           label="Choose Mate harvest JSON or drop it here"
-          hint="Click this box — .json / .customization (runs image joins after upload)"
+          hint="Click this box — full Mate harvest JSON is OK (tens of MB; leave the tab open)"
           onFile={uploadMateFile}
         />
         {store.mate ? (
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-sm text-[var(--muted)]">
-              Mate snapshot: {store.mate.offers.length} rows, sets{" "}
-              {store.mate.sets.join(", ") || "—"} ({store.mate.source}) ·{" "}
-              {new Date(store.mate.harvestedAt).toLocaleString()}. Image joins:{" "}
-              {Object.keys(store.mateImageLinks || {}).length} Mate printings linked to Scryfall.
+            <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
+              Mate snapshot · {store.mate.offers.length} rows
+              <InfoTip
+                label={`Sets ${store.mate.sets.join(", ") || "—"} (${store.mate.source}). ${new Date(store.mate.harvestedAt).toLocaleString()}. Image joins: ${Object.keys(store.mateImageLinks || {}).length} Mate printings linked to Scryfall.`}
+              />
             </p>
             <button
               type="button"
@@ -869,32 +1008,42 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="compare"
         title="4. Compare stores"
-        defaultOpen={Boolean(store.resultCompare)}
+        hint="Works with one store or both. Who wins, how many to pull (Sell), and winner Gain %. Confirm Mate printings in the Mate stream first. Filter tabs each export as compare CSV or a ManaBox template of that filter."
+        defaultOpen={Boolean(store.playmantis || store.mate)}
       >
-        <p className="text-sm text-[var(--muted)]">
-          Every CSV card: who wins, how many to pull (Sell), and winner Gain %. Confirm Mate
-          printings in the Mate stream first — Compare then collapses to one row. Hover O = owned.
-        </p>
-        {store.resultCompare && compareRows.length ? (
+        {compareRows.length ? (
           <CompareTable
             rows={compareRows}
             filter={compareFilter}
             onFilter={setCompareFilter}
-            mateCredit={store.resultCompare.totals.mateCreditCents}
-            mateCash={store.resultCompare.totals.mateCashCents}
-            pmCredit={store.resultCompare.totals.playmantisCreditCents}
+            mateCredit={store.resultCompare?.totals.mateCreditCents ?? 0}
+            mateCash={store.resultCompare?.totals.mateCashCents ?? 0}
+            pmCredit={store.resultCompare?.totals.playmantisCreditCents ?? 0}
             priceSource={store.csv?.priceSource}
             priceCurrency={store.csv?.priceCurrency}
-            onDownload={() => {
+            csvFilename={store.csv?.filename || "manabox.csv"}
+            onExportCsv={() => {
               downloadText(
-                "mtg-buylist-compare.csv",
+                `mtg-buylist-compare-${compareFilter}.csv`,
                 compareRowsCsv(filterCompareRows(compareRows, compareFilter)),
+              );
+            }}
+            onExportManaBox={() => {
+              const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
+              const subset = filterCompareRows(compareRows, compareFilter);
+              downloadText(
+                `${stem}-${compareFilter}-manabox.csv`,
+                manaBoxFilteredCsv(
+                  store.csv?.rows || [],
+                  subset,
+                  manaBoxQtyForCompareFilter(compareFilter),
+                ),
               );
             }}
           />
         ) : (
           <p className="text-sm text-[var(--muted)]">
-            Compare activates when two or more stores are harvested.
+            Harvest Playmantis or upload Mate to use filters and exports here.
           </p>
         )}
       </CollapsibleSection>
@@ -914,7 +1063,9 @@ function FilterChip({
   return (
     <button
       type="button"
-      className={active ? "sg-btn-primary text-sm" : "sg-btn-ghost text-sm"}
+      role="tab"
+      aria-selected={active}
+      className="sg-tab"
       onClick={onClick}
     >
       {label}
@@ -933,11 +1084,13 @@ function PriceBasisNote({
   const cur = (currency || "").trim().toUpperCase() || "unknown";
   const fx = cur !== "AUD" && cur !== "unknown";
   return (
-    <p className="mb-2 text-xs text-[var(--muted)]">
-      Price basis: {src} · {cur}. Recovered % = store credit ÷ ManaBox listed
-      {fx
-        ? `. Listed is ${cur}; store credit is AUD — recovered % is not FX-adjusted.`
-        : "."}
+    <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
+      {src} · {cur}
+      <InfoTip
+        label={`Price basis: ${src} · ${cur}. Recovered % = store credit ÷ ManaBox listed${
+          fx ? `. Listed is ${cur}; store credit is AUD — recovered % is not FX-adjusted.` : "."
+        }`}
+      />
     </p>
   );
 }
@@ -1004,7 +1157,7 @@ function StreamTable({
           Download CSV
         </button>
       </div>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2" role="tablist" aria-label="Row filter">
         <FilterChip active={filter === "all"} label="All" onClick={() => onFilter("all")} />
         <FilterChip active={filter === "sell"} label="Sellable" onClick={() => onFilter("sell")} />
         <FilterChip
@@ -1018,15 +1171,15 @@ function StreamTable({
           onClick={() => onFilter("skip")}
         />
       </div>
-      <p className="sticky top-12 z-10 mb-2 rounded bg-[var(--surface)] py-1 text-xs font-medium text-[var(--muted)]">
-        Showing {filterLabel} · {visible.length} of {rows.length} rows
-      </p>
-      <p className="mb-2 text-xs text-[var(--muted)]">
-        Green = sellable · grey = matched but the want qty is full · amber = not found
-        {mode === "mate"
-          ? " · amber+ = ambiguous Mate — Confirm the printing you own · Wrong printing reopens variants"
-          : ""}
-        . Hover O = owned, S = store match.
+      <p className="sticky top-12 z-10 mb-2 flex flex-wrap items-center gap-1.5 rounded bg-[var(--surface)] py-1 text-xs font-medium text-[var(--muted)]">
+        Showing {filterLabel} · {visible.length} of {rows.length}
+        <InfoTip
+          label={`Green = sellable · grey = want full · amber = not found${
+            mode === "mate"
+              ? " · amber+ = ambiguous Mate — Confirm the printing you own · Wrong printing reopens variants"
+              : ""
+          }. Hover O = owned, S = store match.`}
+        />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RecoveryLegend />
@@ -1230,7 +1383,9 @@ function CompareTable({
   pmCredit,
   priceSource,
   priceCurrency,
-  onDownload,
+  csvFilename,
+  onExportCsv,
+  onExportManaBox,
 }: {
   rows: CompareRow[];
   filter: CompareFilter;
@@ -1240,7 +1395,9 @@ function CompareTable({
   pmCredit: number;
   priceSource?: PriceSource;
   priceCurrency?: string;
-  onDownload: () => void;
+  csvFilename: string;
+  onExportCsv: () => void;
+  onExportManaBox: () => void;
 }) {
   const visible = filterCompareRows(rows, filter);
   const putAside = rows.filter((r) => r.putAside);
@@ -1266,41 +1423,29 @@ function CompareTable({
         </div>
       </dl>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          <FilterChip active={filter === "all"} label="All" onClick={() => onFilter("all")} />
-          <FilterChip
-            active={filter === "sellable"}
-            label="Sellable"
-            onClick={() => onFilter("sellable")}
-          />
-          <FilterChip
-            active={filter === "capped"}
-            label="Want full"
-            onClick={() => onFilter("capped")}
-          />
-          <FilterChip
-            active={filter === "notfound"}
-            label="Not found"
-            onClick={() => onFilter("notfound")}
-          />
-          <FilterChip
-            active={filter === "mate"}
-            label="Mate picklist"
-            onClick={() => onFilter("mate")}
-          />
-          <FilterChip
-            active={filter === "playmantis"}
-            label="Playmantis picklist"
-            onClick={() => onFilter("playmantis")}
-          />
+        <div className="flex flex-wrap" role="tablist" aria-label="Compare filter">
+          {COMPARE_FILTERS.map((f) => (
+            <FilterChip
+              key={f.id}
+              active={filter === f.id}
+              label={f.label}
+              onClick={() => onFilter(f.id)}
+            />
+          ))}
         </div>
-        <button type="button" className="sg-btn-secondary" onClick={onDownload}>
-          Download CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
+            Export CSV
+          </button>
+          <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
+            ManaBox template
+          </button>
+          <InfoTip label="Exports use the selected filter. CSV is this compare table. ManaBox keeps the original columns: Have for All / Want full / Not found; Sell qty for Sellable; Mate or Playmantis Sell for those picklists; leftover Have for Not sold." />
+        </div>
       </div>
-      <p className="mb-2 text-xs text-[var(--muted)]">
-        Who wins, how many to pull from the pile (Sell), and whether Sell &lt; Have. Confirm Mate
-        printings in the Mate stream — Compare then shows one row. Hover O = owned only.
+      <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
+        {csvFilename}
+        <InfoTip label="Who wins, how many to pull (Sell), and whether Sell < Have. Confirm Mate printings in the Mate stream. Hover O = owned. ManaBox exports keep original columns; quantity is this table’s Sell (or leftover Have for not sold — re-import into ManaBox)." />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RecoveryLegend />
@@ -1334,11 +1479,10 @@ function CompareTable({
 
       {putAside.length ? (
         <div className="mt-6 border-t border-[var(--border)] pt-4">
-          <h3 className="mb-1 text-sm font-medium">Put aside for future value</h3>
-          <p className="mb-3 text-xs text-[var(--muted)]">
-            Money cards (either store credit ≥ $2) that are not sellable right now — want full,
-            not found, or Mate printing still needs confirm in the Mate stream.
-          </p>
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+            Put aside
+            <InfoTip label="Money cards (either store credit ≥ $2) that are not sellable right now — want full, not found, or Mate printing still needs confirm in the Mate stream." />
+          </h3>
           <ul className="space-y-1 text-sm">
             {putAside.map((row, i) => (
               <li

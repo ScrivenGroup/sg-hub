@@ -40,6 +40,7 @@ yarn-error.log*
 # Azure deploy package
 /.azure-deploy
 /scrivengroup-deploy.zip
+scrivengroup-deploy*.zip
 *.deploy.zip
 *.PublishSettings
 *.publishsettings

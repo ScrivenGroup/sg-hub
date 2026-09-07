@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { submitFeedbackAction } from "@/core/feedback/actions";
 import { ShellModal } from "@/core/shell/ShellModal";
+import { defaultKanbanNodeIdFromHref, kanbanLeafOptions } from "@/core/kanban/leaves";
+import { LeafTagSelect } from "@/core/kanban/ui/LeafTagSelect";
 
 export function FeedbackCapture() {
   const pathname = usePathname();
@@ -11,9 +13,12 @@ export function FeedbackCapture() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageTitle, setPageTitle] = useState("");
+  const [kind, setKind] = useState("bug");
+  const [leafTag, setLeafTag] = useState("");
   const [pending, startTransition] = useTransition();
   const titleId = useId();
   const onClose = useCallback(() => setOpen(false), []);
+  const leafOptions = kanbanLeafOptions();
 
   useEffect(() => {
     setPageTitle(document.title);
@@ -22,6 +27,8 @@ export function FeedbackCapture() {
   function openCapture() {
     setSent(false);
     setError(null);
+    setKind("bug");
+    setLeafTag(defaultKanbanNodeIdFromHref(pathname));
     setOpen(true);
   }
 
@@ -99,7 +106,8 @@ export function FeedbackCapture() {
               <select
                 name="kind"
                 className="sg-input mt-1"
-                defaultValue="bug"
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
               >
                 <option value="bug">Bug</option>
                 <option value="idea">Idea</option>
@@ -107,6 +115,16 @@ export function FeedbackCapture() {
                 <option value="other">Other</option>
               </select>
             </label>
+            {kind === "idea" ? (
+              <>
+                <input type="hidden" name="tagNodeId" value={leafTag} />
+                <LeafTagSelect
+                  value={leafTag}
+                  onChange={setLeafTag}
+                  options={leafOptions}
+                />
+              </>
+            ) : null}
             <label className="block text-sm font-medium">
               Message
               <textarea

@@ -5,21 +5,30 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShellModal } from "@/core/shell/ShellModal";
 import { addInboxNoteAction } from "../actions";
+import type { KanbanLeafOption } from "../leaves";
+import { LeafTagSelect } from "./LeafTagSelect";
 
 export function RaiseIdeaButton({
   nodeId,
   revalidateHref,
   inboxHref,
+  leafOptions,
+  defaultTagNodeId,
+  triggerClassName = "sg-btn-primary",
 }: {
   nodeId: string;
   revalidateHref: string;
   inboxHref: string;
+  leafOptions: KanbanLeafOption[];
+  defaultTagNodeId: string;
+  triggerClassName?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [tagNodeId, setTagNodeId] = useState(defaultTagNodeId);
   const [flash, setFlash] = useState("");
   const [savedId, setSavedId] = useState<string | null>(null);
 
@@ -27,9 +36,14 @@ export function RaiseIdeaButton({
     setOpen(false);
   }
 
+  function openModal() {
+    setTagNodeId(defaultTagNodeId);
+    setOpen(true);
+  }
+
   return (
     <>
-      <button type="button" className="sg-btn-primary" onClick={() => setOpen(true)}>
+      <button type="button" className={triggerClassName} onClick={openModal}>
         Raise an idea
       </button>
       {flash ? (
@@ -51,6 +65,7 @@ export function RaiseIdeaButton({
         </h2>
         <p className="mb-3 text-sm text-[var(--muted)]">
           Raw observation. Not a ticket. Lands in Inbox until a session splits it into tickets.
+          Tag is which leaf (or Global) owns the note — not a swimlane.
         </p>
         <input
           className="sg-input mb-2"
@@ -59,10 +74,15 @@ export function RaiseIdeaButton({
           onChange={(e) => setTitle(e.target.value)}
         />
         <textarea
-          className="sg-input min-h-32"
+          className="sg-input mb-2 min-h-32"
           placeholder="Details — as messy as you need"
           value={body}
           onChange={(e) => setBody(e.target.value)}
+        />
+        <LeafTagSelect
+          value={tagNodeId}
+          onChange={setTagNodeId}
+          options={leafOptions}
         />
         <div className="mt-3 flex gap-2">
           <button
@@ -74,6 +94,7 @@ export function RaiseIdeaButton({
                 const result = await addInboxNoteAction(nodeId, revalidateHref, {
                   title,
                   body,
+                  tagNodeId,
                 });
                 if (!result.ok) {
                   setFlash(result.error);

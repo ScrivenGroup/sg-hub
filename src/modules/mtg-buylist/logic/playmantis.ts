@@ -1,12 +1,12 @@
 import type { PlaymantisOffer } from "../schema";
-import { decodeHtmlEntities } from "./names";
+import { decodeHtmlEntities, normalizeCardName, normalizeFinish } from "./names";
 
 const SEARCH_BASE = "https://playmantis.com.au/search";
-/** Same cadence as Playmantis’s own ManaBox CSV import. */
+/** Same cadence as Playmantis’s own ManaBox CSV import, plus a pause after every batch so chained server actions don’t fire back-to-back. */
 const IMPORT_BATCH_SIZE = 8;
-const IMPORT_BATCH_DELAY_MS = 200;
+const IMPORT_BATCH_DELAY_MS = 400;
+const IMPORT_MAX_PAGES_PER_NAME = 3;
 const MAX_RETRIES = 2;
-const NAME_FALLBACK_PAGES = 3;
 const DEFAULT_MAX_BUY_QTY = 4;
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -20,8 +20,11 @@ export function playmantisSearchUrl(scryfallId: string): string {
 
 export function playmantisNameSearchUrl(name: string, page?: number): string {
   const term = name.replace(/['’.,\\/#-]/g, " ").replace(/\s+/g, " ").trim();
+  let words = term.split(" ").filter((w) => w.length > 1);
+  if (words.length === 0) words = term.split(" ").filter(Boolean);
+  const titleClauses = words.map((w) => `title:*${w}*`).join(" AND ");
   const params = new URLSearchParams();
-  params.append("q", `tag:buylist ${term}`);
+  params.append("q", `tag:buylist AND (${titleClauses})`);
   params.append("type", "product");
   const base = `${SEARCH_BASE}?${params.toString()}&view=buylist-custom`;
   return page && page > 1 ? `${base}&page=${page}` : base;
@@ -30,9 +33,36 @@ export function playmantisNameSearchUrl(name: string, page?: number): string {
 const SCRYFALL_UUID =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-type ParsedOffer = PlaymantisOffer & { taggedId: string };
+type ParsedOffer = PlaymantisOffer & { taggedId: string; imageId: string };
 
-/** Search `view=buylist-custom` omits data-scryfall-id and data-buylist-limit. Collection pages have both. */
+/** Search HTML: a hit has cards; a genuine miss still has the buylist grid; anything else is a flake / challenge. */
+export function classifyBuylistSearchHtml(html: string): "hit" | "empty" | "blocked" {
+  if (!html.trim()) return "blocked";
+  if (/<div class="buylist-card"/i.test(html)) return "hit";
+  if (/id=["']buylist-grid-container["']/i.test(html)) return "empty";
+  return "blocked";
+}
+
+function gridHtml(html: string): string {
+  const idAt = html.search(/id=["']buylist-grid-container["']/i);
+  if (idAt < 0) return "";
+  const fromDiv = html.lastIndexOf("<div", idAt);
+  const pagAt = html.search(/id=["']buylist-pagination["']/i);
+  return html.slice(fromDiv >= 0 ? fromDiv : idAt, pagAt >= 0 ? pagAt : html.length);
+}
+
+function maxPageFromHtml(html: string): number {
+  let maxPage = 1;
+  const re = /[?&]page=(\d+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html))) {
+    const p = Number(match[1]);
+    if (Number.isFinite(p) && p > maxPage) maxPage = p;
+  }
+  return maxPage;
+}
+
+/** Search `view=buylist-custom` omits data-scryfall-id; collection pages have it. Image filename is the same UUID. */
 export function parsePlaymantisHtml(
   html: string,
   fetchedAt: string,
@@ -48,15 +78,17 @@ function parsePlaymantisCards(
   fallbackScryfallId = "",
 ): ParsedOffer[] {
   const offers: ParsedOffer[] = [];
-  const cardStarts = [...html.matchAll(/<div class="buylist-card"([^>]*)>/g)];
+  const scope = gridHtml(html) || html;
+  const cardStarts = [...scope.matchAll(/<div class="buylist-card"([^>]*)>/g)];
   for (let i = 0; i < cardStarts.length; i++) {
     const attrs = cardStarts[i][1] || "";
     const start = cardStarts[i].index ?? 0;
-    const end = i + 1 < cardStarts.length ? (cardStarts[i + 1].index ?? html.length) : html.length;
-    const chunk = html.slice(start, end);
+    const end = i + 1 < cardStarts.length ? (cardStarts[i + 1].index ?? scope.length) : scope.length;
+    const chunk = scope.slice(start, end);
     const title = decodeHtmlEntities(attr(attrs, "data-title"));
     const taggedId = attr(attrs, "data-scryfall-id").trim();
-    const scryfallId = taggedId || scryfallFromChunk(chunk) || fallbackScryfallId.trim();
+    const imageId = scryfallFromChunk(chunk);
+    const scryfallId = taggedId || imageId || fallbackScryfallId.trim();
     const imageUrl = imageFromChunk(chunk);
     const setName = setFromChunk(chunk);
     const maxBuyRaw = Number(attr(attrs, "data-max-buy-qty"));
@@ -67,6 +99,7 @@ function parsePlaymantisCards(
       offers.push({
         scryfallId,
         taggedId,
+        imageId,
         title,
         finish: "nonfoil",
         creditCents: 0,
@@ -89,6 +122,7 @@ function parsePlaymantisCards(
       offers.push({
         scryfallId,
         taggedId,
+        imageId,
         title,
         finish,
         creditCents,
@@ -128,8 +162,8 @@ function scryfallFromChunk(chunk: string): string {
 }
 
 /**
- * Playmantis import: remaining = maxBuyQty (default 4) minus variant inventory.
- * Collection HTML may also expose data-buylist-limit as remaining already.
+ * Playmantis import remaining = maxBuyQty (default 4) minus variant inventory.
+ * Search HTML has no data-buylist-limit; collection pages may expose remaining already.
  */
 function remainingWant(buylistLimitRaw: string, maxAllowed: number, stock: number): number {
   if (buylistLimitRaw.trim() !== "") {
@@ -166,15 +200,42 @@ function firstProduct(parsed: ParsedOffer[]): ParsedOffer[] {
   );
 }
 
+function playmantisTitleKey(raw: string): string {
+  return normalizeCardName(raw)
+    .name.replace(/\s*\([^)]*\)\s*$/g, "")
+    .trim();
+}
+
+function titlesMatch(a: string, b: string): boolean {
+  const left = playmantisTitleKey(a);
+  const right = playmantisTitleKey(b);
+  return Boolean(left && right && left === right);
+}
+
+function setsMatch(a: string, b: string): boolean {
+  const left = (a || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const right = (b || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return Boolean(left && right && left === right);
+}
+
+function pickByName(parsed: ParsedOffer[], csvName: string, setName = ""): ParsedOffer[] {
+  const named = parsed.filter((o) => !o.missing && titlesMatch(o.title, csvName));
+  if (!named.length) return [];
+  const setHits = setName ? named.filter((o) => setsMatch(o.setName, setName)) : [];
+  const pool = setHits.length ? setHits : named;
+  const plain = pool.filter((o) => !/\([^)]*\)/.test(o.title));
+  return firstProduct(plain.length ? plain : pool);
+}
+
+function productScryfallId(offer: ParsedOffer): string {
+  return (offer.taggedId || offer.imageId || "").trim().toLowerCase();
+}
+
 function goodOffers(list: PlaymantisOffer[] | undefined): PlaymantisOffer[] {
   return (list || []).filter((o) => !o.missing);
 }
 
-function missingStub(
-  sid: string,
-  name: string,
-  fetchedAt: string,
-): PlaymantisOffer[] {
+function missingStub(sid: string, name: string, fetchedAt: string): PlaymantisOffer[] {
   return [
     {
       scryfallId: sid,
@@ -191,87 +252,139 @@ function missingStub(
 }
 
 /**
- * IDs to fetch this harvest click. Every CSV id is refetched so remaining want
- * (4 − inventory) stays current — Playmantis stock changes without a title change.
- * Missing stubs retry once per click (`skipIds` from the client prevents a loop).
+ * Playmantis import: CSV foil/etched matches any foil-ish variant that is not
+ * Nonfoil; otherwise Nonfoil. One-option products match regardless of finish.
+ */
+export function foilMatchesVariant(csvFoil: string, variantTitle: string): boolean {
+  const vt = (variantTitle || "").toLowerCase().trim();
+  const isNonfoilVariant = vt === "normal" || /(^|[^a-z])non-?foil([^a-z]|$)/.test(vt);
+  const wantsFoil = (() => {
+    const finish = normalizeFinish(csvFoil);
+    return finish === "foil" || finish === "etched";
+  })();
+  if (wantsFoil) return !isNonfoilVariant && vt.includes("foil");
+  return isNonfoilVariant;
+}
+
+/**
+ * IDs to fetch this harvest click. Full harvest refetches every CSV id so remaining
+ * want (4 − inventory) stays current. `missingOnly` is the throttle retry: skip IDs
+ * that already have a live offer. `skipIds` stops a loop inside one click.
  */
 export function scryfallIdsNeedingPlaymantisFetch(input: {
   ids: string[];
   namesById: Record<string, string>;
   existing: PlaymantisOffer[];
   skipIds?: string[];
+  missingOnly?: boolean;
 }): string[] {
   const skip = new Set((input.skipIds || []).map((id) => id.trim().toLowerCase()));
-  return input.ids.filter((id) => !skip.has(id));
+  const live = new Set(
+    (input.existing || [])
+      .filter((o) => !o.missing)
+      .map((o) => o.scryfallId.trim().toLowerCase()),
+  );
+  return input.ids.filter((id) => {
+    const key = id.trim().toLowerCase();
+    if (!key || skip.has(key)) return false;
+    if (input.missingOnly && live.has(key)) return false;
+    return true;
+  });
 }
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchWithRetry(url: string, bag: { value: string }): Promise<string> {
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const headers: Record<string, string> = {
-      Accept: "text/html,application/xhtml+xml",
-      "User-Agent": BROWSER_UA,
-      Referer: "https://playmantis.com.au/collections/buylist",
-      Origin: "https://playmantis.com.au",
-    };
-    if (bag.value) headers.Cookie = bag.value;
-    const res = await fetch(url, { headers, cache: "no-store" });
-    const setCookies =
-      typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
-    if (setCookies.length) {
-      bag.value = setCookies.map((c) => c.split(";")[0] || "").filter(Boolean).join("; ");
+async function runInBatches<T>(
+  items: T[],
+  handler: (item: T) => Promise<void>,
+): Promise<void> {
+  for (let i = 0; i < items.length; i += IMPORT_BATCH_SIZE) {
+    const batch = items.slice(i, i + IMPORT_BATCH_SIZE);
+    await Promise.all(batch.map(handler));
+    if (IMPORT_BATCH_DELAY_MS > 0) {
+      await sleep(IMPORT_BATCH_DELAY_MS);
     }
-    if (res.status === 429 && attempt < MAX_RETRIES) {
-      await sleep(500 * (attempt + 1));
-      continue;
-    }
-    if (!res.ok && attempt < MAX_RETRIES && res.status >= 500) {
-      await sleep(500 * (attempt + 1));
-      continue;
-    }
-    if (!res.ok) {
-      throw new Error(`Playmantis HTTP ${res.status}`);
-    }
-    return res.text();
   }
-  return "";
 }
 
-async function fetchBuylistHtml(url: string, bag: { value: string }): Promise<string> {
+/** Playmantis import: return body even on HTTP errors; retry 429, network, blocked HTML, and one empty grid. */
+async function fetchWithRetry(url: string): Promise<string> {
   let last = "";
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    last = await fetchWithRetry(url, bag);
-    if (/buylist-card/i.test(last) || attempt === MAX_RETRIES) return last;
-    await sleep(400 * (attempt + 1));
+    try {
+      const headers: Record<string, string> = {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": BROWSER_UA,
+        Referer: "https://playmantis.com.au/collections/buylist",
+      };
+      const res = await fetch(url, {
+        headers,
+        cache: "no-store",
+        redirect: "follow",
+        signal: AbortSignal.timeout(20000),
+      });
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        await sleep(500 * (attempt + 1));
+        continue;
+      }
+      last = await res.text();
+      const kind = classifyBuylistSearchHtml(last);
+      if (kind === "hit") return last;
+      if (kind === "empty" && attempt >= 1) return last;
+      if (attempt < MAX_RETRIES) {
+        await sleep(kind === "empty" ? 400 : 500 * (attempt + 1));
+        continue;
+      }
+      return last;
+    } catch {
+      if (attempt === MAX_RETRIES) return last;
+      await sleep(500 * (attempt + 1));
+    }
   }
   return last;
 }
 
 /**
- * Same rules as Playmantis import:
- * UUID-tag page → product with data-scryfall-id === csv id, else the first product.
- * Name page → only data-scryfall-id === csv id (no image-UUID or set guesses).
+ * UUID-tag page → product whose data-scryfall-id / image UUID equals the CSV id,
+ * else the first product (Playmantis import: exactMatch || cards[0]).
+ * Name page (search HTML has no data-scryfall-id) → same title as the CSV,
+ * preferring the CSV set, then a title with no extra parenthetical.
  */
 export function resolveOffersForScryfallId(
   parsed: PlaymantisOffer[],
   sid: string,
-  _csvName?: string,
-  opts?: { uuidTag?: boolean },
+  csvName?: string,
+  opts?: { uuidTag?: boolean; setName?: string },
 ): PlaymantisOffer[] {
   const want = sid.trim().toLowerCase();
   const cards = parsed as ParsedOffer[];
-  const tagged = cards.filter(
-    (o) => (o.taggedId || "").toLowerCase() === want && !o.missing,
-  );
+  const live = cards.filter((o) => !o.missing);
+  const tagged = live.filter((o) => productScryfallId(o) === want);
   if (tagged.length) return bindToCsvId(tagged, sid);
+  if (opts?.uuidTag) {
+    const first = firstProduct(live);
+    if (first.length) return bindToCsvId(first, sid);
+  }
+  if (csvName) {
+    const named = pickByName(cards, csvName, opts?.setName);
+    if (named.length) return bindToCsvId(named, sid);
+  }
+  return [];
+}
 
-  if (!opts?.uuidTag) return [];
+function offersFromIdPage(html: string, sid: string, fetchedAt: string): PlaymantisOffer[] {
+  return resolveOffersForScryfallId(
+    parsePlaymantisCards(html, fetchedAt, sid),
+    sid,
+    "",
+    { uuidTag: true },
+  );
+}
 
-  const first = firstProduct(cards);
-  return first.length ? bindToCsvId(first, sid) : [];
+function indexNamePageOffers(html: string, fetchedAt: string, into: ParsedOffer[]): void {
+  into.push(...parsePlaymantisCards(html, fetchedAt).filter((o) => !o.missing));
 }
 
 export async function harvestPlaymantis(input: {
@@ -283,7 +396,6 @@ export async function harvestPlaymantis(input: {
   onBatch?: (done: number, total: number) => void;
 }): Promise<PlaymantisOffer[]> {
   const fetchedAt = new Date().toISOString();
-  const cookies = { value: "" };
   const byId = new Map<string, PlaymantisOffer[]>();
   for (const offer of input.existing || []) {
     const key = offer.scryfallId.trim().toLowerCase();
@@ -296,55 +408,78 @@ export async function harvestPlaymantis(input: {
     ...new Set(input.scryfallIds.map((id) => id.trim().toLowerCase()).filter(Boolean)),
   ];
   let done = 0;
+  const report = () => {
+    done += 1;
+    input.onBatch?.(done, uniqueIds.length);
+  };
 
-  for (let i = 0; i < uniqueIds.length; i += IMPORT_BATCH_SIZE) {
-    const batch = uniqueIds.slice(i, i + IMPORT_BATCH_SIZE);
-    await Promise.all(
-      batch.map(async (sid) => {
-        const name = input.namesById?.[sid] || "";
-        const previous = goodOffers(byId.get(sid));
-        try {
-          const html = await fetchBuylistHtml(playmantisSearchUrl(sid), cookies);
-          let offers = resolveOffersForScryfallId(
-            parsePlaymantisCards(html, fetchedAt, sid),
-            sid,
-            name,
-            { uuidTag: true },
+  const skipNameSearch = new Set<string>();
+  await runInBatches(uniqueIds, async (sid) => {
+    const previous = goodOffers(byId.get(sid));
+    try {
+      const html = await fetchWithRetry(playmantisSearchUrl(sid));
+      const kind = classifyBuylistSearchHtml(html);
+      const next = kind === "hit" ? offersFromIdPage(html, sid, fetchedAt) : [];
+      if (goodOffers(next).length) {
+        byId.set(sid, next);
+      } else if (previous.length) {
+        byId.set(sid, previous);
+      } else if (kind === "blocked") {
+        skipNameSearch.add(sid);
+      }
+    } catch {
+      if (previous.length) byId.set(sid, previous);
+      else skipNameSearch.add(sid);
+    }
+    report();
+  });
+
+  const unmatched = uniqueIds.filter(
+    (sid) => !goodOffers(byId.get(sid)).length && !skipNameSearch.has(sid),
+  );
+  const uniqueNames = [
+    ...new Set(
+      unmatched
+        .map((sid) => (input.namesById?.[sid] || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  if (unmatched.length && uniqueNames.length) {
+    const offersByName = new Map<string, ParsedOffer[]>();
+    await runInBatches(uniqueNames, async (name) => {
+      const collected: ParsedOffer[] = [];
+      try {
+        const firstUrl = playmantisNameSearchUrl(name);
+        const firstHtml = await fetchWithRetry(firstUrl);
+        indexNamePageOffers(firstHtml, fetchedAt, collected);
+        const capped = Math.min(maxPageFromHtml(firstHtml), IMPORT_MAX_PAGES_PER_NAME);
+        if (capped > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: capped - 1 }, (_, i) =>
+              fetchWithRetry(playmantisNameSearchUrl(name, i + 2)),
+            ),
           );
-          if (!offers.length && name) {
-            offers = await nameFallback(sid, name, fetchedAt, cookies);
-          }
-          byId.set(
-            sid,
-            offers.length ? offers : previous.length ? previous : missingStub(sid, name, fetchedAt),
-          );
-        } catch {
-          byId.set(sid, previous.length ? previous : missingStub(sid, name, fetchedAt));
+          for (const html of rest) indexNamePageOffers(html, fetchedAt, collected);
         }
-        done += 1;
-        input.onBatch?.(done, uniqueIds.length);
-      }),
-    );
-    if (i + IMPORT_BATCH_SIZE < uniqueIds.length) {
-      await sleep(IMPORT_BATCH_DELAY_MS);
+      } catch {
+        /* row stays unmatched */
+      }
+      offersByName.set(name, collected);
+    });
+
+    for (const sid of unmatched) {
+      const name = input.namesById?.[sid] || "";
+      const setName = input.setNamesById?.[sid] || "";
+      const parsed = offersByName.get(name) || [];
+      const offers = resolveOffersForScryfallId(parsed, sid, name, { setName });
+      if (offers.length) byId.set(sid, offers);
     }
   }
 
-  return uniqueIds.flatMap((id) => byId.get(id) || []);
-}
-
-async function nameFallback(
-  scryfallId: string,
-  name: string,
-  fetchedAt: string,
-  bag: { value: string },
-): Promise<PlaymantisOffer[]> {
-  for (let page = 1; page <= NAME_FALLBACK_PAGES; page++) {
-    const html = await fetchBuylistHtml(playmantisNameSearchUrl(name, page), bag);
-    const parsed = parsePlaymantisCards(html, fetchedAt);
-    const resolved = resolveOffersForScryfallId(parsed, scryfallId, name);
-    if (resolved.length) return resolved;
-    if (!parsed.length) break;
-  }
-  return [];
+  return uniqueIds.flatMap((id) => {
+    const previous = goodOffers(byId.get(id));
+    if (previous.length) return previous;
+    return missingStub(id, input.namesById?.[id] || "", fetchedAt);
+  });
 }

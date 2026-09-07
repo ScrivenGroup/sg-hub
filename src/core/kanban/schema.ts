@@ -55,9 +55,9 @@ export const COLUMN_ACCENT: Record<KanbanColumn | "inbox", string> = {
 };
 
 export const COLUMN_FILTERS = [
+  { id: "all", label: "All Kanban", columns: ["later", "open", "done", "archived"] },
   { id: "later-open", label: "Later + Open", columns: ["later", "open"] },
   { id: "open-done", label: "Open + Done", columns: ["open", "done"] },
-  { id: "all", label: "All", columns: ["later", "open", "done", "archived"] },
   { id: "later", label: "Later", columns: ["later"] },
   { id: "open", label: "Open", columns: ["open"] },
   { id: "archived", label: "Archived", columns: ["archived"] },
@@ -84,8 +84,12 @@ export const kanbanLaneSchema = z.enum(KANBAN_CATEGORIES);
 export const kanbanColumnSchema = z.preprocess(migrateTicketColumn, z.enum(KANBAN_COLUMNS));
 export const inboxStatusSchema = z.enum(INBOX_STATUSES);
 
+/** Leaf tag for Global (Internal) rows. Not a swimlane. */
+export const KANBAN_GLOBAL_NODE_ID = "global";
+
 export const kanbanInboxNoteSchema = z.object({
   id: z.string(),
+  nodeId: z.string().default(KANBAN_GLOBAL_NODE_ID),
   title: z.string(),
   body: z.string(),
   status: inboxStatusSchema,
@@ -97,6 +101,7 @@ export type KanbanInboxNote = z.infer<typeof kanbanInboxNoteSchema>;
 
 export const kanbanTicketSchema = z.object({
   id: z.string(),
+  nodeId: z.string().default(KANBAN_GLOBAL_NODE_ID),
   title: z.string(),
   body: z.string(),
   lane: kanbanLaneSchema.default("behaviour"),
@@ -129,6 +134,17 @@ export const kanbanEventSchema = z.object({
   summary: z.string(),
 });
 export type KanbanEvent = z.infer<typeof kanbanEventSchema>;
+
+export const kanbanMetaSchema = z.object({
+  nodeId: z.string(),
+  revision: z.number(),
+  updatedAt: z.string(),
+  publishedAt: z.string().nullable(),
+  liveBaseline: kanbanLiveBaselineSchema.nullable(),
+  events: z.array(kanbanEventSchema),
+  lanes: z.array(kanbanLaneSchema),
+});
+export type KanbanMeta = z.infer<typeof kanbanMetaSchema>;
 
 export const kanbanBoardSchema = z.object({
   nodeId: z.string(),
@@ -172,17 +188,49 @@ export type LiveBaselineSource = z.infer<typeof liveBaselineSourceSchema>;
 
 export const EVENT_CAP = 50;
 
-export function emptyKanbanBoard(nodeId: string): KanbanBoard {
+export function emptyKanbanMeta(nodeId: string): KanbanMeta {
   return {
     nodeId,
     revision: 0,
     updatedAt: new Date().toISOString(),
     publishedAt: null,
-    ideas: [],
-    tickets: [],
     liveBaseline: null,
     events: [],
     lanes: [...KANBAN_CATEGORIES],
+  };
+}
+
+export function emptyKanbanBoard(nodeId: string): KanbanBoard {
+  const meta = emptyKanbanMeta(nodeId);
+  return {
+    nodeId: meta.nodeId,
+    revision: meta.revision,
+    updatedAt: meta.updatedAt,
+    publishedAt: meta.publishedAt,
+    ideas: [],
+    tickets: [],
+    liveBaseline: meta.liveBaseline,
+    events: meta.events,
+    lanes: meta.lanes,
+  };
+}
+
+export function boardFromRows(
+  nodeId: string,
+  ideas: KanbanInboxNote[],
+  tickets: KanbanTicket[],
+  meta: KanbanMeta,
+): KanbanBoard {
+  return {
+    nodeId,
+    revision: meta.revision,
+    updatedAt: meta.updatedAt,
+    publishedAt: meta.publishedAt,
+    ideas,
+    tickets,
+    liveBaseline: meta.liveBaseline,
+    events: meta.events,
+    lanes: meta.lanes.length ? meta.lanes : [...KANBAN_CATEGORIES],
   };
 }
 

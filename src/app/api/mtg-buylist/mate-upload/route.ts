@@ -4,12 +4,16 @@ import {
   saveMtgBuylistStore,
 } from "@/core/store/json-store";
 import { attachMateImageLinks, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
-import { parseMateJson } from "@/modules/mtg-buylist/logic/parse-mate";
+import { uniqueSetCodes } from "@/modules/mtg-buylist/logic/parse-csv";
+import {
+  filterMateOffersForCsv,
+  parseMateJson,
+} from "@/modules/mtg-buylist/logic/parse-mate";
 import { MTG_BUYLIST_HREF } from "@/modules/mtg-buylist/schema";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 /** Large Mate harvest JSON — avoids Server Action 1MB body limit. */
 export async function POST(request: Request) {
@@ -43,13 +47,31 @@ export async function POST(request: Request) {
   try {
     const parsed = parseMateJson(jsonText);
     const store = await getMtgBuylistStore(staff.userKey);
+    if (!store.csv) {
+      return NextResponse.json(
+        { ok: false, error: "Upload a ManaBox CSV first" },
+        { status: 400 },
+      );
+    }
+    const csvSets = uniqueSetCodes(store.csv.rows);
+    const offers = filterMateOffersForCsv(parsed.offers, csvSets);
+    if (!offers.length) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Mate harvest had ${parsed.offers.length} cards but none in your CSV sets (${csvSets.join(", ") || "none"}).`,
+        },
+        { status: 400 },
+      );
+    }
+    const keptSets = [...new Set(offers.map((o) => o.setCode).filter(Boolean))].sort();
     const next = await attachMateImageLinks({
       ...store,
       mate: {
         harvestedAt: new Date().toISOString(),
         source: "upload",
-        sets: parsed.sets,
-        offers: parsed.offers,
+        sets: keptSets,
+        offers,
       },
     });
     await saveMtgBuylistStore(staff.userKey, next);
@@ -58,14 +80,15 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       summary: {
-        sets: parsed.sets.length,
-        offers: parsed.offers.length,
+        sets: keptSets.length,
+        offers: offers.length,
+        harvestedSets: parsed.sets.length,
+        harvestedOffers: parsed.offers.length,
         hasMate: Boolean(next.resultMate),
         hasCompare: Boolean(next.resultCompare),
         mateCreditCents: next.resultMate?.totals.mateCreditCents ?? 0,
         mateCashCents: next.resultMate?.totals.mateCashCents ?? 0,
       },
-      store: next,
     });
   } catch (error) {
     return NextResponse.json(

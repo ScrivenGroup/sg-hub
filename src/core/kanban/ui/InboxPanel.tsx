@@ -8,8 +8,9 @@ import { deltaVsBaseline, fingerprintIdea, livePresenceForId } from "../fingerpr
 import type { DevHostKind } from "../host";
 import { buildSessionPrompt } from "../prompt";
 import { COLUMN_ACCENT, type KanbanBoard, type KanbanInboxNote } from "../schema";
-import { RaiseIdeaButton } from "./RaiseIdeaButton";
 import { clipText, copyText, HatInbox, PresenceChip, sortItems, type SortKey } from "./bits";
+import type { KanbanLeafOption } from "../leaves";
+import { LeafTagBadge, LeafTagSelect } from "./LeafTagSelect";
 
 export function InboxPanel({
   board,
@@ -17,8 +18,13 @@ export function InboxPanel({
   leafTitle,
   leafHref,
   revalidateHref,
-  inboxHref,
   hostKind,
+  leafOptions,
+  showLeafTag = false,
+  sortBy,
+  showArchived,
+  moreOpen,
+  onMoreOpenChange,
 }: {
   board: KanbanBoard;
   nodeId: string;
@@ -27,14 +33,20 @@ export function InboxPanel({
   revalidateHref: string;
   inboxHref: string;
   hostKind: DevHostKind;
+  leafOptions: KanbanLeafOption[];
+  defaultTagNodeId: string;
+  showLeafTag?: boolean;
+  sortBy: SortKey;
+  showArchived: boolean;
+  moreOpen: boolean;
+  onMoreOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [sortBy, setSortBy] = useState<SortKey>("date-desc");
-  const [showArchived, setShowArchived] = useState(false);
   const [openIdea, setOpenIdea] = useState<KanbanInboxNote | null>(null);
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaBody, setIdeaBody] = useState("");
+  const [ideaTag, setIdeaTag] = useState("");
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptText, setPromptText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -52,12 +64,16 @@ export function InboxPanel({
   );
   const items = showArchived ? archivedIdeas : openIdeas;
   const ideaDirty =
-    openIdea != null && (ideaTitle !== openIdea.title || ideaBody !== openIdea.body);
+    openIdea != null &&
+    (ideaTitle !== openIdea.title ||
+      ideaBody !== openIdea.body ||
+      ideaTag !== openIdea.nodeId);
 
   useEffect(() => {
     if (!openIdea) return;
     setIdeaTitle(openIdea.title);
     setIdeaBody(openIdea.body);
+    setIdeaTag(openIdea.nodeId);
   }, [openIdea]);
 
   function openPromptFor(idea: KanbanInboxNote) {
@@ -101,44 +117,8 @@ export function InboxPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <p className="shrink-0 text-sm text-[var(--muted)]">
-        Raw observations. Not tickets. Click a note to edit or copy a session prompt. A session
-        splits notes into KanBan tickets and archives the raw id.
-      </p>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <RaiseIdeaButton
-          nodeId={nodeId}
-          revalidateHref={revalidateHref}
-          inboxHref={inboxHref}
-        />
-        <button type="button" className="sg-btn-secondary" onClick={copyAllInbox}>
-          Copy process all
-        </button>
-        <label className="text-xs text-[var(--muted)]">
-          Sort{" "}
-          <select
-            className="sg-input py-1 text-xs"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-          >
-            <option value="date-desc">Date · newest</option>
-            <option value="date-asc">Date · oldest</option>
-            <option value="title-asc">A–Z</option>
-            <option value="title-desc">Z–A</option>
-          </select>
-        </label>
-        {archivedIdeas.length > 0 ? (
-          <button
-            type="button"
-            className={showArchived ? "sg-btn-primary" : "sg-btn-ghost"}
-            onClick={() => setShowArchived((v) => !v)}
-          >
-            {showArchived ? "Show open" : `Show archived (${archivedIdeas.length})`}
-          </button>
-        ) : null}
-      </div>
-      {flash ? <p className="text-sm text-[var(--muted)]">{flash}</p> : null}
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {flash ? <p className="shrink-0 text-sm text-[var(--muted)]">{flash}</p> : null}
 
       <section
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] p-3"
@@ -178,7 +158,12 @@ export function InboxPanel({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold leading-snug">{idea.title}</h3>
-                    <HatInbox />
+                    <span className="flex shrink-0 flex-wrap items-center gap-1">
+                      {showLeafTag ? (
+                        <LeafTagBadge nodeId={idea.nodeId} options={leafOptions} />
+                      ) : null}
+                      <HatInbox />
+                    </span>
                   </div>
                   {idea.body ? (
                     <p className="mt-2 text-xs text-[var(--muted)]">
@@ -196,6 +181,35 @@ export function InboxPanel({
           )}
         </div>
       </section>
+
+      <ShellModal
+        open={moreOpen}
+        titleId="inbox-more-options"
+        onClose={() => onMoreOpenChange(false)}
+        panelClassName="max-w-lg"
+      >
+        <h2 id="inbox-more-options" className="mb-2 font-medium">
+          More options
+        </h2>
+        <p className="mb-3 text-sm text-[var(--muted)]">
+          Copy every open inbox note as session prompts.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="sg-btn-secondary"
+            onClick={() => {
+              onMoreOpenChange(false);
+              void copyAllInbox();
+            }}
+          >
+            Copy process all
+          </button>
+          <button type="button" className="sg-btn-ghost" onClick={() => onMoreOpenChange(false)}>
+            Close
+          </button>
+        </div>
+      </ShellModal>
 
       <ShellModal
         open={Boolean(openIdea)}
@@ -221,10 +235,15 @@ export function InboxPanel({
                   aria-label={`Title ${openIdea.id}`}
                 />
                 <textarea
-                  className="sg-input min-h-48"
+                  className="sg-input mb-2 min-h-48"
                   value={ideaBody}
                   onChange={(e) => setIdeaBody(e.target.value)}
                   aria-label={`Body ${openIdea.id}`}
+                />
+                <LeafTagSelect
+                  value={ideaTag || openIdea.nodeId}
+                  onChange={setIdeaTag}
+                  options={leafOptions}
                 />
               </>
             ) : (
@@ -241,11 +260,14 @@ export function InboxPanel({
                   disabled={pending || !ideaDirty}
                   onClick={() => {
                     startTransition(async () => {
+                      const tagChanged = ideaTag !== openIdea.nodeId;
                       await saveInboxNoteAction(nodeId, revalidateHref, {
                         id: openIdea.id,
                         title: ideaTitle,
                         body: ideaBody,
+                        tagNodeId: ideaTag,
                       });
+                      if (tagChanged) setOpenIdea(null);
                       router.refresh();
                     });
                   }}

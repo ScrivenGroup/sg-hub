@@ -16,11 +16,21 @@ import type {
   NoteRecord,
 } from "@/core/contracts/types";
 import {
-  emptyKanbanBoard,
+  emptyKanbanMeta,
+  kanbanInboxNoteSchema,
+  kanbanMetaSchema,
+  kanbanTicketSchema,
+  prependEvent,
   type KanbanBoard,
+  type KanbanEvent,
+  type KanbanInboxNote,
+  type KanbanMeta,
+  type KanbanTicket,
+  boardFromRows,
+  KANBAN_GLOBAL_NODE_ID,
 } from "@/core/kanban/schema";
 import { boardFromUnknown } from "@/core/kanban/pack";
-import { mergeKanbanSeed } from "@/core/kanban/seed";
+import { missingKanbanSeed } from "@/core/kanban/seed";
 import {
   emptyScheduleStore,
   scheduleStoreSchema,
@@ -42,6 +52,7 @@ import {
   pgGetFeedback,
   pgGetIdeas,
   pgGetNotes,
+  pgDeleteChangelog,
   pgInsertDevChoice,
   pgInsertFeedback,
   pgReplaceChangelogs,
@@ -49,8 +60,16 @@ import {
   pgReplaceDevChoices,
   pgReplaceIdeas,
   pgReplaceNotes,
+  pgGetMrtLive,
+  pgUpsertMrtLive,
   postgresEnabled,
-} from "@/core/store/pg";
+  pgGetKanbanIdeas,
+  pgGetKanbanTickets,
+  pgGetKanbanMeta,
+  pgUpsertKanbanIdea,
+  pgUpsertKanbanTicket,
+  pgUpsertKanbanMeta,
+} from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
 const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
@@ -188,12 +207,26 @@ export async function getDependencies(): Promise<DependencyRecord[]> {
   return out;
 }
 
+const RETIRED_CHANGELOG_IDS = [
+  "cl-kanban-online-chrome",
+  "cl-kanban-online-chrome-row",
+  "cl-mtg-buylist-1",
+  "cl-mtg-buylist-kanban",
+];
+
 export async function getChangelogs(): Promise<ChangelogEntry[]> {
   const existing = postgresEnabled()
     ? await pgGetChangelogs()
     : await readJson("changelogs.json", seedChangelogs);
   const byId = new Map(existing.map((c) => [c.id, c]));
   let changed = false;
+  const retiredHit: string[] = [];
+  for (const id of RETIRED_CHANGELOG_IDS) {
+    if (byId.delete(id)) {
+      retiredHit.push(id);
+      changed = true;
+    }
+  }
   for (const seeded of seedChangelogs) {
     const current = byId.get(seeded.id);
     if (!current) {
@@ -241,12 +274,16 @@ export async function getChangelogs(): Promise<ChangelogEntry[]> {
   }
   const out = Array.from(byId.values());
   if (changed) {
-    if (postgresEnabled()) await pgReplaceChangelogs(out);
+    if (postgresEnabled()) {
+      for (const id of retiredHit) await pgDeleteChangelog(id);
+      await pgReplaceChangelogs(out);
+    }
     await persistSimpleJson("changelogs.json", out);
   }
   return out;
 }
 
+/** Later hub Changelog register reads this store by nodeId / all nodes. */
 export async function getChangelogsForNode(
   nodeId: string,
 ): Promise<ChangelogEntry[]> {
@@ -336,6 +373,35 @@ export async function addDevChoice(
 
 export async function getSunwaterMrtStore(): Promise<ScheduleStore> {
   const fallback = emptyScheduleStore();
+  if (postgresEnabled()) {
+    const raw = await pgGetMrtLive();
+    if (raw == null) {
+      return normalizeScheduleStore(fallback).store;
+    }
+    const parsed = scheduleStoreSchema.safeParse(raw);
+    let store: ScheduleStore;
+    if (parsed.success) {
+      store = parsed.data;
+    } else {
+      const merged = scheduleStoreSchema.safeParse({
+        ...fallback,
+        ...(raw && typeof raw === "object" ? raw : {}),
+      });
+      if (!merged.success) {
+        return normalizeScheduleStore(fallback).store;
+      }
+      store = merged.data;
+    }
+    const normalized = normalizeScheduleStore(store);
+    if (normalized.changed) {
+      const checked = scheduleStoreSchema.safeParse(normalized.store);
+      const next = checked.success ? checked.data : normalized.store;
+      await pgUpsertMrtLive(next);
+      return next;
+    }
+    return normalized.store;
+  }
+
   const raw = await readJson("sunwater-mrt.json", fallback);
   const parsed = scheduleStoreSchema.safeParse(raw);
   let store: ScheduleStore;
@@ -380,6 +446,10 @@ export async function saveSunwaterMrtStore(
   store: ScheduleStore,
 ): Promise<void> {
   const parsed = scheduleStoreSchema.parse(store);
+  if (postgresEnabled()) {
+    await pgUpsertMrtLive(parsed);
+    return;
+  }
   await writeJson("sunwater-mrt.json", parsed);
 }
 
@@ -432,22 +502,289 @@ export async function saveMtgBuylistStore(
   await writeJson(mtgBuylistFile(userKey), parsed);
 }
 
-function kanbanFile(nodeId: string) {
-  const key = nodeId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "board";
-  return path.join("kanban", `${key}.json`);
+function kanbanRowFile(name: "ideas.json" | "tickets.json" | "meta.json") {
+  return path.join("kanban", name);
+}
+
+type KanbanRowBundle = {
+  ideas: KanbanInboxNote[];
+  tickets: KanbanTicket[];
+  meta: KanbanMeta[];
+};
+
+async function readJsonIfExists<T>(file: string): Promise<T | null> {
+  const full = path.join(dataDir, file);
+  try {
+    const raw = await fs.readFile(full, "utf8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function parseKanbanIdeas(raw: unknown): KanbanInboxNote[] {
+  if (!Array.isArray(raw)) return [];
+  const out: KanbanInboxNote[] = [];
+  for (const row of raw) {
+    const parsed = kanbanInboxNoteSchema.safeParse(row);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
+
+function parseKanbanTickets(raw: unknown): KanbanTicket[] {
+  if (!Array.isArray(raw)) return [];
+  const out: KanbanTicket[] = [];
+  for (const row of raw) {
+    const parsed = kanbanTicketSchema.safeParse(row);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
+
+function parseKanbanMeta(raw: unknown): KanbanMeta[] {
+  if (!Array.isArray(raw)) return [];
+  const out: KanbanMeta[] = [];
+  for (const row of raw) {
+    const parsed = kanbanMetaSchema.safeParse(row);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
+
+function metaFromBoard(board: KanbanBoard): KanbanMeta {
+  return {
+    nodeId: board.nodeId,
+    revision: board.revision,
+    updatedAt: board.updatedAt,
+    publishedAt: board.publishedAt,
+    liveBaseline: board.liveBaseline,
+    events: board.events,
+    lanes: board.lanes,
+  };
+}
+
+function upsertRow<T extends { id: string }>(rows: T[], next: T) {
+  const idx = rows.findIndex((row) => row.id === next.id);
+  if (idx >= 0) rows[idx] = next;
+  else rows.push(next);
+}
+
+function upsertMeta(rows: KanbanMeta[], next: KanbanMeta) {
+  const idx = rows.findIndex((row) => row.nodeId === next.nodeId);
+  if (idx >= 0) rows[idx] = next;
+  else rows.push(next);
+}
+
+function bumpKanbanMeta(
+  bundle: KanbanRowBundle,
+  nodeId: string,
+  event?: KanbanEvent,
+): KanbanMeta {
+  const now = new Date().toISOString();
+  const current =
+    bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
+  const next: KanbanMeta = {
+    ...current,
+    revision: current.revision + 1,
+    updatedAt: now,
+    events: event ? prependEvent(current.events, event) : current.events,
+  };
+  upsertMeta(bundle.meta, next);
+  return next;
+}
+
+async function listLegacyKanbanFiles(): Promise<string[]> {
+  const dir = path.join(dataDir, "kanban");
+  try {
+    const names = await fs.readdir(dir);
+    return names.filter((name) => {
+      if (!name.endsWith(".json")) return false;
+      return name !== "ideas.json" && name !== "tickets.json" && name !== "meta.json";
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function migrateLegacyKanbanBoards(
+  bundle: KanbanRowBundle,
+): Promise<boolean> {
+  const files = await listLegacyKanbanFiles();
+  let added = false;
+  const ideaIds = new Set(bundle.ideas.map((row) => row.id));
+  const ticketIds = new Set(bundle.tickets.map((row) => row.id));
+  const metaIds = new Set(bundle.meta.map((row) => row.nodeId));
+  for (const name of files) {
+    const nodeGuess = name.replace(/\.json$/, "");
+    const raw = await readJsonIfExists(path.join("kanban", name));
+    if (raw == null) continue;
+    const board = boardFromUnknown(nodeGuess, raw);
+    for (const idea of board.ideas) {
+      if (ideaIds.has(idea.id)) continue;
+      bundle.ideas.push(idea);
+      ideaIds.add(idea.id);
+      added = true;
+    }
+    for (const ticket of board.tickets) {
+      if (ticketIds.has(ticket.id)) continue;
+      bundle.tickets.push(ticket);
+      ticketIds.add(ticket.id);
+      added = true;
+    }
+    if (!metaIds.has(board.nodeId)) {
+      bundle.meta.push(metaFromBoard(board));
+      metaIds.add(board.nodeId);
+      added = true;
+    }
+  }
+  return added;
+}
+
+function applyKanbanSeedToBundle(bundle: KanbanRowBundle): boolean {
+  const missing = missingKanbanSeed({
+    ideaIds: new Set(bundle.ideas.map((row) => row.id)),
+    ticketIds: new Set(bundle.tickets.map((row) => row.id)),
+  });
+  if (missing.ideas.length === 0 && missing.tickets.length === 0) return false;
+  const now = new Date().toISOString();
+  bundle.ideas.push(...missing.ideas);
+  bundle.tickets.push(...missing.tickets);
+  const nodeIds = new Set<string>();
+  for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
+  for (const ticket of missing.tickets) nodeIds.add(ticket.nodeId);
+  for (const nodeId of nodeIds) {
+    const current =
+      bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
+    upsertMeta(bundle.meta, {
+      ...current,
+      revision: current.revision + 1,
+      updatedAt: now,
+      events: prependEvent(current.events, {
+        at: now,
+        kind: "inbox",
+        summary: `Seeded ${missing.ideas.filter((i) => i.nodeId === nodeId).length} inbox note(s) and ${missing.tickets.filter((t) => t.nodeId === nodeId).length} ticket(s) from the live zip.`,
+      }),
+    });
+  }
+  return true;
+}
+
+function assembleKanbanBoard(nodeId: string, bundle: KanbanRowBundle): KanbanBoard {
+  const meta =
+    bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
+  return boardFromRows(
+    nodeId,
+    bundle.ideas.filter((row) => row.nodeId === nodeId),
+    bundle.tickets.filter((row) => row.nodeId === nodeId),
+    meta,
+  );
+}
+
+async function loadKanbanFromJsonFiles(): Promise<{
+  bundle: KanbanRowBundle;
+  dirty: boolean;
+}> {
+  const bundle: KanbanRowBundle = {
+    ideas: parseKanbanIdeas(await readJsonIfExists(kanbanRowFile("ideas.json"))),
+    tickets: parseKanbanTickets(await readJsonIfExists(kanbanRowFile("tickets.json"))),
+    meta: parseKanbanMeta(await readJsonIfExists(kanbanRowFile("meta.json"))),
+  };
+  const migrated = await migrateLegacyKanbanBoards(bundle);
+  const seeded = applyKanbanSeedToBundle(bundle);
+  return { bundle, dirty: migrated || seeded };
+}
+
+async function persistKanbanBundle(bundle: KanbanRowBundle): Promise<void> {
+  if (postgresEnabled()) {
+    for (const row of bundle.ideas) await pgUpsertKanbanIdea(row);
+    for (const row of bundle.tickets) await pgUpsertKanbanTicket(row);
+    for (const row of bundle.meta) await pgUpsertKanbanMeta(row);
+  }
+  await persistSimpleJson(kanbanRowFile("ideas.json"), bundle.ideas);
+  await persistSimpleJson(kanbanRowFile("tickets.json"), bundle.tickets);
+  await persistSimpleJson(kanbanRowFile("meta.json"), bundle.meta);
+}
+
+let kanbanLoad: Promise<KanbanRowBundle> | null = null;
+
+async function loadKanbanRows(): Promise<KanbanRowBundle> {
+  if (!kanbanLoad) {
+    kanbanLoad = (async () => {
+      if (postgresEnabled()) {
+        const ideas = await pgGetKanbanIdeas();
+        const tickets = await pgGetKanbanTickets();
+        const meta = await pgGetKanbanMeta();
+        if (ideas.length === 0 && tickets.length === 0) {
+          const fromJson = await loadKanbanFromJsonFiles();
+          if (fromJson.bundle.ideas.length || fromJson.bundle.tickets.length) {
+            await persistKanbanBundle(fromJson.bundle);
+          }
+          return fromJson.bundle;
+        }
+        const bundle = { ideas, tickets, meta };
+        if (applyKanbanSeedToBundle(bundle)) await persistKanbanBundle(bundle);
+        return bundle;
+      }
+      const fromJson = await loadKanbanFromJsonFiles();
+      if (fromJson.dirty) await persistKanbanBundle(fromJson.bundle);
+      return fromJson.bundle;
+    })().finally(() => {
+      kanbanLoad = null;
+    });
+  }
+  return kanbanLoad;
 }
 
 export async function getKanbanBoard(nodeId: string): Promise<KanbanBoard> {
-  const fallback = emptyKanbanBoard(nodeId);
-  const raw = await readJson(kanbanFile(nodeId), fallback);
-  const board = boardFromUnknown(nodeId, raw);
-  const { board: merged, added } = mergeKanbanSeed(board);
-  if (added) await saveKanbanBoard(merged);
-  return added ? merged : board;
+  const bundle = await loadKanbanRows();
+  return assembleKanbanBoard(nodeId, bundle);
+}
+
+export async function getKanbanAllBoard(): Promise<KanbanBoard> {
+  const bundle = await loadKanbanRows();
+  const globalMeta =
+    bundle.meta.find((row) => row.nodeId === KANBAN_GLOBAL_NODE_ID) ??
+    emptyKanbanMeta(KANBAN_GLOBAL_NODE_ID);
+  const revision = bundle.meta.reduce(
+    (max, row) => Math.max(max, row.revision),
+    globalMeta.revision,
+  );
+  return boardFromRows(KANBAN_GLOBAL_NODE_ID, bundle.ideas, bundle.tickets, {
+    ...globalMeta,
+    revision,
+  });
 }
 
 export async function saveKanbanBoard(board: KanbanBoard): Promise<void> {
-  await writeJson(kanbanFile(board.nodeId), board);
+  const bundle = await loadKanbanRows();
+  for (const idea of board.ideas) upsertRow(bundle.ideas, idea);
+  for (const ticket of board.tickets) upsertRow(bundle.tickets, ticket);
+  upsertMeta(bundle.meta, metaFromBoard(board));
+  await persistKanbanBundle(bundle);
+}
+
+export async function upsertKanbanIdea(idea: KanbanInboxNote): Promise<void> {
+  const bundle = await loadKanbanRows();
+  upsertRow(bundle.ideas, idea);
+  bumpKanbanMeta(bundle, idea.nodeId, {
+    at: idea.updatedAt,
+    kind: "inbox",
+    summary: `Saved raw ${idea.id}`,
+  });
+  await persistKanbanBundle(bundle);
+}
+
+export async function getKanbanIdeaById(
+  id: string,
+): Promise<KanbanInboxNote | null> {
+  const bundle = await loadKanbanRows();
+  return bundle.ideas.find((row) => row.id === id) ?? null;
+}
+
+export async function listKanbanIdeas(): Promise<KanbanInboxNote[]> {
+  const bundle = await loadKanbanRows();
+  return bundle.ideas.slice();
 }
 
 export async function upsertChangelogEntries(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ShellModal } from "@/core/shell/ShellModal";
 import {
@@ -16,6 +16,7 @@ import {
 } from "../fingerprint";
 import type { DevHostKind } from "../host";
 import { exportBoardJson } from "../pack";
+import type { KanbanLeafOption } from "../leaves";
 import {
   CATEGORY_BADGE,
   CATEGORY_LABELS,
@@ -30,8 +31,9 @@ import {
   type KanbanTicket,
 } from "../schema";
 import { clipText, copyText, PresenceChip, sortItems, type SortKey } from "./bits";
+import { LeafTagBadge } from "./LeafTagSelect";
 
-type LayoutMode = "columns" | "swimlanes";
+export type LayoutMode = "columns" | "swimlanes";
 
 function ragColor(rag: "green" | "amber" | "red") {
   if (rag === "green") return "var(--rag-green)";
@@ -56,6 +58,13 @@ export function KanbanBoard({
   nodeId,
   revalidateHref,
   hostKind,
+  leafOptions,
+  showLeafTag = false,
+  columnFilter,
+  layout,
+  categoryFilter,
+  moreOpen,
+  onMoreOpenChange,
 }: {
   board: KanbanBoard;
   nodeId: string;
@@ -63,12 +72,16 @@ export function KanbanBoard({
   leafHref: string;
   revalidateHref: string;
   hostKind: DevHostKind;
+  leafOptions: KanbanLeafOption[];
+  showLeafTag?: boolean;
+  columnFilter: ColumnFilterId;
+  layout: LayoutMode;
+  categoryFilter: KanbanCategory | "all";
+  moreOpen: boolean;
+  onMoreOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [filter, setFilter] = useState<ColumnFilterId>("later-open");
-  const [categoryFilter, setCategoryFilter] = useState<KanbanCategory | "all">("all");
-  const [layout, setLayout] = useState<LayoutMode>("columns");
   const [focusCol, setFocusCol] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<Record<string, SortKey>>({});
   const [packOpen, setPackOpen] = useState(false);
@@ -83,10 +96,14 @@ export function KanbanBoard({
   const categories = board.lanes.length ? board.lanes : [...KANBAN_CATEGORIES];
 
   const filterSpec =
-    COLUMN_FILTERS.find((f) => f.id === filter) || COLUMN_FILTERS[0];
+    COLUMN_FILTERS.find((f) => f.id === columnFilter) || COLUMN_FILTERS[0];
   const visibleCols: KanbanColumn[] = focusCol
     ? [focusCol as KanbanColumn]
     : [...filterSpec.columns];
+
+  useEffect(() => {
+    setFocusCol(null);
+  }, [columnFilter]);
 
   const ticketsForCategory = useMemo(() => {
     return board.tickets.filter((t) =>
@@ -190,7 +207,12 @@ export function KanbanBoard({
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold leading-snug">{ticket.title}</h3>
-          <CategoryBadge category={ticket.lane} />
+          <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+            {showLeafTag ? (
+              <LeafTagBadge nodeId={ticket.nodeId} options={leafOptions} />
+            ) : null}
+            <CategoryBadge category={ticket.lane} />
+          </span>
         </div>
         {ticket.body ? (
           <p className="mt-2 text-xs text-[var(--muted)]">{clipText(ticket.body, 180)}</p>
@@ -218,142 +240,8 @@ export function KanbanBoard({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="shrink-0 space-y-4">
-      <div
-        className="rounded-[10px] border px-4 py-2"
-        style={{
-          borderColor: delta.hasBaseline ? ragColor(delta.rag) : "var(--border)",
-          background: delta.hasBaseline
-            ? `color-mix(in srgb, ${ragColor(delta.rag)} 12%, transparent)`
-            : "var(--surface)",
-        }}
-      >
-        <p className="text-sm font-semibold">
-          {delta.hasBaseline
-            ? `${delta.total} change${delta.total === 1 ? "" : "s"} since live snapshot (rev ${delta.baselineRevision})`
-            : "No live baseline yet"}
-        </p>
-        <p className="mt-1 text-xs text-[var(--muted)]">{formatDeltaSummary(delta)}</p>
-        {board.publishedAt ? (
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Last snapshot on this disk: {new Date(board.publishedAt).toLocaleString()} · board
-            revision {board.revision}
-          </p>
-        ) : (
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Board revision {board.revision}. No snapshot published on this disk yet.
-          </p>
-        )}
-      </div>
-
-      <p className="text-xs text-[var(--muted)]">
-        Tickets only. Default is Later + Open. Categories filter the board or switch to swimlanes.
-        Raise ideas from Inbox or the leaf bar next to Run / Development.
-      </p>
-
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="sg-btn-secondary" onClick={() => setPackOpen(true)}>
-          Publish snapshot
-        </button>
-        <button
-          type="button"
-          className="sg-btn-secondary"
-          onClick={async () => {
-            const json = exportBoardJson(board);
-            const ok = await copyText(json);
-            setFlash(ok ? "Board JSON copied." : "Copy failed — use Publish snapshot to paste.");
-          }}
-        >
-          Export board JSON
-        </button>
-        <button type="button" className="sg-btn-secondary" onClick={() => setBaselineOpen(true)}>
-          Set live baseline
-        </button>
-        {hostKind === "live" ? (
-          <button
-            type="button"
-            className="sg-btn-ghost disabled:opacity-50"
-            disabled={pending}
-            onClick={() => {
-              startTransition(async () => {
-                await setLiveBaselineFromThisBoardAction(nodeId, revalidateHref);
-                setFlash("Live baseline set from this board.");
-                router.refresh();
-              });
-            }}
-          >
-            Baseline = this live board
-          </button>
-        ) : null}
-      </div>
-      {flash ? <p className="text-sm text-[var(--muted)]">{flash}</p> : null}
-
-      <div className="flex flex-wrap gap-2">
-        {COLUMN_FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            aria-pressed={filter === f.id && !focusCol}
-            className={
-              filter === f.id && !focusCol ? "sg-btn-primary" : "sg-btn-secondary"
-            }
-            onClick={() => {
-              setFocusCol(null);
-              setFilter(f.id);
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Category
-        </span>
-        <button
-          type="button"
-          className={categoryFilter === "all" ? "sg-btn-primary" : "sg-btn-secondary"}
-          onClick={() => setCategoryFilter("all")}
-        >
-          All
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            className="rounded-full border px-2 py-1 text-xs font-medium"
-            style={{
-              color: CATEGORY_BADGE[cat].color,
-              background:
-                categoryFilter === cat ? CATEGORY_BADGE[cat].fill : "var(--surface)",
-              borderColor: CATEGORY_BADGE[cat].color,
-              boxShadow: categoryFilter === cat ? `0 0 0 2px ${CATEGORY_BADGE[cat].color}` : undefined,
-            }}
-            onClick={() => setCategoryFilter(cat)}
-          >
-            {CATEGORY_LABELS[cat]}
-          </button>
-        ))}
-        <span className="ml-auto flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={layout === "columns" ? "sg-btn-primary" : "sg-btn-secondary"}
-            onClick={() => setLayout("columns")}
-          >
-            Columns
-          </button>
-          <button
-            type="button"
-            className={layout === "swimlanes" ? "sg-btn-primary" : "sg-btn-secondary"}
-            onClick={() => setLayout("swimlanes")}
-          >
-            Swimlanes
-          </button>
-        </span>
-      </div>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {flash ? <p className="shrink-0 text-sm text-[var(--muted)]">{flash}</p> : null}
 
       {layout === "columns" || focusCol ? (
         <div
@@ -410,6 +298,96 @@ export function KanbanBoard({
           </table>
         </div>
       )}
+
+      <ShellModal
+        open={moreOpen}
+        titleId="kanban-more-options"
+        onClose={() => onMoreOpenChange(false)}
+        panelClassName="max-w-lg"
+      >
+        <h2 id="kanban-more-options" className="mb-2 font-medium">
+          More options
+        </h2>
+        <div
+          className="mb-3 rounded-[10px] border px-3 py-2"
+          style={{
+            borderColor: delta.hasBaseline ? ragColor(delta.rag) : "var(--border)",
+            background: delta.hasBaseline
+              ? `color-mix(in srgb, ${ragColor(delta.rag)} 12%, transparent)`
+              : "var(--surface)",
+          }}
+        >
+          <p className="text-sm font-semibold">
+            {delta.hasBaseline
+              ? `${delta.total} change${delta.total === 1 ? "" : "s"} since live snapshot (rev ${delta.baselineRevision})`
+              : "No live baseline yet"}
+          </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">{formatDeltaSummary(delta)}</p>
+          {board.publishedAt ? (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Last snapshot on this disk: {new Date(board.publishedAt).toLocaleString()} · board
+              revision {board.revision}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Board revision {board.revision}. No snapshot published on this disk yet.
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="sg-btn-secondary"
+            onClick={() => {
+              onMoreOpenChange(false);
+              setPackOpen(true);
+            }}
+          >
+            Publish snapshot
+          </button>
+          <button
+            type="button"
+            className="sg-btn-secondary"
+            onClick={async () => {
+              const json = exportBoardJson(board);
+              const ok = await copyText(json);
+              setFlash(ok ? "Board JSON copied." : "Copy failed — use Publish snapshot to paste.");
+            }}
+          >
+            Export board JSON
+          </button>
+          <button
+            type="button"
+            className="sg-btn-secondary"
+            onClick={() => {
+              onMoreOpenChange(false);
+              setBaselineOpen(true);
+            }}
+          >
+            Set live baseline
+          </button>
+          {hostKind === "live" ? (
+            <button
+              type="button"
+              className="sg-btn-ghost disabled:opacity-50"
+              disabled={pending}
+              onClick={() => {
+                startTransition(async () => {
+                  await setLiveBaselineFromThisBoardAction(nodeId, revalidateHref);
+                  setFlash("Live baseline set from this board.");
+                  onMoreOpenChange(false);
+                  router.refresh();
+                });
+              }}
+            >
+              Baseline = this live board
+            </button>
+          ) : null}
+        </div>
+        <button type="button" className="sg-btn-ghost mt-3" onClick={() => onMoreOpenChange(false)}>
+          Close
+        </button>
+      </ShellModal>
 
       <ShellModal
         open={Boolean(openTicket)}

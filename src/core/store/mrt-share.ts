@@ -13,6 +13,11 @@ import {
   MRT_SHARE_DURATIONS,
   type MrtAudienceSharePublic,
 } from "@/modules/sunwater-mrt/share-public";
+import {
+  pgGetMrtShares,
+  pgReplaceMrtShares,
+  postgresEnabled,
+} from "@/core/store/simple-pg";
 
 export { MRT_SHARE_DURATIONS, type MrtAudienceSharePublic };
 
@@ -98,6 +103,21 @@ async function writeFile(value: ShareFile): Promise<void> {
   );
 }
 
+async function loadShares(): Promise<ShareFile> {
+  if (postgresEnabled()) {
+    return { shares: await pgGetMrtShares() };
+  }
+  return readFile();
+}
+
+async function saveShares(value: ShareFile): Promise<void> {
+  if (postgresEnabled()) {
+    await pgReplaceMrtShares(value.shares);
+    return;
+  }
+  await writeFile(value);
+}
+
 function toPublic(row: MrtAudienceShare): MrtAudienceSharePublic {
   return {
     id: row.id,
@@ -142,7 +162,7 @@ export function shareIsLive(row: MrtAudienceShare, now = Date.now()): boolean {
 }
 
 export async function listMrtSharesPublic(): Promise<MrtAudienceSharePublic[]> {
-  const file = await readFile();
+  const file = await loadShares();
   return file.shares.map(toPublic);
 }
 
@@ -150,12 +170,12 @@ export async function getMrtShareById(
   id: string,
 ): Promise<MrtAudienceShare | null> {
   if (!id) return null;
-  const file = await readFile();
+  const file = await loadShares();
   return file.shares.find((s) => s.id === id) ?? null;
 }
 
 export async function anyMrtShareActive(): Promise<boolean> {
-  const file = await readFile();
+  const file = await loadShares();
   const now = Date.now();
   return file.shares.some((s) => shareIsLive(s, now));
 }
@@ -185,7 +205,7 @@ export async function createMrtShare(input: {
     return { ok: false, error: "Pick a duration" };
   }
 
-  const file = await readFile();
+  const file = await loadShares();
   if (file.shares.length >= MAX_SHARES) {
     return { ok: false, error: `At most ${MAX_SHARES} audiences` };
   }
@@ -204,7 +224,7 @@ export async function createMrtShare(input: {
     updatedAt: now.toISOString(),
   };
   file.shares.unshift(row);
-  await writeFile(file);
+  await saveShares(file);
   return { ok: true, share: toPublic(row) };
 }
 
@@ -216,7 +236,7 @@ export async function setMrtSharePassword(input: {
   if (input.password.length < 4) {
     return { ok: false, error: "Password must be at least 4 characters" };
   }
-  const file = await readFile();
+  const file = await loadShares();
   const row = file.shares.find((s) => s.id === input.id);
   if (!row) return { ok: false, error: "Audience not found" };
 
@@ -234,31 +254,31 @@ export async function setMrtSharePassword(input: {
     row.expiresAt = new Date(now.getTime() + hours * 3600 * 1000).toISOString();
   }
   row.updatedAt = now.toISOString();
-  await writeFile(file);
+  await saveShares(file);
   return { ok: true, share: toPublic(row) };
 }
 
 export async function disableMrtShare(
   id: string,
 ): Promise<{ ok: true; share: MrtAudienceSharePublic } | { ok: false; error: string }> {
-  const file = await readFile();
+  const file = await loadShares();
   const row = file.shares.find((s) => s.id === id);
   if (!row) return { ok: false, error: "Audience not found" };
   row.enabled = false;
   row.updatedAt = new Date().toISOString();
-  await writeFile(file);
+  await saveShares(file);
   return { ok: true, share: toPublic(row) };
 }
 
 export async function deleteMrtShare(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const file = await readFile();
+  const file = await loadShares();
   const next = file.shares.filter((s) => s.id !== id);
   if (next.length === file.shares.length) {
     return { ok: false, error: "Audience not found" };
   }
-  await writeFile({ shares: next });
+  await saveShares({ shares: next });
   return { ok: true };
 }
 

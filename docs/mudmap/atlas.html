@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mudmap · Atlas</title>
+  <style>
+    :root {
+      --paper: #efe2c4;
+      --ink: #241c14;
+      --soft: #5e4f3d;
+      --line: #8a7358;
+      --pin: #9b2e2e;
+      --doing: #3f7a5c;
+      --thing: #3e6ea3;
+      --path: #8a3b2a;
+      --mc: #9b2e2e;
+      --l0: #6b5b4a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); font: 14px/1.35 "Segoe UI", Candara, sans-serif; }
+
+    .top {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      display: flex; flex-wrap: wrap; gap: .45rem; align-items: center;
+      justify-content: space-between;
+      padding: .55rem .75rem;
+      background: rgba(239, 226, 196, .94);
+      border-bottom: 2px solid var(--ink);
+    }
+    .top h1 { margin: 0; font: 700 1.05rem/1.1 Palatino, Georgia, serif; }
+    .top .hint { color: var(--soft); font-size: .8rem; }
+    .tools { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .tools button, .tools a.btn {
+      border: 1px solid var(--ink);
+      background: #fff;
+      color: var(--ink);
+      padding: .3rem .55rem;
+      font: 650 .78rem/1 "Segoe UI", sans-serif;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .tools button:hover, .tools a.btn:hover { background: #fff3c4; }
+    .tools .primary { background: var(--doing); color: #f4ead8; border-color: var(--doing); }
+
+    #viewport {
+      position: fixed; inset: 52px 0 0 0;
+      overflow: hidden;
+      cursor: grab;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(255,255,255,.25), transparent 40%),
+        repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(138,115,88,.07) 29px),
+        repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(138,115,88,.05) 29px),
+        var(--paper);
+      touch-action: none;
+    }
+    #viewport.panning { cursor: grabbing; }
+
+    #world {
+      position: absolute;
+      left: 0; top: 0;
+      width: 2400px; height: 1600px;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    #edges {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    #edges line {
+      stroke: var(--line);
+      stroke-width: 2;
+      stroke-dasharray: 6 5;
+    }
+    #edges line.strong { stroke: var(--ink); stroke-dasharray: none; stroke-width: 2.5; }
+    #edges text {
+      fill: var(--soft);
+      font: 700 12px "Segoe UI", sans-serif;
+      letter-spacing: .04em;
+    }
+
+    .node {
+      position: absolute;
+      width: 220px;
+      border: 2px solid var(--ink);
+      background: rgba(255,255,255,.88);
+      box-shadow: none;
+      cursor: pointer;
+      user-select: none;
+    }
+    .node:focus { outline: 3px solid var(--pin); outline-offset: 2px; }
+    .node.active { border-color: var(--pin); background: #fff8e0; }
+    .node .band {
+      padding: .35rem .55rem;
+      color: #f4ead8;
+      font: 700 .68rem/1 "Segoe UI", sans-serif;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .node.l0 .band { background: var(--l0); }
+    .node.doing .band { background: var(--doing); }
+    .node.thing .band { background: var(--thing); }
+    .node.path .band { background: var(--path); }
+    .node.mc .band { background: var(--mc); }
+    .node .body { padding: .55rem .6rem .65rem; }
+    .node h2 { margin: 0 0 .25rem; font: 700 1rem/1.15 Palatino, Georgia, serif; }
+    .node p { margin: 0; color: var(--soft); font-size: .8rem; }
+    .node .actions {
+      display: flex; gap: .35rem; margin-top: .55rem;
+    }
+    .node .actions button,
+    .node .actions a.open {
+      flex: 1;
+      border: 1px solid var(--ink);
+      background: #fff;
+      padding: .28rem .35rem;
+      font: 650 .72rem/1 "Segoe UI", sans-serif;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .node .actions a.open {
+      background: var(--ink);
+      color: #f4ead8;
+    }
+
+    .legend {
+      position: fixed; right: .7rem; bottom: .7rem; z-index: 20;
+      background: rgba(255,255,255,.9);
+      border: 1px solid var(--line);
+      padding: .45rem .55rem;
+      font-size: .75rem;
+      color: var(--soft);
+      max-width: 14rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>Mudmap · Atlas</h1>
+      <div class="hint">Drag to pan · wheel to zoom · click a page to focus · Open jumps to that HTML</div>
+    </div>
+    <div class="tools">
+      <button type="button" id="fit">Fit all</button>
+      <button type="button" id="reset">Reset</button>
+      <button type="button" id="zoomIn">Zoom +</button>
+      <button type="button" id="zoomOut">Zoom −</button>
+      <a class="btn primary" href="index.html">Page nav (Level 0)</a>
+    </div>
+  </div>
+
+  <div id="viewport" aria-label="Infinite mudmap atlas">
+    <div id="world">
+      <svg id="edges" viewBox="0 0 2400 1600" preserveAspectRatio="none">
+        <!-- Level 0 center to realms -->
+        <line class="strong" x1="1200" y1="350" x2="1200" y2="470" />
+        <line class="strong" x1="1200" y1="520" x2="620" y2="420" />
+        <line class="strong" x1="1200" y1="520" x2="1780" y2="420" />
+        <line x1="1200" y1="620" x2="1200" y2="900" />
+        <text x="1210" y="400">door</text>
+        <!-- Doing -> path -->
+        <line class="strong" x1="510" y1="520" x2="510" y2="780" />
+        <!-- Doing -> ops -->
+        <line class="strong" x1="400" y1="520" x2="180" y2="780" />
+        <!-- Doing builds Thing -->
+        <line x1="730" y1="450" x2="1670" y2="450" />
+        <!-- MC watches Doing -->
+        <line x1="1090" y1="980" x2="730" y2="520" />
+
+        <text x="1100" y="430">builds / tends</text>
+        <text x="1210" y="780">watches</text>
+        <text x="430" y="660">detail</text>
+        <text x="200" y="660">how to use</text>
+      </svg>
+
+      <article class="node l0" data-id="guide" data-href="USER-GUIDE.html" style="left:1090px;top:250px" tabindex="0">
+        <div class="band">Door</div>
+        <div class="body">
+          <h2>USER GUIDE</h2>
+          <p>Tomorrow-you’s one page. Commands · rules · where stuff lives.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="USER-GUIDE.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node l0" data-id="l0" data-href="index.html" style="left:1090px;top:470px" tabindex="0">
+        <div class="band">Hub</div>
+        <div class="body">
+          <h2>Level 0</h2>
+          <p>Titles + position only. The Doing · The Thing · Mission Control.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="index.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node doing" data-id="doing" data-href="the-doing.html" style="left:400px;top:350px" tabindex="0">
+        <div class="band">Realm A · Process</div>
+        <div class="body">
+          <h2>The Doing</h2>
+          <p>School · hats · board · Cursor campus. Learning focus.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="the-doing.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node thing" data-id="thing" data-href="the-thing.html" style="left:1680px;top:350px" tabindex="0">
+        <div class="band">Realm B · Product</div>
+        <div class="body">
+          <h2>The Thing</h2>
+          <p>ScrivenGroup world-disc. Continents = hubs. Elephants = services.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="the-thing.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node path" data-id="path" data-href="the-doing-path.html" style="left:400px;top:780px" tabindex="0">
+        <div class="band">Doing · Path</div>
+        <div class="body">
+          <h2>Hurdles &amp; path</h2>
+          <p>Context wall → board → hats → campus → Mission Control.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="the-doing-path.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node path" data-id="ops" data-href="the-doing-ops.html" style="left:70px;top:780px" tabindex="0">
+        <div class="band">Doing · Ops</div>
+        <div class="body">
+          <h2>How you use it</h2>
+          <p>Plan-by-hats · one Primary · design locks · zip&amp;go.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="the-doing-ops.html">Open page</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="node mc" data-id="mc" data-href="mission-control.html" style="left:1090px;top:920px" tabindex="0">
+        <div class="band">Watch</div>
+        <div class="body">
+          <h2>Mission Control</h2>
+          <p>Ant farm / meta overview of The Doing. Sketched.</p>
+          <div class="actions">
+            <button type="button" class="focus">Focus</button>
+            <a class="open" href="mission-control.html">Open page</a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="legend">
+    Atlas mode · same mudmap pages, one board.<br />
+    Toggle back via <b>Page nav</b>.
+  </div>
+
+  <script>
+    (function () {
+      const viewport = document.getElementById("viewport");
+      const world = document.getElementById("world");
+      const nodes = [...document.querySelectorAll(".node")];
+
+      let scale = 0.85;
+      let x = 0;
+      let y = 0;
+      let panning = false;
+      let ox = 0;
+      let oy = 0;
+      let startX = 0;
+      let startY = 0;
+      let moved = false;
+
+      function apply() {
+        world.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      }
+
+      function fitAll() {
+        const pad = 80;
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        // bounding box of nodes in world coords
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodes.forEach((n) => {
+          const left = n.offsetLeft;
+          const top = n.offsetTop;
+          const right = left + n.offsetWidth;
+          const bottom = top + n.offsetHeight;
+          minX = Math.min(minX, left);
+          minY = Math.min(minY, top);
+          maxX = Math.max(maxX, right);
+          maxY = Math.max(maxY, bottom);
+        });
+        const bw = maxX - minX;
+        const bh = maxY - minY;
+        scale = Math.min((vw - pad * 2) / bw, (vh - pad * 2) / bh, 1.2);
+        x = (vw - bw * scale) / 2 - minX * scale;
+        y = (vh - bh * scale) / 2 - minY * scale;
+        apply();
+      }
+
+      function focusNode(node) {
+        nodes.forEach((n) => n.classList.toggle("active", n === node));
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        const targetScale = Math.min(Math.max(scale, 1.05), 1.35);
+        scale = targetScale;
+        const cx = node.offsetLeft + node.offsetWidth / 2;
+        const cy = node.offsetTop + node.offsetHeight / 2;
+        x = vw / 2 - cx * scale;
+        y = vh / 2 - cy * scale;
+        apply();
+        node.focus({ preventScroll: true });
+      }
+
+      function openNode(node) {
+        const href = node.getAttribute("data-href");
+        if (href) window.location.href = href;
+      }
+
+      viewport.addEventListener("pointerdown", (e) => {
+        if (e.target.closest(".node button, .node a.open")) return;
+        panning = true;
+        moved = false;
+        viewport.classList.add("panning");
+        startX = e.clientX;
+        startY = e.clientY;
+        ox = e.clientX - x;
+        oy = e.clientY - y;
+        viewport.setPointerCapture(e.pointerId);
+      });
+
+      viewport.addEventListener("pointermove", (e) => {
+        if (!panning) return;
+        if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) moved = true;
+        x = e.clientX - ox;
+        y = e.clientY - oy;
+        apply();
+      });
+
+      viewport.addEventListener("pointerup", (e) => {
+        const node = e.target.closest(".node");
+        const wasPan = moved;
+        panning = false;
+        viewport.classList.remove("panning");
+        if (node && !wasPan && !e.target.closest("button, a.open")) {
+          focusNode(node);
+        }
+      });
+
+      viewport.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const worldX = (mx - x) / scale;
+        const worldY = (my - y) / scale;
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const next = Math.min(2.2, Math.max(0.35, scale * delta));
+        x = mx - worldX * next;
+        y = my - worldY * next;
+        scale = next;
+        apply();
+      }, { passive: false });
+
+      nodes.forEach((node) => {
+        node.querySelector(".focus").addEventListener("click", (e) => {
+          e.stopPropagation();
+          focusNode(node);
+        });
+        node.addEventListener("dblclick", () => openNode(node));
+        node.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") openNode(node);
+          if (e.key === " ") { e.preventDefault(); focusNode(node); }
+        });
+      });
+
+      document.getElementById("fit").addEventListener("click", fitAll);
+      document.getElementById("reset").addEventListener("click", () => {
+        scale = 0.85; x = -200; y = -120; apply();
+        nodes.forEach((n) => n.classList.remove("active"));
+      });
+      document.getElementById("zoomIn").addEventListener("click", () => {
+        const vw = viewport.clientWidth / 2;
+        const vh = viewport.clientHeight / 2;
+        const worldX = (vw - x) / scale;
+        const worldY = (vh - y) / scale;
+        scale = Math.min(2.2, scale * 1.15);
+        x = vw - worldX * scale;
+        y = vh - worldY * scale;
+        apply();
+      });
+      document.getElementById("zoomOut").addEventListener("click", () => {
+        const vw = viewport.clientWidth / 2;
+        const vh = viewport.clientHeight / 2;
+        const worldX = (vw - x) / scale;
+        const worldY = (vh - y) / scale;
+        scale = Math.max(0.35, scale / 1.15);
+        x = vw - worldX * scale;
+        y = vh - worldY * scale;
+        apply();
+      });
+
+      window.addEventListener("resize", fitAll);
+      fitAll();
+    })();
+  </script>
+</body>
+</html>

@@ -19,6 +19,18 @@ export function getChildren(parentId: string): RegistryNode[] {
     .sort((a, b) => a.order - b.order);
 }
 
+/** Same hub → children map Site network uses. One source for travel + Raise picker. */
+export function siteNetworkTree(): {
+  hubs: RegistryNode[];
+  childrenByHub: Record<string, RegistryNode[]>;
+} {
+  const hubs = getHubs();
+  return {
+    hubs,
+    childrenByHub: Object.fromEntries(hubs.map((h) => [h.id, getChildren(h.id)])),
+  };
+}
+
 export function getNodeByHref(href: string): RegistryNode | undefined {
   const normalized = href.replace(/\/$/, "") || "/";
   return seedNodes.find((n) => n.href === normalized);

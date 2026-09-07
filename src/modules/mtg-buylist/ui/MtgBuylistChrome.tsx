@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/core/shell/AppShell";
 import { PageNav } from "@/core/shell/PageNav";
+import type { DevHostKind } from "@/core/kanban/host";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
-import { StatusPill } from "@/core/ui/StatusPill";
+import { InfoTip } from "@/core/ui/InfoTip";
 import { MTG_BUYLIST_HREF } from "../schema";
 import {
   MTG_BUYLIST_VERSION,
@@ -18,6 +19,8 @@ export function MtgBuylistChrome({
   children,
   wide,
   canRaise = true,
+  hostKind,
+  host,
 }: {
   href: string;
   title: string;
@@ -26,8 +29,17 @@ export function MtgBuylistChrome({
   /** Fill the viewport (KanBan / Development). */
   wide?: boolean;
   canRaise?: boolean;
+  hostKind?: DevHostKind;
+  host?: string;
 }) {
   const node = getNodeByHref(MTG_BUYLIST_HREF);
+  const tip = [
+    intent,
+    `v${MTG_BUYLIST_VERSION} · ${MTG_BUYLIST_VERSION_WHEN}`,
+    node ? `Access: ${node.accessMode.replace("_", " ")} · Path ${href} · Your run only` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <AppShell
@@ -35,28 +47,29 @@ export function MtgBuylistChrome({
       frameClassName={wide ? "h-dvh max-h-dvh overflow-hidden" : undefined}
       mainClassName={
         wide
-          ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 pb-4 pt-6"
-          : undefined
+          ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 pb-3 pt-3"
+          : "mx-auto max-w-5xl px-4 pb-8 pt-3"
       }
     >
       <div className="shrink-0">
-        <PageNav href={MTG_BUYLIST_HREF} />
+        <PageNav href={MTG_BUYLIST_HREF} compact />
       </div>
-      <header className={wide ? "mb-2 shrink-0" : "mb-4 shrink-0"}>
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h1 className={wide ? "text-2xl font-semibold tracking-tight" : "text-3xl font-semibold tracking-tight"}>{title}</h1>
+      <header className="mb-1 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
           {node ? <CodeBadge node={node} /> : null}
-          {node ? <StatusPill status={node.status} /> : null}
+          <span className="text-xs text-[var(--muted)]">
+            v{MTG_BUYLIST_VERSION} · {MTG_BUYLIST_VERSION_WHEN}
+          </span>
+          <InfoTip label={tip} />
         </div>
-        <p className="max-w-2xl text-[var(--muted)]">{intent}</p>
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          v{MTG_BUYLIST_VERSION} · {MTG_BUYLIST_VERSION_WHEN}
-          {node
-            ? ` · Access: ${node.accessMode.replace("_", " ")} · Path ${href} · Your run only`
-            : ""}
-        </p>
       </header>
-      <MtgBuylistNav currentHref={href} canRaise={canRaise} />
+      <MtgBuylistNav
+        currentHref={href}
+        canRaise={canRaise}
+        hostKind={hostKind}
+        host={host}
+      />
       <div className={wide ? "flex min-h-0 flex-1 flex-col" : undefined}>{children}</div>
     </AppShell>
   );

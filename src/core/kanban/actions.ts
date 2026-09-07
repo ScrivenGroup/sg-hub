@@ -4,9 +4,13 @@ import { revalidatePath } from "next/cache";
 import { auth, isMrtGuest } from "@/auth";
 import {
   getKanbanBoard,
+  getKanbanIdeaById,
+  listKanbanIdeas,
   saveKanbanBoard,
   upsertChangelogEntries,
+  upsertKanbanIdea,
 } from "@/core/store/json-store";
+import { isKanbanLeafId } from "./leaves";
 import {
   applySessionPack,
   fragmentsToChangelog,
@@ -29,26 +33,38 @@ async function requireStaff(): Promise<{ label: string } | null> {
   };
 }
 
+function revalidateKanban(revalidateHref: string) {
+  revalidatePath(revalidateHref);
+  revalidatePath("/i/kanban");
+}
+
+function safeTagNodeId(raw: string | undefined, fallback: string): string {
+  const tag = (raw || fallback).trim() || fallback;
+  return isKanbanLeafId(tag) ? tag : fallback;
+}
+
 async function persist(board: KanbanBoard, revalidateHref: string) {
   await saveKanbanBoard(board);
-  revalidatePath(revalidateHref);
+  revalidateKanban(revalidateHref);
   return board;
 }
 
 export async function addInboxNoteAction(
   nodeId: string,
   revalidateHref: string,
-  input: { title: string; body: string },
+  input: { title: string; body: string; tagNodeId?: string },
 ) {
   const staff = await requireStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
   const title = input.title.trim();
   const body = input.body.trim();
   if (!title && !body) return { ok: false as const, error: "Title or body required" };
+  const tagNodeId = safeTagNodeId(input.tagNodeId, nodeId);
   const now = new Date().toISOString();
-  const board = await getKanbanBoard(nodeId);
+  const allIdeas = await listKanbanIdeas();
   const note: KanbanInboxNote = {
-    id: nextInboxId(board.ideas),
+    id: nextInboxId(allIdeas),
+    nodeId: tagNodeId,
     title: title || "Untitled idea",
     body,
     status: "open",
@@ -56,52 +72,34 @@ export async function addInboxNoteAction(
     updatedAt: now,
     copiedAt: null,
   };
-  const next: KanbanBoard = {
-    ...board,
-    ideas: [note, ...board.ideas],
-    revision: board.revision + 1,
-    updatedAt: now,
-    events: prependEvent(board.events, {
-      at: now,
-      kind: "inbox",
-      summary: `Added raw ${note.id}`,
-    }),
-  };
-  await persist(next, revalidateHref);
-  return { ok: true as const, board: next, ideaId: note.id };
+  await upsertKanbanIdea(note);
+  revalidateKanban(revalidateHref);
+  const board = await getKanbanBoard(tagNodeId);
+  return { ok: true as const, board, ideaId: note.id, nodeId: tagNodeId };
 }
 
 export async function saveInboxNoteAction(
   nodeId: string,
   revalidateHref: string,
-  input: { id: string; title: string; body: string },
+  input: { id: string; title: string; body: string; tagNodeId?: string },
 ) {
   const staff = await requireStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
-  const board = await getKanbanBoard(nodeId);
-  const idx = board.ideas.findIndex((i) => i.id === input.id);
-  if (idx < 0) return { ok: false as const, error: "Raw note not found" };
+  const existing = await getKanbanIdeaById(input.id);
+  if (!existing) return { ok: false as const, error: "Raw note not found" };
   const now = new Date().toISOString();
-  const ideas = board.ideas.slice();
-  ideas[idx] = {
-    ...ideas[idx],
-    title: input.title.trim() || ideas[idx].title,
+  const tagNodeId = safeTagNodeId(input.tagNodeId ?? existing.nodeId, existing.nodeId);
+  const next: KanbanInboxNote = {
+    ...existing,
+    title: input.title.trim() || existing.title,
     body: input.body,
+    nodeId: tagNodeId,
     updatedAt: now,
   };
-  const next: KanbanBoard = {
-    ...board,
-    ideas,
-    revision: board.revision + 1,
-    updatedAt: now,
-    events: prependEvent(board.events, {
-      at: now,
-      kind: "inbox",
-      summary: `Edited raw ${input.id}`,
-    }),
-  };
-  await persist(next, revalidateHref);
-  return { ok: true as const, board: next };
+  await upsertKanbanIdea(next);
+  revalidateKanban(revalidateHref);
+  const board = await getKanbanBoard(nodeId);
+  return { ok: true as const, board };
 }
 
 export async function markIdeaCopiedAction(
@@ -111,24 +109,13 @@ export async function markIdeaCopiedAction(
 ) {
   const staff = await requireStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
-  const board = await getKanbanBoard(nodeId);
-  const idx = board.ideas.findIndex((i) => i.id === ideaId);
-  if (idx < 0) return { ok: false as const, error: "Raw note not found" };
+  const existing = await getKanbanIdeaById(ideaId);
+  if (!existing) return { ok: false as const, error: "Raw note not found" };
   const now = new Date().toISOString();
-  const ideas = board.ideas.slice();
-  ideas[idx] = { ...ideas[idx], copiedAt: now, updatedAt: now };
-  const next: KanbanBoard = {
-    ...board,
-    ideas,
-    updatedAt: now,
-    events: prependEvent(board.events, {
-      at: now,
-      kind: "inbox",
-      summary: `Copied session prompt for ${ideaId}`,
-    }),
-  };
-  await persist(next, revalidateHref);
-  return { ok: true as const, board: next };
+  await upsertKanbanIdea({ ...existing, copiedAt: now, updatedAt: now });
+  revalidateKanban(revalidateHref);
+  const board = await getKanbanBoard(nodeId);
+  return { ok: true as const, board };
 }
 
 export async function publishSnapshotPackAction(
@@ -159,7 +146,7 @@ export async function publishSnapshotPackAction(
   const fragments = fragmentsToChangelog(nodeId, pack.changelogFragments);
   if (fragments.length) {
     await upsertChangelogEntries(fragments);
-    revalidatePath(revalidateHref);
+    revalidateKanban(revalidateHref);
   }
   return {
     ok: true as const,

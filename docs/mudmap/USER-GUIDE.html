@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USER GUIDE · tomorrow-you’s door</title>
+  <style>
+    :root {
+      --paper: #efe2c4; --ink: #241c14; --soft: #5e4f3d; --line: #8a7358;
+      --pin: #9b2e2e; --doing: #3f7a5c; --brain: #3d4a6b; --ok: #2f6f6c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font: 15px/1.4 "Segoe UI", Candara, sans-serif;
+      background: repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px), var(--paper);
+    }
+    .sheet { max-width: 920px; margin: 0 auto; padding: 1rem 1.1rem 2.5rem; }
+    header {
+      display: flex; justify-content: space-between; align-items: end; gap: 1rem;
+      border-bottom: 3px solid var(--ink); padding-bottom: .55rem; margin-bottom: .75rem;
+    }
+    h1 { margin: 0; font: 700 clamp(1.45rem, 3vw, 1.9rem)/1.1 Palatino, Georgia, serif; }
+    .stamp {
+      border: 2px solid var(--pin); color: var(--pin);
+      font: 700 11px/1.15 "Courier New", monospace; letter-spacing: .08em;
+      text-transform: uppercase; padding: .35rem .45rem; transform: rotate(2deg); white-space: nowrap;
+    }
+    .lede { color: var(--soft); margin: 0 0 .9rem; }
+    .here {
+      border: 2px solid var(--pin); background: #fff3c4;
+      padding: .7rem .85rem; margin: 0 0 1rem;
+    }
+    .here b { color: var(--pin); }
+    h2 {
+      font: 700 1.1rem/1.2 Palatino, Georgia, serif;
+      border-left: 7px solid var(--doing);
+      padding-left: .45rem; margin: 1.15rem 0 .4rem;
+    }
+    h2.cmd { border-left-color: var(--brain); }
+    h2.where { border-left-color: var(--ok); }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.45); font-size: .9rem; margin: .35rem 0 .8rem; }
+    th, td { border: 1px solid var(--line); padding: .4rem .5rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0,0,0,.06); }
+    code, .say {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .86em;
+      background: rgba(255,255,255,.7);
+      padding: .05rem .3rem;
+      border: 1px solid rgba(138,115,88,.35);
+    }
+    .say { display: inline-block; font-weight: 700; background: #e8f0fa; border-color: #3e6ea3; }
+    ul { margin: .25rem 0 .7rem; padding-left: 1.15rem; }
+    li { margin: .22rem 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+    @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+    .card { border: 1px solid var(--line); background: rgba(255,255,255,.5); padding: .6rem .7rem; }
+    .card h3 { margin: 0 0 .35rem; font-size: .95rem; }
+    .nav {
+      display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 0;
+      font-size: .88rem;
+    }
+    .nav a { color: var(--ink); }
+    footer {
+      margin-top: 1.2rem; padding-top: .5rem; border-top: 1px solid var(--line);
+      color: var(--soft); font-size: .8rem;
+    }
+    @media print {
+      body { background: #fff; }
+      .here { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <header>
+      <div>
+        <h1>USER GUIDE · one page</h1>
+      </div>
+      <div class="stamp">Door<br />28 Aug 2026</div>
+    </header>
+    <p class="lede">
+      Tomorrow-you forgets. This page is the door.
+      If you only open <b>one</b> file about The Doing, open this.
+    </p>
+
+    <div class="here">
+      <b>Status right now</b>
+      <ul style="margin:.35rem 0 0">
+        <li><b>Canonical brain:</b> open <code>Cursor/cursor-brain/USER-GUIDE.html</code> — that pack is born.</li>
+        <li><b>This copy:</b> teaching mirror inside ScrivenGroup docs; prefer the brain copy.</li>
+        <li><b>ScrivenGroup Thing:</b> stays here. Sweep/move = later analysis.</li>
+        <li><b>You:</b> for Doing, open the <b>cursor-brain</b> workspace. Prefer Plan for Front desk.</li>
+      </ul>
+    </div>
+
+    <h2>1. The picture (10 seconds)</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>The Doing = brain</h3>
+        <ul>
+          <li>How work gets done</li>
+          <li>Board, tickets, hats, rules</li>
+          <li>Will live in <code>cursor-brain/</code></li>
+          <li>Travels to a new PC (zip &amp; go)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>The Thing = product</h3>
+        <ul>
+          <li>What people open in a browser</li>
+          <li>Today: <code>scrivengroup/</code></li>
+          <li>Has its own PLATFORM / deploy rules</li>
+          <li>Not the school office</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="cmd">2. What you type (commands)</h2>
+    <table>
+      <thead><tr><th>You want…</th><th>Open / mode</th><th>Say this</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Steer / ambiguous wish</td>
+          <td>Front desk · <b>Plan</b></td>
+          <td>Plain English wish. Expect hat-options, not silent coding.</td>
+        </tr>
+        <tr>
+          <td>Messy (disk? UI? both?)</td>
+          <td>Plan</td>
+          <td><span class="say">Looks messy — options by hat</span></td>
+        </tr>
+        <tr>
+          <td>Do one approved job</td>
+          <td>New chat · Agent</td>
+          <td>Paste the <b>ticket</b>. Worker only. Report back.</td>
+        </tr>
+        <tr>
+          <td>Weekly tidy</td>
+          <td>Janitor</td>
+          <td><span class="say">Housekeeping light</span></td>
+        </tr>
+        <tr>
+          <td>Monthly review</td>
+          <td>Janitor</td>
+          <td><span class="say">Run monthly housekeeping</span></td>
+        </tr>
+        <tr>
+          <td>Leave this machine</td>
+          <td>Front desk</td>
+          <td><span class="say">Zip and go</span> → copy the Import prompt to the new PC</td>
+        </tr>
+        <tr>
+          <td>New product world</td>
+          <td>Plan</td>
+          <td><span class="say">Start a new Thing called ___ using the template</span></td>
+        </tr>
+        <tr>
+          <td>Birth the brain (next build)</td>
+          <td>This workspace · Agent</td>
+          <td><span class="say">go build cursor-brain</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. How agents must talk to you</h2>
+    <p class="lede" style="margin:0 0 .45rem">You rely on the expert. Spoon-feed unless you ask for depth. Default style for <b>every</b> Doing chat (especially Front desk):</p>
+    <table>
+      <thead><tr><th>Order</th><th>What it looks like</th></tr></thead>
+      <tbody>
+        <tr><td><b>1. ELI5 answer first</b></td><td>Plain words. Lead with what’s true / what to do. No jargon wall.</td></tr>
+        <tr><td><b>2. Dot points + tables</b></td><td>Scannable. Pictures/maps when they help. Not long essays.</td></tr>
+        <tr><td><b>3. Exceptions / actions last</b></td><td>Caveats, “do this next”, commands, risks — after the simple picture.</td></tr>
+        <tr><td><b>4. No pep-talk to the user</b></td><td>Don’t cheer the human on. They encourage the agent. Agent stays calm and useful.</td></tr>
+        <tr><td><b>5. Depth on request</b></td><td>If you say “more detail” / “expert mode”, then go deep.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>4. Rules you must not forget</h2>
+    <table>
+      <thead><tr><th>Rule</th><th>Kid version</th></tr></thead>
+      <tbody>
+        <tr><td><b>You don’t touch disk</b></td><td>No Explorer tourism. Agents tend folders.</td></tr>
+        <tr><td><b>Plan by hats</b></td><td>Plans = tickets with Hat · Thing · Job · Done-when. Ambiguity → options.</td></tr>
+        <tr><td><b>One Primary</b></td><td>Front desk decides. Workers do + report. No new boss each chat.</td></tr>
+        <tr><td><b>Board wins</b></td><td>Files beat chat memory. Job not done until board updated.</td></tr>
+        <tr><td><b>One chat ≈ one ticket</b></td><td>Clears the context wall.</td></tr>
+        <tr><td><b>Design: propose → lock → build</b></td><td>You lock intent; agents bring craft into STANDARDS; Builders obey.</td></tr>
+        <tr><td><b>Brain ≠ Thing</b></td><td>School office is not inside the website repo forever.</td></tr>
+        <tr><td><b>Spoon-feed voice</b></td><td>ELI5 · bullets/tables · actions last. No user pep-talk. Depth only if asked.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. Hats (who does what)</h2>
+    <table>
+      <thead><tr><th>Hat</th><th>Does</th><th>Must not</th></tr></thead>
+      <tbody>
+        <tr><td><b>Front desk</b></td><td>Listen, Plan, ticketize, update board / PRIMARY</td><td>Build product code</td></tr>
+        <tr><td><b>Builder</b></td><td>One ticket in one Thing</td><td>Re-boss the campus / rename words</td></tr>
+        <tr><td><b>Janitor</b></td><td>Harvest, park, clean, log</td><td>Sneak features in as “tidy”</td></tr>
+        <tr><td><b>Reviewer</b></td><td>Check handbook / STANDARDS</td><td>Quietly rebuild the thing</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="where">6. Where stuff lives</h2>
+    <table>
+      <thead><tr><th>Thing you’re looking for</th><th>Where (today)</th><th>Where (target)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>This USER GUIDE</b></td>
+          <td><code>scrivengroup/docs/mudmap/USER-GUIDE.html</code></td>
+          <td><code>cursor-brain/USER-GUIDE.html</code> (canonical after birth)</td>
+        </tr>
+        <tr>
+          <td>Mudmaps / Atlas</td>
+          <td><code>scrivengroup/docs/mudmap/</code></td>
+          <td>Copied into brain; Atlas for the map view</td>
+        </tr>
+        <tr>
+          <td>Board / tickets / hats handbook</td>
+          <td><i>Not built yet</i></td>
+          <td><code>cursor-brain/doing/…</code></td>
+        </tr>
+        <tr>
+          <td>ScrivenGroup app (The Thing)</td>
+          <td><code>Cursor/scrivengroup/</code> (git repo — stay put for now)</td>
+          <td>Same path unless a later Janitor move is approved</td>
+        </tr>
+        <tr>
+          <td>Other experiments</td>
+          <td><code>funds-forecaster/</code>, <code>gannt-chart/</code></td>
+          <td>Listed on board as worlds / experiments</td>
+        </tr>
+        <tr>
+          <td>“Is it complete?”</td>
+          <td>Yellow box at top of this page + board (later)</td>
+          <td><code>doing/board/INDEX.md</code> is the answer, not chat memory</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>7. ScrivenGroup: sweep or move? (decision so far)</h2>
+    <ul>
+      <li><b>Brain:</b> new sibling <code>Cursor/cursor-brain/</code> — decided.</li>
+      <li><b>ScrivenGroup folder:</b> <b>leave in place</b> for now. It is a git repo with local history and lots of in-flight work. Moving it is a separate risk (paths, deploy habits, uncommitted files).</li>
+      <li><b>Later:</b> Janitor analysis — sweep rules/docs <i>inside</i> the Thing vs physical move. Not required to birth the brain.</li>
+      <li><b>Mudmaps:</b> teaching files; after brain exists they should live in the brain so tomorrow-you doesn’t hunt inside a product repo.</li>
+    </ul>
+
+    <h2>8. Maps (only if you want depth)</h2>
+    <div class="nav">
+      <a href="index.html">Level 0</a>
+      · <a href="atlas.html">Atlas (pan/zoom)</a>
+      · <a href="the-doing.html">The Doing</a>
+      · <a href="the-doing-path.html">Hurdles</a>
+      · <a href="the-doing-ops.html">Ops (detail)</a>
+      · <a href="the-thing.html">The Thing</a>
+      · <a href="mission-control.html">Mission Control</a>
+    </div>
+    <p class="lede" style="margin-top:.6rem">Maps teach. <b>This page operates.</b> If maps and this page disagree, update this page.</p>
+
+    <footer>
+      Single-page door for tomorrow-you · print or bookmark · brain pack not born yet
+    </footer>
+  </div>
+</body>
+</html>

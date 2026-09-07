@@ -8,4 +8,5 @@
 6. Leaf Development: changelog (+ notes when not sketched)? Shipping version number + datetime?  
 7. Deps touched → Definition + RAG + externalUrl?  
 8. Preview: localhost; live only when the user says make it live.  
-9. Store: same types as production; do not add a parallel DB or a new HTML stack.  
+9. Store: same types as production; do not add a parallel DB or a new HTML stack. Kanban Online = Neon **rows** with `node_id` (JSON fallback mirrors those columns). Not one JSONB blob per leaf.  
+10. Kanban Online chrome: short header; one tab strip Inbox \| All Kanban \| Later+Open \| …; Leafs dropdown on row 2 (Internal, tagged leaves only); Raise an idea on every tab; Layout is a side-by-side toggle on KanBan tabs; More options is a `ShellModal`.  

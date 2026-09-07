@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ScrivenGroup publish yard — example week</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #3c3c3b;
+      --page: #f5f5f4;
+      --surface: #ffffff;
+      --border: #d4d4d2;
+      --muted: #6b6b69;
+      --main: #3c3c3b;
+      --kanban: #2f8f4e;
+      --mrt: #c47a12;
+      --buylist: #2b6e8f;
+      --live: #c0392b;
+      --radius: 10px;
+      --font: "Manrope", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+    h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
+    .lede { color: var(--muted); margin: 0 0 20px; max-width: 46rem; }
+    .k { font-weight: 700; color: var(--ink); }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 10px 18px;
+      margin: 0 0 16px; font-size: 0.9rem;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 8px; }
+    .swatch {
+      width: 12px; height: 12px; border-radius: 99px; background: currentColor;
+    }
+    .frame {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    svg { display: block; width: 100%; height: auto; }
+    .node-label { font-family: var(--font); font-size: 12px; font-weight: 600; fill: var(--ink); }
+    .node-sub { font-family: var(--font); font-size: 11px; font-weight: 500; fill: var(--muted); }
+    .lane-title { font-family: var(--font); font-size: 13px; font-weight: 700; }
+    .lane-sub { font-family: var(--font); font-size: 11px; font-weight: 500; fill: var(--muted); }
+    .time { font-family: var(--font); font-size: 11px; font-weight: 600; fill: var(--muted); }
+    table {
+      width: 100%; border-collapse: collapse; margin-top: 28px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; font-size: 0.95rem;
+    }
+    caption { text-align: left; font-weight: 700; padding: 12px 12px 4px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    th {
+      font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--muted); font-weight: 600;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .note { margin-top: 20px; color: var(--muted); max-width: 46rem; }
+    .you { margin-top: 24px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Example week on the yard</h1>
+    <p class="lede">
+      One house (<span class="k">ScrivenGroup</span>), three <span class="k">desks</span> (worktrees),
+      three <span class="k">save-slots</span> (branches), one <span class="k">locker</span> (GitHub),
+      one <span class="k">shop window</span> (Azure). Time flows <span class="k">down</span>.
+      Newest is at the bottom.
+    </p>
+    <div class="legend">
+      <span style="color: var(--main)"><i class="swatch"></i> main — station</span>
+      <span style="color: var(--kanban)"><i class="swatch"></i> wip/kanban — desk 1 :3001</span>
+      <span style="color: var(--mrt)"><i class="swatch"></i> wip/mrt — desk 2 :3002</span>
+      <span style="color: var(--buylist)"><i class="swatch"></i> wip/buylist — desk 3 :3003 · second PC</span>
+      <span style="color: var(--live)"><i class="swatch"></i> Azure live</span>
+    </div>
+
+    <div class="frame">
+      <svg viewBox="0 0 1120 900" role="img" aria-labelledby="yardTitle yardDesc">
+        <title id="yardTitle">Git yard example: three WIP branches, Kanban merges, then hub 1.5 publish</title>
+        <desc id="yardDesc">
+          Hub 1.4 is live on Azure. Kanban, MRT, and Buylist grow on separate branches.
+          Kanban merges to main. You say make it live and hub 1.5 ships.
+          MRT and Buylist stay open on their desks.
+        </desc>
+
+        <line x1="210" y1="118" x2="210" y2="820" stroke="#3c3c3b" stroke-width="3"/>
+        <line x1="430" y1="118" x2="430" y2="320" stroke="#2f8f4e" stroke-width="3"/>
+        <line x1="660" y1="118" x2="660" y2="790" stroke="#c47a12" stroke-width="3"/>
+        <line x1="890" y1="118" x2="890" y2="850" stroke="#2b6e8f" stroke-width="3"/>
+
+        <text class="lane-title" x="210" y="36" text-anchor="middle" fill="#3c3c3b">main</text>
+        <text class="lane-sub" x="210" y="54" text-anchor="middle">station desk</text>
+        <text class="lane-sub" x="210" y="70" text-anchor="middle">localhost:3000</text>
+
+        <text class="lane-title" x="430" y="36" text-anchor="middle" fill="#2f8f4e">wip/kanban</text>
+        <text class="lane-sub" x="430" y="54" text-anchor="middle">desk 1 · this laptop</text>
+        <text class="lane-sub" x="430" y="70" text-anchor="middle">localhost:3001</text>
+
+        <text class="lane-title" x="660" y="36" text-anchor="middle" fill="#c47a12">wip/mrt</text>
+        <text class="lane-sub" x="660" y="54" text-anchor="middle">desk 2 · this laptop</text>
+        <text class="lane-sub" x="660" y="70" text-anchor="middle">localhost:3002</text>
+
+        <text class="lane-title" x="890" y="36" text-anchor="middle" fill="#2b6e8f">wip/buylist</text>
+        <text class="lane-sub" x="890" y="54" text-anchor="middle">desk 3 · second PC</text>
+        <text class="lane-sub" x="890" y="70" text-anchor="middle">localhost:3003</text>
+
+        <text class="time" x="16" y="160">start</text>
+        <text class="time" x="16" y="560">merge</text>
+        <text class="time" x="16" y="640">publish</text>
+        <text class="time" x="16" y="820">still open</text>
+
+        <rect x="16" y="118" width="118" height="56" rx="8" fill="#fff" stroke="#c0392b" stroke-width="2"/>
+        <text class="node-label" x="75" y="140" text-anchor="middle" fill="#c0392b">SHOP WINDOW</text>
+        <text class="node-sub" x="75" y="158" text-anchor="middle">Azure = hub 1.4</text>
+        <line x1="134" y1="146" x2="200" y2="146" stroke="#c0392b" stroke-width="2"/>
+
+        <circle cx="210" cy="146" r="9" fill="#3c3c3b"/>
+        <text class="node-label" x="226" y="142">hub 1.4</text>
+        <text class="node-sub" x="226" y="158">what live is now</text>
+
+        <path d="M210 146 C210 210, 430 170, 430 230" fill="none" stroke="#2f8f4e" stroke-width="3"/>
+        <circle cx="430" cy="230" r="9" fill="#2f8f4e"/>
+        <text class="node-label" x="446" y="226">chrome</text>
+        <text class="node-sub" x="446" y="242">Kanban 0.1.5</text>
+
+        <circle cx="430" cy="310" r="9" fill="#2f8f4e"/>
+        <text class="node-label" x="446" y="306">Raise tab</text>
+        <text class="node-sub" x="446" y="322">push to locker next</text>
+
+        <path d="M210 146 C210 300, 660 250, 660 390" fill="none" stroke="#c47a12" stroke-width="3"/>
+        <circle cx="660" cy="390" r="9" fill="#c47a12"/>
+        <text class="node-label" x="676" y="386">hours fix</text>
+        <text class="node-sub" x="676" y="402">MRT WIP</text>
+
+        <path d="M210 146 C210 360, 890 280, 890 470" fill="none" stroke="#2b6e8f" stroke-width="3"/>
+        <circle cx="890" cy="470" r="9" fill="#2b6e8f"/>
+        <text class="node-label" x="906" y="466">price table</text>
+        <text class="node-sub" x="906" y="482">PC2 pulled it</text>
+
+        <path d="M430 310 C430 500, 210 500, 210 550" fill="none" stroke="#2f8f4e" stroke-width="3"/>
+        <circle cx="210" cy="550" r="9" fill="#3c3c3b"/>
+        <text class="node-label" x="226" y="546">merge wip/kanban</text>
+        <text class="node-sub" x="226" y="562">on main — not live yet</text>
+
+        <circle cx="210" cy="640" r="11" fill="#3c3c3b"/>
+        <text class="node-label" x="226" y="636">hub 1.5 tag</text>
+        <text class="node-sub" x="226" y="652">you said make it live</text>
+
+        <rect x="16" y="612" width="118" height="56" rx="8" fill="#fff" stroke="#c0392b" stroke-width="2"/>
+        <text class="node-label" x="75" y="634" text-anchor="middle" fill="#c0392b">SHOP WINDOW</text>
+        <text class="node-sub" x="75" y="652" text-anchor="middle">Azure = hub 1.5</text>
+        <line x1="134" y1="640" x2="198" y2="640" stroke="#c0392b" stroke-width="2"/>
+
+        <circle cx="660" cy="730" r="9" fill="#c47a12"/>
+        <text class="node-label" x="676" y="726">sandbox UI</text>
+        <text class="node-sub" x="676" y="742">MRT desk still dirty</text>
+
+        <circle cx="890" cy="810" r="9" fill="#2b6e8f"/>
+        <text class="node-label" x="906" y="806">1.5.1 localhost</text>
+        <text class="node-sub" x="906" y="822">Buylist desk still dirty</text>
+      </svg>
+    </div>
+
+    <table>
+      <caption>After you said publish (hub 1.5)</caption>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Shop window (Azure)</th>
+          <th>Still on a desk</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="k">Hub train</span></td>
+          <td><span class="k">1.5</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><span class="k">Kanban</span> leaf</td>
+          <td><span class="k">0.1.6</span> (merged)</td>
+          <td>save-slot can go</td>
+        </tr>
+        <tr>
+          <td><span class="k">MRT</span> leaf</td>
+          <td>old live number</td>
+          <td><span class="k">wip/mrt</span> still dirty</td>
+        </tr>
+        <tr>
+          <td><span class="k">Buylist</span> leaf</td>
+          <td>old live number</td>
+          <td><span class="k">wip/buylist</span> on PC2</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      <span class="k">Merge</span> puts a room onto <span class="k">main</span>.
+      <span class="k">Make it live</span> is the only step that moves the shop window.
+      Other desks keep painting.
+    </p>
+    <p class="you">You are here: teaching poster of one example week. The live yard board comes later on Brain Kanban.</p>
+  </main>
+</body>
+</html>

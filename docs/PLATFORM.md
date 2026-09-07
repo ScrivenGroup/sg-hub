@@ -10,6 +10,8 @@ https://app-scrivengroup-ebcdarc2cwbtcjaa.australiaeast-01.azurewebsites.net
 
 ## Stack (do not fork)
 
+Full comparison facts and a human ELI5: [`docs/technical.md`](./technical.md).
+
 | Layer | Choice |
 | ----- | ------ |
 | App | Next.js 15 App Router, React 19, TypeScript, Tailwind 4 |
@@ -31,6 +33,10 @@ Login → Home
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.
 
+The wrapping website is **the hub** (this app — the building, not a room). Persistent header is **chrome**. The four floors are **Hubs**. Each named place on a floor is a **card** (registry node: sub-hub or tool). Login → Home → Hubs → cards is **the site map**. Product interiors sit *inside* a card and are not the wrapping hub.
+
+Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`](./hub-atlas.html).
+
 ## Chrome and UI
 
 - Global shell: [`AppShell`](../src/core/shell/AppShell.tsx) — Home, Site network, Feedback, Profile.
@@ -50,8 +56,8 @@ Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site networ
 
 ## Data
 
-- **Now:** JSON files under `data/` via [`src/core/store/json-store.ts`](../src/core/store/json-store.ts); seeds in registry; new seed changelog ids merge into existing files.
-- **Later:** Neon Postgres (`DATABASE_URL` already on App Service for durable storage). Prefer evolving this store toward Neon over inventing a second database approach.
+- **Now:** Simple stores can use Neon/Postgres when `DATABASE_URL` is set (`feedback`, `ideas`, `notes`, `changelogs`, `dependencies`, `dev_choices` via [`src/core/store/json-store.ts`](../src/core/store/json-store.ts)). **MRT live plan** is relational rows (`mrt_plan` + catalog/maps/occurrences/hours) assembled into `getSunwaterMrtStore`; **guest share door** is `mrt_share` rows. Same URL via [`json-store`](../src/core/store/json-store.ts) / [`mrt-share`](../src/core/store/mrt-share.ts). **Kanban Online** is Postgres **rows** (`kanban_ideas`, `kanban_tickets`, `kanban_meta`) with a `node_id` leaf tag — not one JSONB blob per leaf. No URL → JSON files under `data/` that **mirror the same columns**. Sandboxes, guest activity, and mtg-buylist **product** cache stay JSON. Zip/standalone excludes `data/`. The `< 20 dams` rewrite never runs on Postgres reads.
+- **Later:** MRT guest sandbox + activity on Postgres (`docs/NEON_CUTOVER.md` pass 2). Live zip-deploy of this wiring is a separate “make it live” ticket. Simple-store wwwroot migrate still follow-up.
 - Temp/demo/dummy data must use the **same** types, store patterns, and routes so it can graduate without a rewrite.
 
 ## Deploy (default)
@@ -81,4 +87,4 @@ Open bugs/housekeeping: Internal → Feedback, `docs/feedback-inbox.md`, `data/f
 
 ## Development choices
 
-Locked standards: Internal → Development choices (`/i/dev-choices`), `docs/DEV_CHOICES.md`, `data/dev-choices.json`. See `.cursor/rules/dev-choices.mdc`.
+Locked standards: Internal → Development choices (`/i/dev-choices`), [`docs/DEV_CHOICES.md`](./DEV_CHOICES.md), `data/dev-choices.json`. Handbook: [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPMENT.md). Two agents: [`docs/TWO_AGENTS.md`](./TWO_AGENTS.md). DB plan: [`docs/NEON_CUTOVER.md`](./NEON_CUTOVER.md). Merge: [`docs/GREAT_MERGING.md`](./GREAT_MERGING.md). See `.cursor/rules/dev-choices.mdc`.

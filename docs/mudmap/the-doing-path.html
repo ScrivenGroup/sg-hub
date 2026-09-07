@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Doing · Hurdles &amp; path</title>
+  <style>
+    :root {
+      --paper: #efe2c4; --ink: #241c14; --soft: #5e4f3d; --line: #8a7358;
+      --doing: #3f7a5c; --pin: #9b2e2e; --board: #e6c85c;
+      --hurdle: #8a3b2a; --unlock: #2f6f6c; --goal: #3e6ea3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font: 15px/1.4 "Segoe UI", Candara, sans-serif;
+      background: repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px), var(--paper);
+    }
+    .sheet { max-width: 1180px; margin: 0 auto; padding: 1rem 1.1rem 2.5rem; }
+    a.back { color: var(--soft); font-size: .9rem; }
+    header {
+      display: flex; justify-content: space-between; align-items: end; gap: 1rem;
+      border-bottom: 3px solid var(--ink); padding-bottom: .55rem; margin: .35rem 0 .7rem;
+    }
+    h1 { margin: 0; font: 700 clamp(1.5rem, 3vw, 2rem)/1.1 Palatino, Georgia, serif; }
+    .stamp {
+      border: 2px solid var(--pin); color: var(--pin);
+      font: 700 11px/1.15 "Courier New", monospace; letter-spacing: .1em;
+      text-transform: uppercase; padding: .35rem .45rem; transform: rotate(2deg); white-space: nowrap;
+    }
+    .lede { color: var(--soft); margin: 0 0 1rem; max-width: 52rem; }
+
+    .dual {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: .75rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .dual { grid-template-columns: 1fr; } }
+
+    .col {
+      border: 2px solid var(--ink);
+      background: rgba(255,255,255,.3);
+      min-height: 100%;
+    }
+    .col .banner {
+      padding: .45rem .7rem; color: #f4ead8;
+      font: 700 .72rem/1 "Segoe UI", sans-serif;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .col.hurdles .banner { background: var(--hurdle); }
+    .col.structure .banner { background: var(--unlock); }
+    .col .inner { padding: .65rem; }
+
+    /* Road */
+    .road { display: flex; flex-direction: column; gap: 0; }
+    .stage {
+      display: grid;
+      grid-template-columns: 2.4rem 1fr;
+      gap: .45rem;
+      position: relative;
+      padding-bottom: .55rem;
+    }
+    .stage:not(:last-child) .rail::after {
+      content: "";
+      position: absolute;
+      left: 1.05rem;
+      top: 2rem;
+      bottom: 0;
+      width: 2px;
+      background: var(--line);
+    }
+    .rail {
+      position: relative;
+      display: flex; justify-content: center; padding-top: .35rem;
+    }
+    .dot {
+      width: 1.35rem; height: 1.35rem; border-radius: 50%;
+      border: 2px solid var(--ink); background: #fff;
+      font: 700 .65rem/1.15 "Courier New", monospace;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1;
+    }
+    .stage.now .dot { background: var(--pin); color: #fff; border-color: var(--pin); }
+    .stage.goal .dot { background: var(--goal); color: #fff; border-color: var(--goal); }
+    .card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.65);
+      padding: .5rem .6rem;
+    }
+    .stage.now .card { border: 2px solid var(--pin); background: #fff3c4; }
+    .stage.goal .card { border-color: var(--goal); background: #e8f0fa; }
+    .card .title { font-weight: 750; margin: 0 0 .15rem; }
+    .card .hurdle {
+      margin: 0;
+      font-size: .82rem;
+      color: var(--hurdle);
+      font-weight: 650;
+    }
+    .card .clears {
+      margin: .25rem 0 0;
+      font-size: .82rem;
+      color: var(--unlock);
+    }
+    .tag {
+      display: inline-block;
+      font: 700 .65rem/1 "Courier New", monospace;
+      letter-spacing: .06em; text-transform: uppercase;
+      border: 1px solid currentColor; padding: .12rem .3rem; margin-right: .25rem;
+    }
+
+    /* Structure components */
+    .comp {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.65);
+      padding: .55rem .6rem;
+      margin-bottom: .45rem;
+    }
+    .comp h3 {
+      margin: 0 0 .25rem;
+      font-size: .95rem;
+      display: flex; justify-content: space-between; gap: .5rem; align-items: baseline;
+    }
+    .comp h3 span { font: 700 .68rem/1 "Courier New", monospace; color: var(--soft); letter-spacing: .06em; }
+    .comp ul { margin: .2rem 0 0; padding-left: 1.05rem; }
+    .comp li { margin: .15rem 0; font-size: .9rem; }
+
+    .dir {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .78rem;
+      line-height: 1.35;
+      background: #2a2118;
+      color: #f3e6c8;
+      padding: .7rem .8rem;
+      border: 1px solid var(--ink);
+      white-space: pre;
+      overflow: auto;
+      margin: .4rem 0 0;
+    }
+    .dir .c { color: #9fd0a8; }
+    .dir .t { color: #8ec0e8; }
+    .dir .m { color: #e6c85c; }
+
+    h2 {
+      font: 700 1.15rem/1.2 Palatino, Georgia, serif;
+      border-left: 8px solid var(--doing);
+      padding-left: .5rem;
+      margin: 1.3rem 0 .55rem;
+    }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.4); font-size: .9rem; }
+    th, td { border: 1px solid var(--line); padding: .45rem .55rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0,0,0,.06); }
+    .note { color: var(--soft); font-size: .88rem; border-left: 3px solid var(--line); padding-left: .65rem; }
+    footer {
+      margin-top: 1.2rem; padding-top: .55rem; border-top: 1px solid var(--line);
+      color: var(--soft); font-size: .82rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <a class="back" href="the-doing.html">← The Doing</a>
+    · <a class="back" href="atlas.html">Atlas</a>
+    · <a class="back" href="index.html">Level 0</a>
+    <header>
+      <h1>Hurdles roadmap · path to efficient Doing</h1>
+      <div class="stamp">Doing path<br />28 Aug 2026</div>
+    </header>
+    <p class="lede">
+      Naive vibe coding = one chat that keeps building. Fine for tiny toys. When the toy grows, the first wall is usually
+      <b>context</b>. This page maps the walls in order, and beside them the school + directory pieces that clear each wall —
+      so we know the <b>end state</b> and the <b>path</b>.
+    </p>
+
+    <div class="dual">
+      <!-- LEFT: hurdles / path -->
+      <section class="col hurdles">
+        <div class="banner">Left · Hurdles roadmap (the path)</div>
+        <div class="inner">
+          <div class="road">
+
+            <div class="stage">
+              <div class="rail"><div class="dot">0</div></div>
+              <div class="card">
+                <p class="title">Naive loop</p>
+                <p class="hurdle"><span class="tag">Start</span> One chat forever · “keep going”</p>
+                <p class="clears">Works until the toy outgrows the temp’s head.</p>
+              </div>
+            </div>
+
+            <div class="stage now">
+              <div class="rail"><div class="dot">1</div></div>
+              <div class="card">
+                <p class="title">Context wall</p>
+                <p class="hurdle"><span class="tag">First wall</span> Window fills · amnesia · “catch-up” chats</p>
+                <p class="clears">Cleared by → Ticket size + one chat = one job</p>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div class="rail"><div class="dot">2</div></div>
+              <div class="card">
+                <p class="title">Consistency rot</p>
+                <p class="hurdle">Temps invent new names, folders, rules each sitting</p>
+                <p class="clears">Cleared by → Handbook (locked words + don’t-contradict)</p>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div class="rail"><div class="dot">3</div></div>
+              <div class="card">
+                <p class="title">Memory fog</p>
+                <p class="hurdle">Truth trapped in transcripts · board doesn’t exist</p>
+                <p class="clears">Cleared by → Board / memory palace (files)</p>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div class="rail"><div class="dot">4</div></div>
+              <div class="card">
+                <p class="title">Role melt</p>
+                <p class="hurdle">Same chat is CEO + carpenter + cleaner</p>
+                <p class="clears">Cleared by → Hats (Front desk / Builder / Janitor / Reviewer)</p>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div class="rail"><div class="dot">5</div></div>
+              <div class="card">
+                <p class="title">Campus sprawl</p>
+                <p class="hurdle">Many Cursor folders · half-ideas · no school grounds map</p>
+                <p class="clears">Cleared by → Directory campus (Doing vs Things)</p>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div class="rail"><div class="dot">6</div></div>
+              <div class="card">
+                <p class="title">No overlook</p>
+                <p class="hurdle">Can’t see the ant farm · what’s in flight / parked / blocked</p>
+                <p class="clears">Cleared by → Mission Control</p>
+              </div>
+            </div>
+
+            <div class="stage goal">
+              <div class="rail"><div class="dot">★</div></div>
+              <div class="card">
+                <p class="title">Hyper-efficient Doing</p>
+                <p class="hurdle"><span class="tag">End</span> Temps arrive · read board · one hat · one ticket · write back · leave</p>
+                <p class="clears">Later bonus → Thing mirrors board (shop window)</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: structure -->
+      <section class="col structure">
+        <div class="banner">Right · Structure that clears the walls</div>
+        <div class="inner">
+
+          <article class="comp">
+            <h3>Tickets <span>clears 1</span></h3>
+            <ul>
+              <li>One chat = one job</li>
+              <li>Small enough to finish before context dies</li>
+              <li>Front desk splits big wishes</li>
+            </ul>
+          </article>
+
+          <article class="comp">
+            <h3>Handbook <span>clears 2</span></h3>
+            <ul>
+              <li>Locked words (Product, Ticket, Board, Hat, Temp)</li>
+              <li>Don’t contradict locked choices</li>
+              <li>Temps must read before building</li>
+            </ul>
+          </article>
+
+          <article class="comp">
+            <h3>Board / memory palace <span>clears 3</span></h3>
+            <ul>
+              <li>What’s true lives in files, not chat brains</li>
+              <li>Job not done until board updated</li>
+              <li>Ugly table &gt; clever memory</li>
+            </ul>
+          </article>
+
+          <article class="comp">
+            <h3>Hats <span>clears 4</span></h3>
+            <ul>
+              <li>Front desk · Builder · Janitor · Reviewer</li>
+              <li>Allowed / forbidden per hat</li>
+              <li>Child workers = errands inside one ticket</li>
+            </ul>
+          </article>
+
+          <article class="comp">
+            <h3>Directory campus <span>clears 5</span></h3>
+            <ul>
+              <li><b>Doing home</b> = board + tickets + doing handbook</li>
+              <li><b>Thing folders</b> = each product world (e.g. scrivengroup)</li>
+              <li>Experiments stay labelled, not mixed into the board</li>
+            </ul>
+            <div class="dir"><span class="c">Cursor/</span>
+  <span class="m">doing/</span>                 <span class="c">← school office (TBD name)</span>
+    board/                 <span class="c">← memory palace</span>
+    tickets/
+    handbook/
+  <span class="t">scrivengroup/</span>         <span class="c">← The Thing (world)</span>
+  <span class="t">funds-forecaster/</span>     <span class="c">← other world / experiment</span>
+  <span class="t">gannt-chart/</span>          <span class="c">← other world / experiment</span></div>
+          </article>
+
+          <article class="comp">
+            <h3>Mission Control <span>clears 6</span></h3>
+            <ul>
+              <li>Ant-farm view of The Doing</li>
+              <li>Reads the board — does not invent status</li>
+              <li>Can start as files/HTML; website mirror later</li>
+            </ul>
+          </article>
+
+        </div>
+      </section>
+    </div>
+
+    <h2>Path we expect to take (sequence)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Do this</th>
+          <th>Wall it opens</th>
+          <th>Status for us</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>A</b></td>
+          <td>Map hurdles + structure (this page)</td>
+          <td>—</td>
+          <td>Done (see ops guide)</td>
+        </tr>
+        <tr>
+          <td><b>B</b></td>
+          <td>Lock ticket ritual (one chat = one job) across all Cursor work</td>
+          <td>1 Context</td>
+          <td>Partial (strong inside ScrivenGroup; not campus-wide yet)</td>
+        </tr>
+        <tr>
+          <td><b>C</b></td>
+          <td>Write a thin Doing handbook (words + hats + board rules)</td>
+          <td>2 Consistency</td>
+          <td>Queued — lands inside brain pack</td>
+        </tr>
+        <tr>
+          <td><b>D</b></td>
+          <td>Create portable <code>cursor-brain</code> pack on disk (agents create; human doesn’t touch)</td>
+          <td>3 Memory + 5 Sprawl</td>
+          <td style="color:var(--pin);font-weight:700">● Next when you say go</td>
+        </tr>
+        <tr>
+          <td><b>E</b></td>
+          <td>Practice hats (Front desk ≠ Builder)</td>
+          <td>4 Role melt</td>
+          <td>Queued</td>
+        </tr>
+        <tr>
+          <td><b>F</b></td>
+          <td>Mission Control v0 (read-only overview of the board)</td>
+          <td>6 Overlook</td>
+          <td>Later</td>
+        </tr>
+        <tr>
+          <td><b>G</b></td>
+          <td>Thing mirrors board (shop window)</td>
+          <td>End bonus</td>
+          <td>Later / optional</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      End goal ≠ “smarter forever-agent.” End goal = <b>temps + board + hats + campus</b> so vibe coding stays fast when The Thing gets big.
+      Cleanup of existing folders happens only after step D is agreed — no janitor raid yet.
+    </p>
+
+    <footer>
+      The Doing · Level 1 path map · update the red “Now” row as we move · not an app route
+    </footer>
+  </div>
+</body>
+</html>

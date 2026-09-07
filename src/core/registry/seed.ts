@@ -140,6 +140,22 @@ export const seedNodes: RegistryNode[] = [
     order: 3,
   },
   {
+    id: "i-kanban",
+    hubPrefix: "i",
+    slug: "kanban",
+    title: "Kanban Online",
+    code: "D45A78",
+    kind: "tool",
+    parentId: "hub-internal",
+    href: "/i/kanban",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Global Inbox + KanBan. Same columns as a leaf. Filter by leaf tag. Raise defaults to Global.",
+    order: 0,
+  },
+  {
     id: "i-ideas",
     hubPrefix: "i",
     slug: "ideas",
@@ -248,48 +264,6 @@ export const seedNodes: RegistryNode[] = [
 
 export const seedChangelogs: ChangelogEntry[] = [
   {
-    id: "cl-mtg-buylist-1",
-    nodeId: "p-mtg-buylist",
-    kind: "plan",
-    version: "plan",
-    createdAt: "2026-09-03T00:00:00.000Z",
-    title: "PM / MM streams, then Compare",
-    body: `## MTG Buylist — development plan
-
-**Badge:** #B85C38 only (global SG theme; no ThemeContract).
-**Access:** per_user — each Entra staff login has their own run. Not a shared office pile. No guest door.
-
-**Job:** A tool, not a collection database. Shared ManaBox CSV, then **isolated store streams** (Playmantis, MTGMate), each allocating what that store will buy. **Compare** is downstream and activates when **two or more** store allocates are completed (future stores plug in the same way). Maximise **store credit** (also show Mate cash). Do not wrap “save 40 Mate files” as the happy path. Zip must not ship \`data/\`. No Neon in v1 — last-run / harvest cache only.
-
-### Workflow
-1. ManaBox CSV (shared)
-2. Playmantis stream — harvest → PM-only allocate
-3. MTGMate stream — console harvest + JSON upload → Mate-only allocate
-4. Compare stores — credit vs credit once >1 store allocate exists
-
-### Harvest
-- **Playmantis:** hub server-fetch \`/search?q=tag:buylist tag:{scryfallId}&type=product&view=buylist-custom\`. Parse \`data-credit-price\` + \`data-buylist-limit\` (search view often omits limit — default want 4 when credit > 0). Ignore Shopify \`products.json\` price. Batch + 429 retry. Join on Scryfall ID + finish.
-- **MTGMate:** \`/buylist/magic_sets/{set}/data\` is login 401 without session. Visual hotlist is incomplete — do not use it. Console paste on mtgmate.com.au (while logged in) fetches unique set \`/data\` and downloads one JSON; upload via hub API (large body). Optional CORS POST when Mate can reach the hub. No Mate password.
-
-### Join
-- Playmantis: Scryfall ID + finish.
-- Mate UUID is not Scryfall. Join Mate on set + normalised name + finish. Suffix stripper (foil / surge / showcase / borderless / etched / collector \`(38)\` / split \`//\`). CSV \`normal\`/\`foil\` → Mate Nonfoil/Foil. Unmatched bucket for suffix growth.
-
-### Allocate
-- Each store stream: identify what can be sold there (\`min(owned, want cap)\`).
-- Compare (when >1 store done): higher **credit** wins. Split stacks allowed.
-- Buckets: Sell Mate / Sell Playmantis / Neither / Unmatched.
-- Mate dump prices are **cents**. Credit vs credit; also show Mate cash.
-
-### WIP / later
-- Mate console harvest is desktop-oriented (F12 → Console). Revisit a **mobile-friendly** Mate capture path.
-- Extra store vendors as new streams + Compare participants.
-
-### Out of v1
-Store cart submit, Mate password on the hub, a second offline app, durable card/inventory database.
-`,
-  },
-  {
     id: "cl-mtg-buylist-1.0",
     nodeId: "p-mtg-buylist",
     kind: "release",
@@ -366,23 +340,224 @@ Store cart submit, Mate password on the hub, a second offline app, durable card/
 `,
   },
   {
-    id: "cl-mtg-buylist-kanban",
+    id: "cl-mtg-buylist-1.3",
     nodeId: "p-mtg-buylist",
-    kind: "plan",
+    kind: "release",
     version: "1.3",
-    createdAt: "2026-09-04T09:10:00.000Z",
-    title: "1.3 (wip) — Inbox follow-through",
-    body: `## Next live (1.3)
+    createdAt: "2026-09-05T01:50:00.000Z",
+    title: "Rev 1.3 — Playmantis name fallback",
+    body: `## Shipped
 
-Standing WIP row until 1.3 ships. Inbox notes stay raw until a session splits them.
+- Playmantis harvest still starts with Scryfall-ID tag search (same as their CSV import).
+- If that page is empty, name search binds the **same title**. Prefers your set, then a plain title (not a borderless/showcase treatment, not a different card).
+- Fixes the live 2025-26 rares miss: search HTML has no \`data-scryfall-id\`, so name fallback never bound cards that are findable on playmantis.com.au.
+- Zip still does not copy \`data/\`. Re-click Harvest Playmantis after this ship to refill missing rows.
 
-- Changelog: expandable release rows; keep a 1.(next)(wip) row on the summary table.
-- Testing sub-tab for parser fixture check (out of Changelog).
-- Grey behind want qty = 0 in summary tables.
-- “Get the $20 back” — bulk buy vs store credit scenario.
-- Mobile Mate harvest (Later tickets \`kt-mate-mobile-ux\`, \`kt-mate-mobile-data\`).
+## Known (hold)
 
-**Still true:** KanBan is informational. Sessions write tickets. Completing work drives Changelog. Zip does not copy \`data/\`; Inbox/KanBan ids in the live zip seed on first load only.
+- Re-running the large 2025-26 rares CSV still misses many Playmantis cards after 1.3. Do not chase matching in this slice.
+
+## Parked
+
+- Combined % cutoff + CK USD FX shop-floor filter.
+- Neon notes / shared board.
+- Expandable changelog rows and a standing 1.(x+1)(wip) table row.
+- Grey behind want qty = 0.
+- Testing sub-tab for parser fixtures.
+- “Get the $20 back” bulk-to-credit scenario.
+- Mobile Mate harvest (tickets already on Later).
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.3.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.3.1",
+    createdAt: "2026-09-05T04:00:00.000Z",
+    title: "1.3.1 (dev) — ManaBox packing CSVs",
+    body: `## Publish to localhost (not live)
+
+- Compare summary: three ManaBox-shaped CSVs from the starting file.
+- Playmantis / MTGMate files use this table’s Sell qty.
+- Not sold = Have minus both Sells — re-import leftover into ManaBox.
+- Existing Compare CSV picklist is unchanged.
+
+Playmantis matching on the large rares CSV remains HOLD.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.3.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.3.2",
+    createdAt: "2026-09-05T04:05:00.000Z",
+    title: "1.3.2 (dev) — White button hover",
+    body: `## Publish to localhost (not live)
+
+- White \`sg-btn-secondary\` buttons now change on hover (muted fill + charcoal border). Primary/ghost already had hover.
+- From 1.3.1, each publish-to-dev is its own 1.x.y changelog row (level 3). Live remains 1.x.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.3.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.3.3",
+    createdAt: "2026-09-05T06:15:00.000Z",
+    title: "1.3.3 (dev) — Compact tabs and chrome",
+    body: `## Publish to localhost (not live)
+
+- Live/localhost warning is a right-aligned chip on the Run / Development row (detail on hover).
+- Page chrome matches Internal Kanban: smaller title, intent/path behind (i).
+- Lvl1 (Run / Development) and lvl2 (Changelog / Notes / KanBan / Inbox) are underline tabs, not pill buttons.
+- Button height token \`--sg-btn-height\` (32px) matches the Kanban LAYOUT toggle — prepared for hub-wide use.
+
+Inbox + KanBan board layout still to be rewritten to the global template.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.3.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.3.4",
+    createdAt: "2026-09-05T06:30:00.000Z",
+    title: "1.3.4 (dev) — Tabs, Testing, Inbox plans",
+    body: `## Publish to localhost (not live)
+
+- Raise an idea is far-right; host is a badge to its left (not a button).
+- Parser fixture check lives under Development → Testing.
+- KanBan column filters (Inbox, All Kanban, Later + Open, …) are Development lvl2 tabs.
+- WIP / plan changelog section removed. Plans and ideas go to Inbox only.
+- Run has a This run tab (parallel runs are a future idea).
+- Compare: each filter tab exports CSV + ManaBox template of that filter (including Not sold).
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4",
+    createdAt: "2026-09-05T07:54:00.000Z",
+    title: "1.4 — Compact chrome, Compare exports, Inbox plans",
+    body: `## Live
+
+Ships the 1.3.1–1.3.4 localhost slices.
+
+- Compact leaf chrome: smaller title, intent behind (i), host is a badge, Raise an idea far-right.
+- Run / Development and Development sub-pages are underline tabs. KanBan column filters sit on Development lvl2. Parser check is Testing.
+- WIP / plan changelog section removed — plans and ideas go to Inbox.
+- Run shows This run (parallel runs are a future idea).
+- Compare: filter tabs each export CSV + a ManaBox template of that filter (All, Sellable, Want full, Not found, Mate, Playmantis, Not sold).
+- White secondary buttons hover. Control height token \`--sg-btn-height\` (32px).
+
+## Known (hold)
+
+- Large 2025-26 rares Playmantis harvest still misses many cards. Do not chase matching. Future: Scryfall-ID-only harvest (Inbox).
+
+Zip does not copy \`data/\`. Azure store stays on the App Service.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.1",
+    createdAt: "2026-09-05T08:40:00.000Z",
+    title: "1.4.1 — Playmantis harvest matches their CSV import",
+    body: `## Shipped
+
+- Playmantis harvest copies their ManaBox importer: \`tag:buylist tag:{scryfallId}\` first, then name search only when the product’s Scryfall ID matches (search HTML has no \`data-scryfall-id\`, so we use the image-file UUID they stamp on the same products).
+- No more title/set rebound onto a different printing.
+- Finish match copies theirs, including a single-variant product (foil-only) against a CSV normal row.
+- HTTP errors no longer skip the name pass. Empty UUID pages are not retried three times.
+
+## Known (hold)
+
+- Printings they do not tag (and whose image UUID is not on a name-search hit) stay not found — same as their bulk tool.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.2",
+    createdAt: "2026-09-05T08:55:00.000Z",
+    title: "1.4.2 — Playmantis name fallback matches on-site search",
+    body: `## Shipped
+
+- After Scryfall-ID tag miss, harvest uses the same title search as their buylist search box (\`tag:buylist AND (title:*word*)\`) and binds the matching card name (prefers your set, then a plain title).
+- That is how Duel Decks reprints (DDH/DDK) show up on their site even though those printings are not UUID-tagged.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.3",
+    createdAt: "2026-09-05T09:10:00.000Z",
+    title: "1.4.3 — Playmantis harvest retries empty Shopify pages",
+    body: `## Shipped
+
+- Harvest retries when Shopify returns no buylist grid (rate-limit / challenge) and retries a genuine empty grid once.
+- Pause after every batch of 8, including between server-action round trips, so a 182-ID CSV is not hammered back-to-back.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.4",
+    createdAt: "2026-09-05T09:30:00.000Z",
+    title: "1.4.4 — Retry Playmantis not-found after throttle",
+    body: `## Shipped
+
+- Harvest keeps cards already found when a later Shopify page comes back empty.
+- After the main pass, a slower second pass retries only the not-found Scryfall IDs (batches of 4). **Retry not found** does the same without re-fetching hits.
+- Blocked/challenge HTML skips the name-search hammer that made throttling worse.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.5",
+    createdAt: "2026-09-06T10:05:00.000Z",
+    title: "1.4.5 — Mate harvest JSON uploads larger than 10 MB",
+    body: `## Shipped
+
+- Upload cap is 32 MB (a full Mate harvest is ~18 MB). Next.js middleware was dropping anything over 10 MB with no useful error.
+- Keep only cards in the ManaBox CSV’s sets so the run store is not 40k+ offers.
+- Clearer upload progress and errors when the body is rejected.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.4.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.4.6",
+    createdAt: "2026-09-06T10:35:00.000Z",
+    title: "1.4.6 — Compare stores with one harvest",
+    body: `## Shipped
+
+- Step 4 Compare stays available from the first harvested store (filters and ManaBox/CSV exports). Second store still fills the other column.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5",
+    createdAt: "2026-09-06T10:35:00.000Z",
+    title: "1.5 — Playmantis harvest, large Mate JSON, Compare with one store",
+    body: `## Live
+
+Ships the 1.4.1–1.4.6 localhost slices.
+
+- Playmantis harvest copies their ManaBox importer (Scryfall-ID tag, then on-site title search). Retries empty Shopify pages; keeps found cards; slower **Retry not found** pass.
+- Mate harvest JSON up to 32 MB (full dump ~18 MB). Keep cards in the CSV’s sets. Upload errors are visible.
+- Step 4 Compare is available from the first harvested store (filters + CSV / ManaBox exports).
+
+Zip does not copy \`data/\`. Azure store stays on the App Service.
 `,
   },
   {
@@ -717,6 +892,82 @@ Out of this version
     body: `- Live store loads the 24-dam × 11-obligation catalog from the milestone-master condition schedules (applicability: AI where listed, SR where SR years exist, OTH = Paradise Dam only).
 - Cycle anchors use the source CI/SR years and the annual/once months from that dataset. Dummy Prepare/Inspect/Report Effort templates seed each obligation type (hours scaled by lead-in) and the next due on each applicable dam × type.
 - Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
+  },
+  {
+    id: "cl-kanban-online-0.1.1",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.1",
+    createdAt: "2026-09-05T02:20:00.000Z",
+    title: "Compact chrome — more body, leaf dropdown, underline tabs",
+    body: `Kanban Online chrome (0.1.1). Layout only. Same columns and leaf tags. Not deployed.
+
+- Short Internal header. Leafs dropdown of tags that already have a row. Empty sketched leaves stay out.
+- Inbox / KanBan underline tabs. Compact column / category / layout. More options modal.
+- Shared host on mtg-buylist Development uses the same board/inbox chrome. No schema change.`,
+  },
+  {
+    id: "cl-kanban-online-0.1.2",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.2",
+    createdAt: "2026-09-05T04:10:00.000Z",
+    title: "Tab strip — Inbox | All Kanban | Later+Open …",
+    body: `Kanban Online chrome (0.1.2). Layout only. Same columns and leaf tags. Not deployed.
+
+- One tab strip: Inbox | All Kanban | Later + Open | Open + Done | Later | Open | Archived. No parent KanBan tab.
+- Leafs on row 2 (Internal). Raise an idea on every tab. Layout = Columns | Swimlanes toggle.`,
+  },
+  {
+    id: "cl-kanban-online-0.1.3",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.3",
+    createdAt: "2026-09-05T05:50:00.000Z",
+    title: "Visual density — toggle-height chrome, one Inbox row",
+    body: `Kanban Online chrome (0.1.3). Layout only. Same store. Not deployed.
+
+- Chrome controls match the Layout Columns | Swimlanes toggle height (min-h-8). Raise an idea sits before Leafs.
+- Inbox Sort / Show archived / More options share that row. Show archived is a bordered button with a pressed state.`,
+  },
+  {
+    id: "cl-kanban-online-0.1.4",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.4",
+    createdAt: "2026-09-05T06:00:00.000Z",
+    title: "Changelog tab — stepped 0.1.x chunks",
+    body: `Kanban Online chrome (0.1.4). Same changelogs store (nodeId i-kanban). Not deployed.
+
+- Changelog tab at the end of the strip. Four stepped release rows 0.1.1–0.1.4 with datetime.
+- Later register reads changelogs by nodeId / all nodes. No second changelog table.`,
+  },
+  {
+    id: "cl-kanban-online-0.1.5",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.5",
+    createdAt: "2026-09-05T08:00:00.000Z",
+    title: "Raise right + Changelog inline + all-leaf picker",
+    body: `Kanban Online chrome (0.1.5). Same changelogs store (nodeId i-kanban). Not deployed.
+
+- Raise an idea sits on the tab strip, far right, on Inbox, Kanban tabs, and Changelog.
+- Leafs filter hidden on Changelog. Inbox and Kanban column tabs still have it.
+- Raise leaf picker uses the Site network nested list (Global + every hub’s children). Not Work/Projects only.
+- Changelog newest version on top. One inline detail row under the selected version (latest open on first paint).`,
+  },
+  {
+    id: "cl-kanban-online-0.1.6",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.1.6",
+    createdAt: "2026-09-05T09:15:00.000Z",
+    title: "Published to Azure live",
+    body: `Kanban Online (0.1.6). Zip-deployed to Azure App Service. Live at /i/kanban.
+
+- Inbox, column tabs, Changelog, and Raise an idea are on the live origin.
+- Same changelogs store (nodeId i-kanban). 0.1.1–0.1.5 ids unchanged.
+- Whole app zip (Kanban cannot ship alone). Laptop data/ not in the zip.`,
   },
 ];
 

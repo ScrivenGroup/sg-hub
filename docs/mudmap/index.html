@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mudmap · Level 0</title>
+  <style>
+    :root {
+      --paper: #efe2c4;
+      --ink: #241c14;
+      --soft: #5e4f3d;
+      --line: #8a7358;
+      --thing: #3e6ea3;
+      --doing: #3f7a5c;
+      --pin: #9b2e2e;
+      --elephant: #6b5b4a;
+      --world: #4a8bb8;
+      --board: #e6c85c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font: 16px/1.35 "Segoe UI", Candara, sans-serif;
+      background:
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,.28), transparent 30%),
+        repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px),
+        var(--paper);
+    }
+    .sheet {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1rem 1.1rem 2rem;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 1rem;
+      border-bottom: 3px solid var(--ink);
+      padding-bottom: .6rem;
+      margin-bottom: .9rem;
+    }
+    h1 {
+      margin: 0;
+      font: 700 clamp(1.6rem, 3.5vw, 2.2rem)/1.1 Palatino, Georgia, serif;
+    }
+    .stamp {
+      border: 2px solid var(--pin);
+      color: var(--pin);
+      font: 700 11px/1.15 "Courier New", monospace;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .4rem .5rem;
+      transform: rotate(2deg);
+      white-space: nowrap;
+    }
+    .hint {
+      margin: 0 0 1rem;
+      color: var(--soft);
+      font-size: .92rem;
+    }
+
+    /* Level 0 stage */
+    .stage {
+      display: grid;
+      grid-template-columns: 1.05fr auto 1fr;
+      gap: .75rem;
+      align-items: stretch;
+      min-height: 70vh;
+    }
+    @media (max-width: 860px) {
+      .stage { grid-template-columns: 1fr; }
+      .bridge { transform: rotate(90deg); width: 3rem; justify-self: center; }
+    }
+
+    .realm {
+      border: 2px solid var(--ink);
+      background: rgba(255,255,255,.28);
+      display: flex;
+      flex-direction: column;
+      min-height: 520px;
+      text-decoration: none;
+      color: inherit;
+      transition: background .15s;
+    }
+    .realm:hover { background: rgba(255,255,255,.5); }
+    .realm .banner {
+      padding: .55rem .75rem;
+      font: 700 .78rem/1 "Segoe UI", sans-serif;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: #f4ead8;
+    }
+    .realm.thing .banner { background: var(--thing); }
+    .realm.doing .banner { background: var(--doing); }
+    .realm .body {
+      flex: 1;
+      padding: .85rem;
+      display: flex;
+      flex-direction: column;
+      gap: .55rem;
+    }
+    .realm h2 {
+      margin: 0;
+      font: 700 1.35rem/1.1 Palatino, Georgia, serif;
+    }
+    .seq {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      flex: 1;
+    }
+    .seq li {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.55);
+      padding: .55rem .65rem;
+      display: grid;
+      grid-template-columns: 1.6rem 1fr;
+      gap: .45rem;
+      align-items: center;
+      font-weight: 650;
+    }
+    .seq .n {
+      font: 700 .75rem/1 "Courier New", monospace;
+      color: var(--soft);
+    }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      flex: 1;
+      justify-content: center;
+    }
+    .stack .layer {
+      border: 1.5px solid var(--ink);
+      text-align: center;
+      padding: .55rem .4rem;
+      font-weight: 700;
+    }
+    .stack .world { background: var(--world); color: #f4ead8; }
+    .stack .continents {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .3rem;
+    }
+    .stack .continents span {
+      border: 1px solid var(--ink);
+      background: #d8e8d2;
+      padding: .45rem .2rem;
+      text-align: center;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .stack .elephants {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .3rem;
+    }
+    .stack .elephants span {
+      border: 1px solid var(--ink);
+      background: var(--elephant);
+      color: #f4ead8;
+      padding: .45rem .3rem;
+      text-align: center;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+    .stack .label {
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--soft);
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .bridge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .35rem;
+      font: 700 .72rem/1.2 "Segoe UI", sans-serif;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--soft);
+      text-align: center;
+      width: 4.5rem;
+    }
+    .bridge .arrow {
+      font-size: 1.8rem;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .mc {
+      margin-top: .75rem;
+      border: 2px dashed var(--pin);
+      background: #fff3c4;
+      text-decoration: none;
+      color: inherit;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: .75rem;
+      align-items: center;
+      padding: .7rem .9rem;
+    }
+    .mc:hover { background: #ffe9a0; }
+    .mc .tag {
+      font: 700 .72rem/1 "Courier New", monospace;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--pin);
+      border: 1px solid var(--pin);
+      padding: .3rem .4rem;
+    }
+    .mc strong { font-size: 1.05rem; }
+    .mc .go { font-weight: 700; color: var(--soft); }
+
+    .here {
+      margin-top: .7rem;
+      font-size: .88rem;
+      color: var(--pin);
+      font-weight: 700;
+    }
+    footer {
+      margin-top: 1.1rem;
+      padding-top: .6rem;
+      border-top: 1px solid var(--line);
+      color: var(--soft);
+      font-size: .82rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <header>
+      <div>
+        <h1>Mudmap · Level 0</h1>
+      </div>
+      <div class="stamp">Mudmap 02<br />28 Aug 2026</div>
+    </header>
+    <p class="hint">
+      Titles and relative position only. Click a realm for Level 1.
+      · <a href="USER-GUIDE.html" style="color:#9b2e2e;font-weight:800">USER GUIDE (start here tomorrow)</a>
+      · <a href="atlas.html" style="color:inherit;font-weight:700">Atlas</a>
+    </p>
+
+    <div class="stage">
+      <!-- THE DOING -->
+      <a class="realm doing" href="the-doing.html" aria-label="Open The Doing">
+        <div class="banner">Realm A · Process</div>
+        <div class="body">
+          <h2>The Doing</h2>
+          <ol class="seq">
+            <li><span class="n">01</span> You</li>
+            <li><span class="n">02</span> Front desk</li>
+            <li><span class="n">03</span> Board / memory palace</li>
+            <li><span class="n">04</span> Hats (temps)</li>
+            <li><span class="n">05</span> Cursor workspace</li>
+            <li><span class="n">06</span> Hurdles &amp; path</li>
+            <li><span class="n">07</span> How you use it</li>
+          </ol>
+          <p class="here">● You are here — ops guide · brain pack</p>
+        </div>
+      </a>
+
+      <div class="bridge" aria-hidden="true">
+        <div>builds</div>
+        <div class="arrow">→</div>
+        <div>&amp; tends</div>
+      </div>
+
+      <!-- THE THING -->
+      <a class="realm thing" href="the-thing.html" aria-label="Open The Thing">
+        <div class="banner">Realm B · Product</div>
+        <div class="body">
+          <h2>The Thing</h2>
+          <div class="stack">
+            <div class="label">World-disc</div>
+            <div class="layer world">ScrivenGroup website</div>
+            <div class="label">Continents (hubs)</div>
+            <div class="continents">
+              <span>Work</span>
+              <span>Projects</span>
+              <span>Internal</span>
+              <span>System</span>
+            </div>
+            <div class="label">Elephants (external services)</div>
+            <div class="elephants">
+              <span>Azure</span>
+              <span>Git</span>
+              <span>Neon</span>
+              <span>Domain TBA</span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <a class="mc" href="mission-control.html">
+      <span class="tag">Watch</span>
+      <div>
+        <strong>Mission Control</strong>
+        <div style="color:var(--soft);font-size:.9rem">Meta management · ant farm view of The Doing</div>
+      </div>
+      <span class="go">Level 1 →</span>
+    </a>
+
+    <footer>
+      Level 0 · thinking artifact · not an app route · detail lives on section pages
+    </footer>
+  </div>
+</body>
+</html>

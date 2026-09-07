@@ -49,6 +49,7 @@ export function applySessionPack(
     const prev = byId.get(incoming.id);
     byId.set(incoming.id, {
       ...incoming,
+      nodeId: prev?.nodeId || board.nodeId,
       createdAt: prev?.createdAt || incoming.createdAt || now,
       updatedAt: now,
     });
@@ -108,7 +109,16 @@ export function boardFromUnknown(nodeId: string, raw: unknown): KanbanBoard {
       const t = { ...(row as Record<string, unknown>) };
       t.column = migrateTicketColumn(t.column);
       if (typeof t.lane !== "string") t.lane = "behaviour";
+      if (typeof t.nodeId !== "string" || !t.nodeId) t.nodeId = nodeId;
       return t;
+    });
+  }
+  if (Array.isArray(obj.ideas)) {
+    obj.ideas = obj.ideas.map((row) => {
+      if (!row || typeof row !== "object") return row;
+      const idea = { ...(row as Record<string, unknown>) };
+      if (typeof idea.nodeId !== "string" || !idea.nodeId) idea.nodeId = nodeId;
+      return idea;
     });
   }
   const parsed = kanbanBoardSchema.safeParse(obj);

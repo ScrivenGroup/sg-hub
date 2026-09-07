@@ -1,0 +1,13 @@
+---
+description: Cursor ships the hub; Claude does not deploy app-scrivengroup
+alwaysApply: true
+---
+
+# Two agents
+
+Locked: `dc-two-agents`, `dc-great-merge`, `dc-publish`. Treaty: [`docs/TWO_AGENTS.md`](docs/TWO_AGENTS.md).
+
+- **This workspace** = hub only. Cursor may code and, when the user says so, commit and `deploy:azure`.
+- **Do not** zip-deploy my-site or `scrivengroup-backend` from a hub chat. **Do not** implement Claude’s proposed hub changes until they are files in *this* repo or a named sibling folder.
+- Claude may export a Great Merging pack (`docs/GREAT_MERGING.md`). Cursor ports leaves; Claude stops editing a leaf after it moves.
+- Commit and live deploy only when the user asks (`docs/GIT_AND_RELEASE.md`).

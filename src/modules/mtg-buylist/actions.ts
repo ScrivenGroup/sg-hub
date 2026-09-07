@@ -12,7 +12,7 @@ import {
 import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/allocate";
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
-import { parseMateJson } from "./logic/parse-mate";
+import { parseMateJson, filterMateOffersForCsv } from "./logic/parse-mate";
 import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
 import { buildMateImageLinks } from "./logic/mate-image-join";
 import { enrichRowsFromScryfall } from "./logic/scryfall";
@@ -39,6 +39,7 @@ export async function attachMateImageLinks(store: MtgBuylistStore): Promise<MtgB
 }
 
 const PLAYMANTIS_BATCH_IDS = 8;
+const PLAYMANTIS_RETRY_BATCH_IDS = 4;
 
 export type StaffIdentity = { userKey: string; label: string };
 
@@ -193,11 +194,15 @@ export async function uploadCsvAction(
   }
 }
 
-export async function harvestPlaymantisAction(skipIds: string[] = []) {
+export async function harvestPlaymantisAction(
+  skipIds: string[] = [],
+  opts?: { missingOnly?: boolean },
+) {
   const loaded = await loadStore();
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
 
+  const missingOnly = Boolean(opts?.missingOnly);
   const ids = uniqueScryfallIds(loaded.store.csv.rows);
   const namesById: Record<string, string> = {};
   const setNamesById: Record<string, string> = {};
@@ -216,8 +221,9 @@ export async function harvestPlaymantisAction(skipIds: string[] = []) {
     namesById,
     existing,
     skipIds,
+    missingOnly,
   });
-  const slice = work.slice(0, PLAYMANTIS_BATCH_IDS);
+  const slice = work.slice(0, missingOnly ? PLAYMANTIS_RETRY_BATCH_IDS : PLAYMANTIS_BATCH_IDS);
   if (!slice.length) {
     const store = withAllocateResults(loaded.store);
     return {
@@ -265,6 +271,7 @@ export async function harvestPlaymantisAction(skipIds: string[] = []) {
       namesById,
       existing: offers,
       skipIds: [...attempted],
+      missingOnly,
     }).length;
     return {
       ok: true as const,
@@ -339,13 +346,22 @@ export async function uploadMateJsonAction(jsonText: string) {
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   try {
     const parsed = parseMateJson(jsonText);
+    const csvSets = loaded.store.csv ? uniqueSetCodes(loaded.store.csv.rows) : [];
+    const offers = filterMateOffersForCsv(parsed.offers, csvSets);
+    if (loaded.store.csv && csvSets.length && !offers.length) {
+      return {
+        ok: false as const,
+        error: `Mate harvest had ${parsed.offers.length} cards but none in your CSV sets.`,
+      };
+    }
+    const keptSets = [...new Set(offers.map((o) => o.setCode).filter(Boolean))].sort();
     const linked = await attachMateImageLinks({
       ...loaded.store,
       mate: {
         harvestedAt: new Date().toISOString(),
         source: "upload",
-        sets: parsed.sets,
-        offers: parsed.offers,
+        sets: keptSets.length ? keptSets : parsed.sets,
+        offers,
       },
     });
     const store = await persist(loaded.staff.userKey, linked);

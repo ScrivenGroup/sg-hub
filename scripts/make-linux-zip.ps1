@@ -16,14 +16,25 @@ $zipFull = Join-Path (Get-Location) $ZipPath
 $zip = [System.IO.Compression.ZipFile]::Open($zipFull, [System.IO.Compression.ZipArchiveMode]::Create)
 
 try {
+  $skippedData = 0
   Get-ChildItem -Path $sourceFull -Recurse -File | ForEach-Object {
     $rel = $_.FullName.Substring($sourceFull.Length + 1).Replace("\", "/")
+    if ($rel -eq "data" -or $rel.StartsWith("data/")) {
+      $skippedData++
+      return
+    }
+    if ($rel.StartsWith(".next/static/development/") -or $rel -match "hmr-client" -or $rel -match "_browser_dev_") {
+      return
+    }
     [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
       $zip,
       $_.FullName,
       $rel,
       [System.IO.Compression.CompressionLevel]::Optimal
     ) | Out-Null
+  }
+  if ($skippedData -gt 0) {
+    Write-Host ("Excluded {0} file(s) under data/ (laptop JSON must not ship)" -f $skippedData)
   }
 }
 finally {

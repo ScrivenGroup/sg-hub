@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ScrivenGroup hub atlas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #3c3c3b;
+      --page: #f5f5f4;
+      --surface: #ffffff;
+      --surface-muted: #ececec;
+      --border: #d4d4d2;
+      --muted: #6b6b69;
+      --rag-green: #2f8f4e;
+      --rag-amber: #d4a017;
+      --rag-red: #c0392b;
+      --radius: 10px;
+      --font-sans: "Manrope", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    summary { list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+
+    .sg-skip {
+      position: absolute;
+      left: -999px;
+      top: 0;
+      z-index: 100;
+      background: var(--ink);
+      color: var(--surface);
+      padding: 0.5rem 1rem;
+    }
+    .sg-skip:focus { left: 0.5rem; top: 0.5rem; }
+
+    .sg-btn-primary, .sg-btn-secondary, .sg-btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius);
+      text-decoration: none;
+      border: 0;
+      background: none;
+    }
+    .sg-btn-primary {
+      min-height: 44px;
+      padding: 0.6rem 1.1rem;
+      background: var(--ink);
+      color: var(--surface);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .sg-btn-primary:hover { opacity: 0.92; }
+    .sg-btn-secondary {
+      min-height: 44px;
+      padding: 0.55rem 1rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .sg-btn-ghost {
+      min-height: 44px;
+      padding: 0.4rem 0.75rem;
+      color: var(--ink);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .sg-btn-ghost:hover { background: var(--surface-muted); }
+    .sg-card {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 1.25rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease;
+    }
+    a.sg-card:hover, .sg-card:hover { border-color: var(--ink); }
+    .sg-card.dashed { border-style: dashed; }
+    .sg-input {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 0.6rem 0.85rem;
+      color: var(--ink);
+    }
+
+    .app { display: flex; min-height: 100dvh; flex-direction: column; }
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface) 95%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 1rem;
+    }
+    .brand {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .brand-name { font-size: 0.875rem; font-weight: 600; }
+    .header-nav {
+      margin-left: auto;
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .avatar {
+      display: flex;
+      height: 40px;
+      width: 40px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--surface);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .profile-panel {
+      position: absolute;
+      right: 0;
+      margin-top: 0.5rem;
+      width: 14rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0.75rem;
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 16%, transparent);
+    }
+    .main {
+      flex: 1;
+      width: 100%;
+      max-width: 64rem;
+      margin: 0 auto;
+      padding: 2rem 1rem 6rem;
+    }
+    .page-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+    .crumbs { color: var(--muted); }
+    .crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
+    .crumbs a { text-decoration: none; }
+    .crumbs a:hover { text-decoration: underline; }
+    .page-head { margin-bottom: 2rem; }
+    .page-head h1 {
+      margin: 0;
+      font-size: 1.875rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+    .lede { margin: 0.5rem 0 0; max-width: 36rem; color: var(--muted); }
+    .meta-line { margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--muted); }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .grid-2 { display: grid; gap: 1rem; }
+    .grid-cards { display: grid; gap: 0.75rem; }
+    @media (min-width: 640px) {
+      .grid-2, .grid-cards { grid-template-columns: 1fr 1fr; }
+      .fab { display: none !important; }
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      padding: 0.125rem 0.5rem;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .pill {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-muted);
+      padding: 0.125rem 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .login-wrap {
+      display: flex;
+      min-height: 100dvh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 28rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 2rem;
+      box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
+    }
+    .login-brand { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 2rem; }
+    .login-brand h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.03em; }
+    .login-brand p { margin: 0.5rem 0 0; font-size: 0.875rem; color: var(--muted); }
+    .stack > * + * { margin-top: 1rem; }
+    .muted { color: var(--muted); }
+    .tiny { font-size: 0.75rem; color: var(--muted); }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.4);
+      padding: 0.75rem;
+    }
+    .dialog {
+      width: 100%;
+      max-width: 32rem;
+      margin: 2rem auto;
+      max-height: min(90dvh, calc(100dvh - 1.5rem));
+      overflow: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 1.25rem;
+      box-shadow: 0 16px 40px color-mix(in srgb, var(--ink) 20%, transparent);
+    }
+    .map-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: 6px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.875rem;
+      text-decoration: none;
+    }
+    .map-link:hover { background: var(--surface-muted); }
+    .map-link.here { background: var(--ink); color: var(--surface); }
+    .map-children {
+      margin: 0.25rem 0 0 1rem;
+      padding-left: 0.75rem;
+      border-left: 1px solid var(--border);
+      list-style: none;
+    }
+    .banner {
+      margin: 0 0 1.5rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .banner a { font-weight: 600; text-decoration: underline; }
+    .fab {
+      position: fixed;
+      right: 1.25rem;
+      bottom: max(1.25rem, calc(1.25rem + env(safe-area-inset-bottom)));
+      z-index: 40;
+      display: flex;
+      height: 3.5rem;
+      align-items: center;
+      border-radius: 999px;
+      background: var(--ink);
+      padding: 0 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--surface);
+      border: 0;
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 24%, transparent);
+    }
+    .hidden-sm { display: none; }
+    @media (min-width: 640px) {
+      .hidden-sm { display: inline-flex; }
+      .brand-name { display: inline; }
+    }
+    @media (max-width: 639px) {
+      .brand-name { display: none; }
+    }
+    table.inv {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.82rem;
+    }
+    table.inv th, table.inv td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    table.inv th { background: var(--surface-muted); font-weight: 600; }
+    table.inv tr:last-child td { border-bottom: 0; }
+    table.inv a { font-weight: 600; text-decoration: none; }
+    table.inv a:hover { text-decoration: underline; }
+    .dl { display: grid; gap: 0.75rem; }
+    .dl dt { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .dl dd { margin: 0.25rem 0 0; }
+    ul.plain { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+    ul.plain li { margin: 0.2rem 0; }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.86em;
+      background: var(--surface-muted);
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+    }
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: block;
+    }
+    .logo-lg { width: 96px; height: 96px; border-radius: 12px; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const LOGO_SVG = `<svg class="logo" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="36" height="36" rx="6" fill="#3c3c3b"/><text x="18" y="24" text-anchor="middle" fill="#f5f5f4" font-family="Manrope,Segoe UI,sans-serif" font-size="13" font-weight="700">SG</text></svg>`;
+    const LOGO_LG = LOGO_SVG.replace('class="logo"', 'class="logo logo-lg"').replace('viewBox="0 0 36 36"', 'viewBox="0 0 36 36"');
+
+    const NODES = [
+      { id: "hub-work", hubPrefix: "w", slug: "", title: "Work", code: "3FAE6A", kind: "hub", parentId: null, href: "/w", accessMode: "shared", status: "live", description: "Client-context products (org only).", order: 1, areas: 1 },
+      { id: "hub-projects", hubPrefix: "p", slug: "", title: "Projects", code: "F2D04E", kind: "hub", parentId: null, href: "/p", accessMode: "shared", status: "live", description: "Personal products — spin-out capable.", order: 2, areas: 2 },
+      { id: "hub-internal", hubPrefix: "i", slug: "", title: "Internal", code: "4A8FDC", kind: "hub", parentId: null, href: "/i", accessMode: "shared", status: "live", description: "ScrivenGroup capture and tools.", order: 3, areas: 5 },
+      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition and Appearance of this site.", order: 4, areas: 2 },
+      {
+        id: "w-sunwater-mrt", hubPrefix: "w", slug: "sunwater-mrt", title: "Sunwater - Milestone Resourcing Tracker",
+        code: "4E8C6B", kind: "subhub", parentId: "hub-work", href: "/w/sunwater-mrt", accessMode: "shared", status: "live",
+        description: "Sunwater client — dam-safety obligation cycles with frequency-based predicted milestones.",
+        inUse: true,
+        contents: [
+          "Staff product for Sunwater dam-safety <strong>regulator cycles</strong> (dam × requirement type × due), not named engagement milestones.",
+          "Surfaces defined inside the card (not opened here): Gantt, Obligations, Inputs, Definitions, Defaults, Help, Admin, Development.",
+          "Inputs sub-tabs: Assets, Obligation Types, Resource Roles, Resource Names.",
+          "Definitions sub-tabs: Asset × Obligation, Resource × Role, Asset × Resource Role.",
+          "A second door exists for guests: <code>/w/sunwater-mrt/guest</code> (share password, not Microsoft). That door is product interior — not walked in this atlas."
+        ],
+        state: "Live as v1.5 (31 Aug 2026, 7:00 pm). In use on the Azure hub: cyclical Gantt, occurrence popup, planned-hours heatmap, 24×11 catalog seed, audience shares, and a guest personal-copy sandbox. Out of v1: Followups, Assumptions, non-resource costing, automatic leveling. No Sunwater client Entra on this host."
+      },
+      {
+        id: "p-fueltracker", hubPrefix: "p", slug: "fueltracker", title: "Fuel Tracker",
+        code: "E0A83A", kind: "subhub", parentId: "hub-projects", href: "/p/fueltracker", accessMode: "per_user", status: "sketched",
+        description: "Vehicle cost and lifecycle tracker (featureless shell — build on desktop).",
+        inUse: false,
+        contents: [
+          "Projects sub-hub for vehicles you own: fill-ups, other costs, purchase and disposition.",
+          "Access is per_user — each person should only see their own data.",
+          "A dark/car ThemeContract is planned; until then the global SG theme applies and #E0A83A colours the badge only."
+        ],
+        state: "Sketched. Featureless SubHubShell plus a development-plan changelog. No product UI. Not in daily use."
+      },
+      {
+        id: "p-funds-forecaster", hubPrefix: "p", slug: "funds-forecaster", title: "Funds Forecaster",
+        code: "1F6B4A", kind: "subhub", parentId: "hub-projects", href: "/p/funds-forecaster", accessMode: "per_user", status: "building",
+        description: "Personal funds forecast (savings, safety floor, horizon, income vs spend). Skeleton + Development reference; not revA.",
+        inUse: false,
+        contents: [
+          "Personal money forecast: savings, safety floor, horizon, income vs hard/soft/category spend.",
+          "Interior routes defined (not opened here): Hub, Inputs, Forecast, Upcoming, Development.",
+          "Development is a parked copy of an offline HTML design — museum, not the product skin."
+        ],
+        state: "Building. Skeleton + intent copy only. No live numbers, no statement CSVs, no seeded Table 1. The offline sibling HTML is a Development reference, not revA."
+      },
+      {
+        id: "i-ideas", hubPrefix: "i", slug: "ideas", title: "Ideas",
+        code: "7EB6E8", kind: "tool", parentId: "hub-internal", href: "/i/ideas", accessMode: "shared", status: "live",
+        description: "Domain-wide idea register.",
+        inUse: true,
+        contents: [
+          "A domain-wide idea register (title, body, status) stored in JSON.",
+          "This is a page register, not the global Feedback control."
+        ],
+        state: "Live stub. In the registry and on Internal. Seeded with a sample inbox idea. Thin UI — usable as capture, not a full product."
+      },
+      {
+        id: "i-notes", hubPrefix: "i", slug: "notes", title: "Notes",
+        code: "5BB8C9", kind: "tool", parentId: "hub-internal", href: "/i/notes", accessMode: "per_user", status: "live",
+        description: "Less formal capture.",
+        inUse: true,
+        contents: [
+          "Less formal notes (title, body, updatedAt) on a simple list.",
+          "Registry access is per_user; the current UI is a shared-looking list over the JSON store."
+        ],
+        state: "Live stub. Framed and reachable. Not a full notes product."
+      },
+      {
+        id: "i-feedback", hubPrefix: "i", slug: "feedback", title: "Feedback",
+        code: "6B7FD4", kind: "tool", parentId: "hub-internal", href: "/i/feedback", accessMode: "shared", status: "live",
+        description: "Site-wide feedback register for bugs, ideas, and housekeeping.",
+        inUse: true,
+        contents: [
+          "The housekeeping inbox: bugs, ideas, housekeeping, other.",
+          "Capture is global chrome (header on desktop, floating button on mobile).",
+          "The register page is Internal → Feedback. Agents also read <code>docs/feedback-inbox.md</code> and <code>data/feedback.json</code>."
+        ],
+        state: "Live and in use. This is the operational bug/housekeeping list for the hub."
+      },
+      {
+        id: "i-testing", hubPrefix: "i", slug: "testing", title: "Testing",
+        code: "A8C8F0", kind: "tool", parentId: "hub-internal", href: "/i/testing", accessMode: "shared", status: "sketched",
+        description: "Small web test pages.",
+        inUse: false,
+        contents: [
+          "Placeholder for small web test pages.",
+          "No changelog seed and no test runner in the repo today."
+        ],
+        state: "Sketched. Featureless shell only. Not in use."
+      },
+      {
+        id: "i-dev-choices", hubPrefix: "i", slug: "dev-choices", title: "Development choices",
+        code: "5A72B8", kind: "tool", parentId: "hub-internal", href: "/i/dev-choices", accessMode: "shared", status: "building",
+        description: "Locked development standards for humans and Cursor chats.",
+        inUse: true,
+        contents: [
+          "Locked standards shared by humans and Cursor chats. Also <code>docs/DEV_CHOICES.md</code>.",
+          "Rows in the register: sessions, /w-studio, auth, reuse, packaging, janitor, agents.",
+          "Packaging rule: the demo artifact is a guest link, not a standalone HTML of the Next app. This atlas is a site-map walk, not that demo."
+        ],
+        state: "Building. Seven rows are locked and in use as canon. Do not contradict them in later chats."
+      },
+      {
+        id: "s-definition", hubPrefix: "s", slug: "definition", title: "Definition",
+        code: "B49AE0", kind: "tool", parentId: "hub-system", href: "/s/definition", accessMode: "shared", status: "live",
+        description: "Site map, changelog, external dependencies.",
+        inUse: true,
+        contents: [
+          "The in-app site network map: Home → Hubs → cards (not inner product pages).",
+          "Changelog entries attached to registry nodes.",
+          "External dependencies with RAG: amber ≤ 3 months, red ≤ 14 days or expired. Attention cascades to the System card on Home.",
+          "Dependencies defined: Azure App Service, Microsoft Entra app, scriven.group DNS, Entra client secret (expires 2027-08-13)."
+        ],
+        state: "Live. This is the hub’s own map of itself. Maps update when new cards are framed in the registry."
+      },
+      {
+        id: "s-appearance", hubPrefix: "s", slug: "appearance", title: "Appearance",
+        code: "C989D4", kind: "tool", parentId: "hub-system", href: "/s/appearance", accessMode: "shared", status: "live",
+        description: "Theme tokens, templates, icons.",
+        inUse: true,
+        contents: [
+          "Global ThemeContract tokens: <code>--ink</code> #3C3C3B, <code>--page</code> #F5F5F4, <code>--surface</code> #FFFFFF, <code>--border</code> #D4D4D2, <code>--muted</code> #6B6B69, Manrope, 10px radius.",
+          "Sub-hub hex codes colour the <strong>badge only</strong>, unless a ThemeContract override is added for that card."
+        ],
+        state: "Live for the global SG theme. Per-card ThemeContract overrides (for example Fuel Tracker dark/car) are planned, not shipped."
+      }
+    ];
+
+    const STATUS = { sketched: "Sketched", building: "Building", live: "Live" };
+    const ACCESS = { shared: "shared", restricted: "restricted", per_user: "per user" };
+
+    function byId(id) { return NODES.find((n) => n.id === id); }
+    function byHref(href) { return NODES.find((n) => n.href === href); }
+    function hubs() { return NODES.filter((n) => n.kind === "hub").sort((a, b) => a.order - b.order); }
+    function childrenOf(id) { return NODES.filter((n) => n.parentId === id); }
+    function badgeFg(code) {
+      const r = parseInt(code.slice(0, 2), 16);
+      const g = parseInt(code.slice(2, 4), 16);
+      const b = parseInt(code.slice(4, 6), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? "#1a1a1a" : "#ffffff";
+    }
+    function badge(node) {
+      return `<span class="badge" style="background:#${node.code};color:${badgeFg(node.code)}" title="Stable sub-hub code (badge colour only — not theme)">${node.hubPrefix.toUpperCase()}·${node.code}</span>`;
+    }
+    function pill(status) {
+      return `<span class="pill">${STATUS[status] || status}</span>`;
+    }
+    function initials(name) {
+      return (name || "?")
+        .split(/\s+/)
+        .map((p) => p[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+    }
+
+    const state = {
+      user: sessionStorage.getItem("sg-atlas-user") || "",
+      modal: null,
+      feedbackSent: false
+    };
+
+    function path() {
+      const h = location.hash.replace(/^#/, "") || "/login";
+      return h.startsWith("/") ? h : "/" + h;
+    }
+
+    function go(href, replace) {
+      const next = "#" + href;
+      if (replace) {
+        history.replaceState(null, "", next);
+        render();
+        return;
+      }
+      if (location.hash === next) render();
+      else location.hash = href;
+    }
+
+    function trail(href) {
+      const crumbs = [{ href: "/home", label: "Home" }];
+      if (href === "/layers") {
+        crumbs.push({ href: "/layers", label: "The wrapping hub" });
+        return crumbs;
+      }
+      if (href === "/inventory") {
+        crumbs.push({ href: "/inventory", label: "Registry inventory" });
+        return crumbs;
+      }
+      const node = byHref(href);
+      if (!node) return crumbs;
+      const ancestors = [];
+      let parentId = node.parentId;
+      while (parentId) {
+        const parent = byId(parentId);
+        if (!parent) break;
+        ancestors.unshift({ href: parent.href, label: parent.title });
+        parentId = parent.parentId;
+      }
+      crumbs.push(...ancestors, { href: node.href, label: node.title });
+      return crumbs;
+    }
+
+    function pageNav(href) {
+      const crumbs = trail(href);
+      const back = href === "/home" ? null : crumbs.length >= 2 ? crumbs[crumbs.length - 2] : { href: "/home", label: "Home" };
+      return `<div class="page-nav">
+        ${back ? `<a class="sg-btn-ghost" href="#${back.href}" style="padding:0.25rem 0.5rem;min-height:auto">← Back</a>` : ""}
+        <nav class="crumbs" aria-label="Breadcrumb"><ol>
+          ${crumbs.map((c, i) => {
+            const last = i === crumbs.length - 1;
+            return `<li>${i ? `<span aria-hidden>/</span>` : ""}${last
+              ? `<span style="font-weight:500;color:var(--ink)" aria-current="page">${esc(c.label)}</span>`
+              : `<a href="#${c.href}">${esc(c.label)}</a>`}</li>`;
+          }).join("")}
+        </ol></nav>
+      </div>`;
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function banner() {
+      return `<div class="banner">
+        Offline <strong>hub atlas</strong> — dummy login, no credentials, no product interiors.
+        Cards stop at a definition page.
+        <a href="#/layers">How we name these layers</a>
+        · <a href="#/inventory">Registry inventory</a>
+      </div>`;
+    }
+
+    function chrome(inner, currentHref) {
+      const name = state.user || "Scriven Owner";
+      return `<div class="app">
+        <a class="sg-skip" href="#main">Skip to content</a>
+        <header class="header">
+          <div class="header-inner">
+            <a class="brand" href="#/home">${LOGO_SVG}<span class="brand-name">Scriven Group</span></a>
+            <div style="flex:1;min-width:0"></div>
+            <nav class="header-nav" aria-label="App">
+              <button type="button" class="sg-btn-ghost" data-act="back" title="Go back">← Back</button>
+              <a class="sg-btn-ghost" href="#/home">Home</a>
+              <button type="button" class="sg-btn-ghost" data-act="network">Site network</button>
+              <button type="button" class="sg-btn-ghost hidden-sm" data-act="feedback">Feedback</button>
+              <details class="relative" style="position:relative">
+                <summary class="avatar"><span class="sr-only">Profile menu</span>${esc(initials(name))}</summary>
+                <div class="profile-panel">
+                  <p style="margin:0;font-size:0.875rem;font-weight:500">${esc(name)}</p>
+                  <p class="tiny" style="margin:0.15rem 0 0">Offline atlas · no session</p>
+                  <button type="button" class="sg-btn-secondary" style="width:100%;margin-top:0.75rem" data-act="signout">Sign out</button>
+                </div>
+              </details>
+            </nav>
+          </div>
+        </header>
+        <main id="main" class="main">${banner()}${inner}</main>
+        <button type="button" class="fab" data-act="feedback" aria-label="Send feedback">Feedback</button>
+        ${state.modal === "network" ? networkModal(currentHref) : ""}
+        ${state.modal === "feedback" ? feedbackModal() : ""}
+      </div>`;
+    }
+
+    function networkModal(currentHref) {
+      const list = hubs().map((hub) => {
+        const kids = childrenOf(hub.id).map((child) =>
+          `<li><a class="map-link${currentHref === child.href ? " here" : ""}" href="#${child.href}">
+            <span style="font-weight:500">${esc(child.title)}</span>${badge(child)}
+            ${currentHref === child.href ? `<span style="margin-left:auto;font-size:0.75rem;opacity:.8">You are here</span>` : ""}
+          </a></li>`
+        ).join("");
+        return `<li>
+          <a class="map-link${currentHref === hub.href ? " here" : ""}" href="#${hub.href}">
+            <span style="font-weight:500">${esc(hub.title)}</span>
+            ${currentHref === hub.href ? `<span style="margin-left:auto;font-size:0.75rem;opacity:.8">You are here</span>` : ""}
+          </a>
+          <ul class="map-children">${kids}</ul>
+        </li>`;
+      }).join("");
+      return `<div class="overlay" data-act="closemodal" role="presentation">
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="net-title">
+          <div style="display:flex;justify-content:space-between;gap:0.75rem;margin-bottom:1rem">
+            <div>
+              <h2 id="net-title" style="margin:0;font-size:1.125rem">Site network</h2>
+              <p class="tiny" style="margin:0.25rem 0 0">Fast travel — Home to Hubs to cards.</p>
+            </div>
+            <button type="button" class="sg-btn-ghost" data-act="closemodal">Close</button>
+          </div>
+          <ul style="margin:0;padding:0;list-style:none;display:grid;gap:0.75rem">
+            <li>
+              <a class="map-link${currentHref === "/home" ? " here" : ""}" href="#/home">
+                <span style="font-weight:500">Home</span>
+                ${currentHref === "/home" ? `<span style="margin-left:auto;font-size:0.75rem;opacity:.8">You are here</span>` : ""}
+              </a>
+            </li>
+            ${list}
+          </ul>
+        </div>
+      </div>`;
+    }
+
+    function feedbackModal() {
+      if (state.feedbackSent) {
+        return `<div class="overlay" data-act="closemodal">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+            <p style="text-align:center;font-weight:500;padding:1.5rem 0">Thanks — not stored (offline atlas).</p>
+          </div>
+        </div>`;
+      }
+      return `<div class="overlay" data-act="closemodal">
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="fb-title" style="max-width:28rem">
+          <div style="display:flex;justify-content:space-between;gap:0.75rem;margin-bottom:1rem">
+            <div>
+              <h2 id="fb-title" style="margin:0;font-size:1.125rem">Send feedback</h2>
+              <p class="tiny" style="margin:0.25rem 0 0">Dummy only — this file cannot write the live register.</p>
+            </div>
+            <button type="button" class="sg-btn-ghost" data-act="closemodal">Close</button>
+          </div>
+          <form class="stack" data-form="feedback">
+            <label>Type
+              <select class="sg-input" name="kind" style="margin-top:0.25rem">
+                <option value="bug">Bug</option>
+                <option value="idea">Idea</option>
+                <option value="housekeeping">Housekeeping</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Message
+              <textarea class="sg-input" name="message" required rows="5" style="min-height:120px;padding-top:0.75rem;margin-top:0.25rem" placeholder="What happened, or what should change?"></textarea>
+            </label>
+            <p class="tiny">Page: ${esc(path())}</p>
+            <button type="submit" class="sg-btn-primary" style="width:100%">Submit</button>
+          </form>
+        </div>
+      </div>`;
+    }
+
+    function renderLogin() {
+      document.title = "Sign in · ScrivenGroup hub atlas";
+      document.getElementById("app").innerHTML = `
+        <div class="login-wrap">
+          <div class="login-card">
+            <div class="login-brand">
+              ${LOGO_LG}
+              <h1>Scriven Group</h1>
+              <p>Plain. Professional. Consistent.</p>
+            </div>
+            <div class="stack">
+              <button type="button" class="sg-btn-primary" style="width:100%" data-login="microsoft">Sign in with Microsoft</button>
+              <p class="tiny" style="text-align:center;margin:0.75rem 0 0">Or use Dev Login (dummy only)</p>
+              <form class="stack" data-form="devlogin">
+                <label style="display:block;font-size:0.875rem;font-weight:500">Display name
+                  <input class="sg-input" name="name" value="Scriven Owner" autocomplete="name" style="margin-top:0.25rem">
+                </label>
+                <button type="submit" class="sg-btn-secondary" style="width:100%">Dev Login</button>
+              </form>
+              <p class="tiny" style="text-align:center">Offline dummy. No credentials are checked or stored on a server.</p>
+              <p class="tiny" style="text-align:center"><a href="#/layers">What is this file?</a></p>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderHome() {
+      const cards = hubs().map((hub) => `
+        <a class="sg-card" href="#${hub.href}" style="position:relative">
+          <div style="display:flex;justify-content:space-between;gap:0.5rem;margin-bottom:0.75rem">
+            <h2 style="margin:0;font-size:1.25rem;font-weight:600">${esc(hub.title)}</h2>
+            ${badge(hub)}
+          </div>
+          <p class="muted" style="margin:0;font-size:0.875rem">${esc(hub.description)}</p>
+          <p class="tiny" style="margin:1rem 0 0">${hub.areas} area${hub.areas === 1 ? "" : "s"}</p>
+        </a>`).join("");
+      return chrome(`
+        <header class="page-head">
+          <h1>Home</h1>
+          <p class="lede">Choose a Hub. Work and Projects hold spin-out capable products; Internal captures ideas; System defines and maintains the site.</p>
+        </header>
+        <div class="grid-2">${cards}</div>
+      `, "/home");
+    }
+
+    function renderHub(hub) {
+      const kids = childrenOf(hub.id);
+      const cards = kids.length
+        ? `<ul class="grid-cards" style="list-style:none;margin:0;padding:0">${kids.map((child) => `
+            <li>
+              <a class="sg-card" href="#${child.href}" style="height:100%">
+                <div class="row">
+                  <h2 style="margin:0;font-size:1.125rem;font-weight:600">${esc(child.title)}</h2>
+                  ${badge(child)}${pill(child.status)}
+                </div>
+                <p class="muted" style="margin:0;font-size:0.875rem">${esc(child.description)}</p>
+              </a>
+            </li>`).join("")}</ul>`
+        : `<div class="sg-card"><p style="margin:0;font-weight:500">No sub-hubs yet</p>
+            <p class="muted" style="margin:0.25rem 0 0;font-size:0.875rem">Frame a product from chat and it will appear here.</p></div>`;
+      return chrome(`
+        ${pageNav(hub.href)}
+        <header class="page-head">
+          <div class="row">
+            <h1>${esc(hub.title)}</h1>
+            ${badge(hub)}
+          </div>
+          <p class="lede">${esc(hub.description)}</p>
+        </header>
+        ${cards}
+      `, hub.href);
+    }
+
+    function renderCard(node) {
+      const parent = node.parentId ? byId(node.parentId) : null;
+      const sketched = node.status === "sketched"
+        ? `<div class="sg-card dashed" style="margin-bottom:1.5rem">
+            <p style="margin:0;font-weight:500">Featureless shell</p>
+            <p class="muted" style="margin:0.25rem 0 0;font-size:0.875rem">Framed for future development. This atlas does not invent product UI.</p>
+          </div>`
+        : "";
+      return chrome(`
+        ${pageNav(node.href)}
+        <header class="page-head">
+          <div class="row">
+            <h1>${esc(node.title)}</h1>
+            ${badge(node)}${pill(node.status)}
+            <span class="pill">${node.inUse ? "In use" : "Defined, not in daily use"}</span>
+          </div>
+          <p class="lede">${esc(node.description)}</p>
+          <p class="meta-line">Access: ${ACCESS[node.accessMode] || node.accessMode} · Path ${esc(node.href)}${parent ? ` · Under ${esc(parent.title)}` : ""} · ${esc(node.kind)}</p>
+        </header>
+        ${sketched}
+        <div class="dl">
+          <div class="sg-card">
+            <dt>What is defined here</dt>
+            <dd><ul class="plain">${node.contents.map((c) => `<li>${c}</li>`).join("")}</ul></dd>
+          </div>
+          <div class="sg-card">
+            <dt>Development state</dt>
+            <dd>${node.state}</dd>
+          </div>
+          <div class="sg-card dashed">
+            <dt>Atlas stops here</dt>
+            <dd class="muted" style="font-size:0.9rem">The live product UI for this card is not in this file. Open the card on the hub if you need to audit interiors.</dd>
+          </div>
+        </div>
+      `, node.href);
+    }
+
+    function layersBody() {
+      return `
+        <header class="page-head">
+          <h1>The wrapping hub</h1>
+          <p class="lede">The website that holds every idea together. Product interiors are rooms; this is the building.</p>
+        </header>
+        <div class="sg-card" style="margin-bottom:1rem">
+          <p style="margin:0 0 0.75rem"><strong>Call the wrapping website the hub.</strong> That is this Next.js app — one host, one chrome, four floors. Do not call it a second product, a portal, or a folder of apps.</p>
+          <p class="muted" style="margin:0;font-size:0.9rem">The four floors are also called Hubs. That collision is already in the live IA. When you need to be precise: <em>the hub</em> is the building; <em>a Hub</em> is a floor.</p>
+        </div>
+        <table class="inv">
+          <thead><tr><th>Name</th><th>Layer</th><th>Stops at</th></tr></thead>
+          <tbody>
+            <tr><td><strong>The hub</strong></td><td>The wrapping website (this app)</td><td>The building</td></tr>
+            <tr><td><strong>Chrome</strong></td><td>AppShell header: logo, Home, Site network, Feedback, Profile</td><td>Global actions</td></tr>
+            <tr><td><strong>Home</strong></td><td>Four Hub cards</td><td><code>/home</code></td></tr>
+            <tr><td><strong>Hubs</strong></td><td>Work, Projects, Internal, System</td><td><code>/w</code> <code>/p</code> <code>/i</code> <code>/s</code></td></tr>
+            <tr><td><strong>Cards</strong></td><td>Registry nodes (sub-hubs and tools)</td><td><code>/w/{slug}</code> and friends</td></tr>
+            <tr><td><strong>Site map</strong></td><td>The walkable top of those layers</td><td>The card — not product interiors</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" style="margin:1rem 0 0;font-size:0.9rem">This file is a click-through of the site map. It is not a demo of the Next app (see locked choice <code>dc-demo-artifact</code>: demos are guest links).</p>`;
+    }
+
+    function renderLayers() {
+      return chrome(`${pageNav("/layers")}${layersBody()}`, "/layers");
+    }
+
+    function renderInventory() {
+      const rows = NODES.map((n) => {
+        const parent = n.parentId ? byId(n.parentId) : null;
+        const href = n.kind === "hub" || n.kind === "subhub" || n.kind === "tool" ? `#${n.href}` : "#/home";
+        return `<tr>
+          <td><a href="${href}">${esc(n.title)}</a><div class="tiny">${esc(n.id)}</div></td>
+          <td>${esc(n.kind)}</td>
+          <td>${parent ? esc(parent.title) : "—"}</td>
+          <td><code>${esc(n.href)}</code></td>
+          <td>${pill(n.status)}</td>
+          <td>${n.inUse === false ? "Defined" : n.kind === "hub" ? "In use" : n.inUse ? "In use" : "In use"}</td>
+          <td>${ACCESS[n.accessMode] || n.accessMode}</td>
+          <td>${badge(n)}</td>
+        </tr>`;
+      }).join("");
+      return chrome(`
+        ${pageNav("/inventory")}
+        <header class="page-head">
+          <h1>Registry inventory</h1>
+          <p class="lede">Every node in <code>src/core/registry/seed.ts</code> as of 1 Sep 2026. This is the audit list of what the wrapping hub currently defines.</p>
+        </header>
+        <div style="overflow:auto">
+          <table class="inv">
+            <thead><tr><th>Title</th><th>Kind</th><th>Under</th><th>Path</th><th>Status</th><th>Use</th><th>Access</th><th>Badge</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `, "/inventory");
+    }
+
+    function render() {
+      const href = path();
+      if (!state.user && href !== "/login" && href !== "/layers") {
+        go("/login", true);
+        return;
+      }
+      if (state.user && href === "/login") {
+        go("/home", true);
+        return;
+      }
+
+      if (href === "/login") {
+        renderLogin();
+        bind();
+        return;
+      }
+
+      let html;
+      if (href === "/home") {
+        document.title = "Home · ScrivenGroup hub atlas";
+        html = renderHome();
+      } else if (href === "/layers") {
+        document.title = "The wrapping hub · ScrivenGroup hub atlas";
+        html = state.user
+          ? renderLayers()
+          : `<div class="app"><main id="main" class="main"><p style="margin-top:0"><a class="sg-btn-ghost" href="#/login" style="padding:0.25rem 0.5rem">← Login</a></p>${layersBody()}</main></div>`;
+      } else if (href === "/inventory") {
+        document.title = "Registry inventory · ScrivenGroup hub atlas";
+        html = renderInventory();
+      } else {
+        const node = byHref(href);
+        if (!node) {
+          document.title = "Not found · ScrivenGroup hub atlas";
+          html = chrome(`<p>Not found.</p><p><a href="#/home">Home</a></p>`, href);
+        } else if (node.kind === "hub") {
+          document.title = `${node.title} · ScrivenGroup hub atlas`;
+          html = renderHub(node);
+        } else {
+          document.title = `${node.title} · ScrivenGroup hub atlas`;
+          html = renderCard(node);
+        }
+      }
+
+      document.getElementById("app").innerHTML = html;
+      bind();
+    }
+
+    function signIn(name) {
+      state.user = name || "Scriven Owner";
+      sessionStorage.setItem("sg-atlas-user", state.user);
+      state.modal = null;
+      go("/home");
+    }
+
+    function bind() {
+      document.querySelectorAll("[data-login]").forEach((el) => {
+        el.addEventListener("click", () => signIn("Scriven Owner"));
+      });
+      const dev = document.querySelector("[data-form=devlogin]");
+      if (dev) {
+        dev.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const name = new FormData(dev).get("name");
+          signIn(String(name || "Scriven Owner"));
+        });
+      }
+      document.querySelectorAll("[data-act=back]").forEach((el) => {
+        el.addEventListener("click", () => history.back());
+      });
+      document.querySelectorAll("[data-act=network]").forEach((el) => {
+        el.addEventListener("click", () => { state.modal = "network"; render(); });
+      });
+      document.querySelectorAll("[data-act=feedback]").forEach((el) => {
+        el.addEventListener("click", () => { state.feedbackSent = false; state.modal = "feedback"; render(); });
+      });
+      document.querySelectorAll("[data-act=signout]").forEach((el) => {
+        el.addEventListener("click", () => {
+          state.user = "";
+          sessionStorage.removeItem("sg-atlas-user");
+          state.modal = null;
+          go("/login");
+        });
+      });
+      document.querySelectorAll("[data-act=closemodal]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.target === el) { state.modal = null; render(); }
+        });
+      });
+      document.querySelectorAll(".dialog").forEach((el) => {
+        el.addEventListener("click", (e) => e.stopPropagation());
+      });
+      const fb = document.querySelector("[data-form=feedback]");
+      if (fb) {
+        fb.addEventListener("submit", (e) => {
+          e.preventDefault();
+          state.feedbackSent = true;
+          render();
+          setTimeout(() => { state.modal = null; state.feedbackSent = false; render(); }, 1100);
+        });
+      }
+      document.querySelectorAll(".map-link").forEach((el) => {
+        el.addEventListener("click", () => { state.modal = null; });
+      });
+    }
+
+    window.addEventListener("hashchange", render);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && state.modal) { state.modal = null; render(); }
+    });
+    if (!location.hash) history.replaceState(null, "", "#/login");
+    render();
+  </script>
+</body>
+</html>

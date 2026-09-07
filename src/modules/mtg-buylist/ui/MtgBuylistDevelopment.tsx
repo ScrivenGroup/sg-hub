@@ -3,11 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ChangelogEntry } from "@/core/contracts/types";
-import { DevHostStrip } from "@/core/kanban/ui/DevHostStrip";
-import { InboxPanel } from "@/core/kanban/ui/InboxPanel";
-import { KanbanBoard } from "@/core/kanban/ui/KanbanBoard";
-import type { DevHostKind, DevTab } from "@/core/kanban/host";
-import type { KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
+import { KanbanOnlineHost } from "@/core/kanban/ui/KanbanOnlineHost";
+import { InfoTip } from "@/core/ui/InfoTip";
+import { isBoardDevTab, type DevHostKind, type DevTab } from "@/core/kanban/host";
+import { kanbanLeafOptions } from "@/core/kanban/leaves";
+import { COLUMN_FILTERS, type KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
 import { parserSelfCheckAction, saveBuylistNotesAction } from "../actions";
 import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
 
@@ -37,7 +37,6 @@ export function MtgBuylistDevelopment({
   notes,
   board,
   hostKind,
-  host,
   initialTab,
 }: {
   changelogs: ChangelogEntry[];
@@ -54,17 +53,16 @@ export function MtgBuylistDevelopment({
   const [pending, startTransition] = useTransition();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { wip, releases } = useMemo(() => {
-    const sorted = [...changelogs].sort(releaseSort);
-    return {
-      wip: sorted.filter((c) => c.kind === "plan"),
-      releases: sorted.filter((c) => c.kind === "release"),
-    };
-  }, [changelogs]);
+  const releases = useMemo(
+    () => [...changelogs].filter((c) => c.kind === "release").sort(releaseSort),
+    [changelogs],
+  );
 
   const expanded = releases.find((r) => r.id === expandedId) || releases[0] || null;
   const openInboxCount = board.ideas.filter((i) => i.status === "open").length;
   const devHref = `${MTG_BUYLIST_HREF}/development`;
+  const boardOn = isBoardDevTab(tab);
+  const inboxOn = tab === "inbox";
 
   function go(next: DevTab) {
     setTab(next);
@@ -72,51 +70,65 @@ export function MtgBuylistDevelopment({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="shrink-0">
-        <DevHostStrip kind={hostKind} host={host} />
-      </div>
-      <div className="flex shrink-0 flex-wrap gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div role="tablist" aria-label="Development" className="flex shrink-0 flex-wrap">
         <button
           type="button"
-          className={tab === "changelog" ? "sg-btn-primary" : "sg-btn-secondary"}
+          role="tab"
+          aria-selected={tab === "changelog"}
+          className="sg-tab"
           onClick={() => go("changelog")}
         >
           Changelog
         </button>
         <button
           type="button"
-          className={tab === "notes" ? "sg-btn-primary" : "sg-btn-secondary"}
+          role="tab"
+          aria-selected={tab === "notes"}
+          className="sg-tab"
           onClick={() => go("notes")}
         >
           Notes
         </button>
         <button
           type="button"
-          className={tab === "kanban" ? "sg-btn-primary" : "sg-btn-secondary"}
-          onClick={() => go("kanban")}
+          role="tab"
+          aria-selected={tab === "testing"}
+          className="sg-tab"
+          onClick={() => go("testing")}
         >
-          KanBan
+          Testing
         </button>
         <button
           type="button"
-          className={tab === "inbox" ? "sg-btn-primary" : "sg-btn-secondary"}
+          role="tab"
+          aria-selected={inboxOn}
+          className="sg-tab"
           onClick={() => go("inbox")}
         >
-          Inbox
-          {openInboxCount > 0 ? ` (${openInboxCount})` : ""}
+          Inbox{openInboxCount > 0 ? ` (${openInboxCount})` : ""}
         </button>
+        {COLUMN_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="tab"
+            aria-selected={boardOn && tab === f.id}
+            className="sg-tab"
+            onClick={() => go(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {tab === "changelog" ? (
         <section className="min-h-0 flex-1 space-y-6 overflow-y-auto">
           <div className="sg-card overflow-x-auto">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
               Releases
+              <InfoTip label="One row per version. Select a row for the full notes below. Patch versions (1.x.y) are localhost-only until that slice is live. Plans and ideas live in Inbox." />
             </h2>
-            <p className="mb-3 text-xs text-[var(--muted)]">
-              One row per version. Select a row for the full release notes below.
-            </p>
             {releases.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No release rows yet.</p>
             ) : (
@@ -131,6 +143,7 @@ export function MtgBuylistDevelopment({
                 <tbody>
                   {releases.map((entry) => {
                     const active = (expandedId || releases[0]?.id) === entry.id;
+                    const isDevPatch = (entry.version || "").split(".").length === 3;
                     return (
                       <tr
                         key={entry.id}
@@ -141,7 +154,11 @@ export function MtgBuylistDevelopment({
                         }`}
                         onClick={() => setExpandedId(entry.id)}
                       >
-                        <td className="py-1.5 font-semibold">{entry.version || "—"}</td>
+                        <td
+                          className={`py-1.5 font-semibold ${isDevPatch ? "pl-6 text-[var(--muted)]" : ""}`}
+                        >
+                          {entry.version || "—"}
+                        </td>
                         <td className="py-1.5 text-[var(--muted)]">
                           {new Date(entry.createdAt).toLocaleString()}
                         </td>
@@ -162,24 +179,43 @@ export function MtgBuylistDevelopment({
               <ChangelogCard entry={expanded} />
             </div>
           ) : null}
+        </section>
+      ) : null}
 
-          {wip.length > 0 ? (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                WIP / plan
-              </h2>
-              {wip.map((entry) => (
-                <ChangelogCard key={entry.id} entry={entry} />
-              ))}
-            </div>
-          ) : null}
+      {tab === "notes" ? (
+        <section className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto">
+          <p className="flex items-center gap-1.5 text-sm text-[var(--muted)]">
+            Scratchpad
+            <InfoTip label="Loose per-login notes. Plans and ideas belong in Inbox." />
+          </p>
+          <textarea
+            className="sg-input min-h-64 flex-1"
+            value={draft}
+            placeholder="Loose notes for MTG Buylist."
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <button
+            type="button"
+            className="sg-btn-primary disabled:opacity-50"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                await saveBuylistNotesAction(draft);
+              });
+            }}
+          >
+            Save notes
+          </button>
+        </section>
+      ) : null}
 
+      {tab === "testing" ? (
+        <section className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           <div className="sg-card">
-            <h3 className="mb-2 font-medium">Parser fixture check</h3>
-            <p className="mb-3 text-sm text-[var(--muted)]">
-              Tiny DDH-shaped fixtures (not the live dumps). Confirms cents, name stripper, and
-              allocate buckets.
-            </p>
+            <h3 className="mb-2 flex items-center gap-1.5 font-medium">
+              Parser fixture check
+              <InfoTip label="Tiny DDH-shaped fixtures (not the live dumps). Confirms cents, name stripper, and allocate buckets." />
+            </h3>
             <button
               type="button"
               className="sg-btn-secondary disabled:opacity-50"
@@ -208,57 +244,23 @@ export function MtgBuylistDevelopment({
         </section>
       ) : null}
 
-      {tab === "notes" ? (
-        <section className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto">
-          <p className="text-sm text-[var(--muted)]">
-            Staff scratchpad for this leaf. Saved with your last-run JSON store (per login). Neon /
-            shared notes come later — until then these notes can reset on a restage that clears{" "}
-            <code className="text-xs">data/</code>. Structured ideas belong in Inbox.
-          </p>
-          <textarea
-            className="sg-input min-h-64 flex-1"
-            value={draft}
-            placeholder="Loose notes for MTG Buylist."
-            onChange={(e) => setDraft(e.target.value)}
-          />
-          <button
-            type="button"
-            className="sg-btn-primary disabled:opacity-50"
-            disabled={pending}
-            onClick={() => {
-              startTransition(async () => {
-                await saveBuylistNotesAction(draft);
-              });
-            }}
-          >
-            Save notes
-          </button>
-        </section>
-      ) : null}
-
-      {tab === "kanban" ? (
+      {inboxOn || boardOn ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <KanbanBoard
+          <KanbanOnlineHost
             board={board}
-            nodeId={MTG_BUYLIST_NODE_ID}
-            leafTitle="MTG Buylist"
-            leafHref={MTG_BUYLIST_HREF}
-            revalidateHref={devHref}
-            hostKind={hostKind}
-          />
-        </div>
-      ) : null}
-
-      {tab === "inbox" ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <InboxPanel
-            board={board}
+            scope="leaf"
             nodeId={MTG_BUYLIST_NODE_ID}
             leafTitle="MTG Buylist"
             leafHref={MTG_BUYLIST_HREF}
             revalidateHref={devHref}
             inboxHref={`${devHref}?tab=inbox`}
             hostKind={hostKind}
+            leafOptions={kanbanLeafOptions()}
+            defaultTagNodeId={MTG_BUYLIST_NODE_ID}
+            showTabs={false}
+            hideRaise
+            forcedTab={inboxOn ? "inbox" : tab}
+            panel={inboxOn ? "inbox" : "kanban"}
           />
         </div>
       ) : null}

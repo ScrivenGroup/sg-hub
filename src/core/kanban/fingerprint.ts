@@ -44,7 +44,7 @@ export function fingerprintIdea(idea: KanbanInboxNote): KanbanFingerprint {
   return {
     kind: "idea",
     status: idea.status,
-    hash: contentHash(idea.title, idea.body),
+    hash: contentHash(`${idea.nodeId}\n${idea.title}`, idea.body),
   };
 }
 
@@ -130,7 +130,7 @@ export function deltaVsBaseline(board: KanbanBoard): KanbanDelta {
       continue;
     }
     if (prev.status !== "archived" && idea.status === "archived") ideasArchived += 1;
-    if (prev.hash !== contentHash(idea.title, idea.body)) ideasEdited += 1;
+    if (prev.hash !== fingerprintIdea(idea).hash) ideasEdited += 1;
   }
   for (const [id, prev] of baseIdeas) {
     if (!localIdeaIds.has(id) && prev.status !== "archived") ideasArchived += 1;

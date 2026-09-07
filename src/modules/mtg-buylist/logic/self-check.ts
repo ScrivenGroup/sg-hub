@@ -1,13 +1,19 @@
 import { allocate, withAllocateResults } from "./allocate";
 import { parseManaBoxCsv, majorityPurchaseCurrency } from "./parse-csv";
-import { parseMateJson } from "./parse-mate";
-import { parsePlaymantisHtml, resolveOffersForScryfallId, scryfallIdsNeedingPlaymantisFetch } from "./playmantis";
+import { parseMateJson, filterMateOffersForCsv } from "./parse-mate";
+import {
+  classifyBuylistSearchHtml,
+  parsePlaymantisHtml,
+  resolveOffersForScryfallId,
+  scryfallIdsNeedingPlaymantisFetch,
+} from "./playmantis";
 import { csvJoinKeys, mateCollectorFromName, normalizeCardName } from "./names";
 import { emptyMtgBuylistStore } from "../schema";
 import {
   buildCompareRows,
   buildMateStreamRows,
   buildPmStreamRows,
+  manaBoxPackingCsv,
   recoveredPercent,
   recoveryBand,
 } from "./tables";
@@ -118,6 +124,10 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   const messages: string[] = [];
   const csv = parseManaBoxCsv(TINY_CSV);
   const mate = parseMateJson(TINY_MATE);
+  const ddhOnly = filterMateOffersForCsv(mate.offers, ["ddh"]);
+  if (!ddhOnly.length || ddhOnly.some((o) => o.setCode.toLowerCase() !== "ddh")) {
+    messages.push("Mate harvest upload should keep only cards in the CSV sets");
+  }
   const pm = parsePlaymantisHtml(TINY_PM, "2026-09-03T00:00:00.000Z");
   const searchPm = parsePlaymantisHtml(
     SEARCH_PM,
@@ -131,6 +141,19 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     searchPm[0].limit !== 4
   ) {
     messages.push("Search HTML without data-scryfall-id should still parse credit and default limit 4");
+  }
+  if (classifyBuylistSearchHtml(SEARCH_PM) !== "hit") {
+    messages.push("Search HTML with a buylist-card should classify as hit");
+  }
+  if (
+    classifyBuylistSearchHtml(
+      `<div id="buylist-grid-container"></div><div id="buylist-pagination"></div>`,
+    ) !== "empty"
+  ) {
+    messages.push("Buylist grid with no cards should classify as empty");
+  }
+  if (classifyBuylistSearchHtml("<html><body>Just a moment</body></html>") !== "blocked") {
+    messages.push("Challenge HTML without a buylist grid should classify as blocked");
   }
 
   const armorHtml = parsePlaymantisHtml(
@@ -194,8 +217,12 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     "11a13397-1d31-4257-87c2-a757a751c601",
     "Armor Wars",
   );
-  if (reboundNameOnly.length) {
-    messages.push("Name search must not bind when image UUID ≠ CSV Scryfall ID");
+  if (
+    reboundNameOnly.length !== 1 ||
+    reboundNameOnly[0].scryfallId !== "11a13397-1d31-4257-87c2-a757a751c601" ||
+    reboundNameOnly[0].creditCents !== 50
+  ) {
+    messages.push("Name search should bind Armor Wars by title when search HTML has no data-scryfall-id");
   }
   const reboundUuidTag = resolveOffersForScryfallId(
     parsePlaymantisHtml(mismatchedUuidHtml, "2026-09-03T00:00:00.000Z"),
@@ -226,8 +253,12 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     fieldOfSoulsCsvId,
     "Field of Souls",
   );
-  if (fieldBound.length) {
-    messages.push("Field of Souls reprint in another set must not bind on name");
+  if (
+    fieldBound.length !== 1 ||
+    fieldBound[0].scryfallId !== fieldOfSoulsCsvId ||
+    fieldBound[0].creditCents !== 80
+  ) {
+    messages.push("Field of Souls reprint should bind on title when UUID-tag page was empty");
   }
 
   const blazingCsvId = "cccccccc-1111-2222-3333-444444444444";
@@ -245,8 +276,12 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     blazingCsvId,
     "Blazing Specter",
   );
-  if (blazingBound.length) {
-    messages.push("Blazing Specter reprint in another set must not bind on name");
+  if (
+    blazingBound.length !== 1 ||
+    blazingBound[0].scryfallId !== blazingCsvId ||
+    blazingBound[0].creditCents !== 120
+  ) {
+    messages.push("Blazing Specter reprint should bind on title when UUID-tag page was empty");
   }
 
   const lightningCsvId = "eeeeeeee-1111-2222-3333-444444444444";
@@ -289,6 +324,91 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   );
   if (mindBendBound.length) {
     messages.push("Mind Bend HTML must not bind to Searing Meditation even with UUID fallback");
+  }
+  const searingFuzzyHtml = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="1" data-title="brass&#39;s tunnel-grinder // tecutlan, the searing rift">
+    <img src="//playmantis.com.au/cdn/shop/files/aaaaaaaa-bbbb-cccc-dddd-111111111111.jpg">
+    <p class="card-set">The Lost Caverns of Ixalan</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.40">Nonfoil</option>
+    </select>
+  </div>
+  <div class="buylist-card" data-product-id="2" data-title="searing meditation">
+    <img src="//playmantis.com.au/cdn/shop/files/aaaaaaaa-bbbb-cccc-dddd-222222222222.jpg">
+    <p class="card-set">Ravnica: City of Guilds</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="1.00">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const searingFuzzy = resolveOffersForScryfallId(
+    parsePlaymantisHtml(searingFuzzyHtml, "2026-09-03T00:00:00.000Z"),
+    searingId,
+    "Searing Meditation",
+    { setName: "Duel Decks: Ajani vs. Nicol Bolas" },
+  );
+  if (
+    searingFuzzy.length !== 1 ||
+    searingFuzzy[0].title !== "searing meditation" ||
+    searingFuzzy[0].creditCents !== 100
+  ) {
+    messages.push("Fuzzy name page must bind Searing Meditation, not the first Shopify hit");
+  }
+  const nickFuryHtml = `<div class="buylist-grid">
+  <div class="buylist-card" data-product-id="1" data-title="nick fury, agent of s.h.i.e.l.d. (borderless - scene)">
+    <img src="//playmantis.com.au/cdn/shop/files/aaaaaaaa-bbbb-cccc-dddd-333333333333.jpg">
+    <p class="card-set">Marvel Super Heroes</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="2.00">Nonfoil</option>
+    </select>
+  </div>
+  <div class="buylist-card" data-product-id="2" data-title="nick fury, agent of s.h.i.e.l.d.">
+    <img src="//playmantis.com.au/cdn/shop/files/aaaaaaaa-bbbb-cccc-dddd-444444444444.jpg">
+    <p class="card-set">Marvel Super Heroes</p>
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.50">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const nickFuryBound = resolveOffersForScryfallId(
+    parsePlaymantisHtml(nickFuryHtml, "2026-09-03T00:00:00.000Z"),
+    "3aa6fc02-ef76-426b-accd-6c0ef88b2a5e",
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    { setName: "Marvel Super Heroes" },
+  );
+  if (
+    nickFuryBound.length !== 1 ||
+    nickFuryBound[0].title !== "nick fury, agent of s.h.i.e.l.d." ||
+    nickFuryBound[0].creditCents !== 50
+  ) {
+    messages.push("Name fallback should prefer the plain title over a borderless treatment");
+  }
+  const nameIdHitHtml = `<div class="buylist-grid" id="buylist-grid-container">
+  <div class="buylist-card" data-product-id="1" data-title="ageless entity">
+    <img src="//playmantis.com.au/cdn/shop/files/f2d9b77b-d775-4546-91c8-df438a1d8dbe.jpg">
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.50" data-inventory="0">Nonfoil</option>
+    </select>
+  </div>
+  <div class="buylist-card" data-product-id="2" data-title="ageless entity">
+    <img src="//playmantis.com.au/cdn/shop/files/8fefd7d1-8c70-4d54-be0a-f45833340670.jpg">
+    <select class="finish-dropdown">
+      <option data-variant-title="Nonfoil" data-credit-price="0.50">Nonfoil</option>
+    </select>
+  </div>
+</div>`;
+  const darksteelId = "f2d9b77b-d775-4546-91c8-df438a1d8dbe";
+  const nameIdHit = resolveOffersForScryfallId(
+    parsePlaymantisHtml(nameIdHitHtml, "2026-09-03T00:00:00.000Z"),
+    darksteelId,
+    "Ageless Entity",
+  );
+  if (
+    nameIdHit.length !== 1 ||
+    nameIdHit[0].scryfallId !== darksteelId ||
+    nameIdHit[0].creditCents !== 50
+  ) {
+    messages.push("Name fallback should bind the product whose image UUID equals the CSV Scryfall ID");
   }
   const mismatchRetry = scryfallIdsNeedingPlaymantisFetch({
     ids: [searingId],
@@ -350,6 +470,41 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   });
   if (!uuidDriftKeep.includes(fieldOfSoulsCsvId)) {
     messages.push("Title-matched stored offer must still refetch so remaining want can update");
+  }
+  const retryUnfound = scryfallIdsNeedingPlaymantisFetch({
+    ids: [searingId, fieldOfSoulsCsvId],
+    namesById: {
+      [searingId]: "Searing Meditation",
+      [fieldOfSoulsCsvId]: "Field of Souls",
+    },
+    existing: [
+      {
+        scryfallId: searingId,
+        title: "Searing Meditation",
+        finish: "nonfoil",
+        creditCents: 0,
+        limit: 0,
+        missing: true,
+        fetchedAt: "2026-09-03T00:00:00.000Z",
+        imageUrl: "",
+        setName: "",
+      },
+      {
+        scryfallId: fieldOfSoulsCsvId,
+        title: "Field of Souls",
+        finish: "nonfoil",
+        creditCents: 80,
+        limit: 4,
+        missing: false,
+        fetchedAt: "2026-09-03T00:00:00.000Z",
+        imageUrl: "",
+        setName: "",
+      },
+    ],
+    missingOnly: true,
+  });
+  if (retryUnfound.length !== 1 || retryUnfound[0] !== searingId) {
+    messages.push("Retry unfound must fetch missing stubs and skip IDs that already have a live offer");
   }
   if (normalizeCardName("Armor Wars (Showcase - Panel)").name !== "armor wars") {
     messages.push("Showcase - Panel parenthetical should strip for title match");
@@ -437,6 +592,36 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     messages.push("Armor Wars at max Playmantis stock should sit in Neither (want 0)");
   }
 
+  const foilOnlyId = "f3ffb0ab-d7bf-4136-9aa7-0a4965581a75";
+  const foilOnlyHtml = parsePlaymantisHtml(
+    `<div class="buylist-grid" id="buylist-grid-container">
+  <div class="buylist-card" data-product-id="1" data-title="brims barone">
+    <img src="//playmantis.com.au/cdn/shop/files/${foilOnlyId}.jpg">
+    <select class="finish-dropdown">
+      <option data-variant-title="Foil" data-credit-price="0.50" data-inventory="0">Foil</option>
+    </select>
+  </div>
+</div>`,
+    "2026-09-03T00:00:00.000Z",
+    foilOnlyId,
+  );
+  const foilOnlyRow = {
+    ...armor,
+    name: "Brims Barone",
+    foil: "normal",
+    scryfallId: foilOnlyId,
+    quantity: 1,
+  };
+  const foilOnlyAlloc = allocate({
+    rows: [foilOnlyRow],
+    mateOffers: [],
+    playmantisOffers: foilOnlyHtml,
+  });
+  const foilOnlySell = foilOnlyAlloc.buckets.playmantis.find((l) => l.name === "Brims Barone");
+  if (!foilOnlySell || foilOnlySell.quantity !== 1) {
+    messages.push("Playmantis foil-only product should still match a CSV normal row (single-variant fallback)");
+  }
+
   const streamsPmOnly = withAllocateResults({
     ...emptyMtgBuylistStore(),
     csv: {
@@ -449,8 +634,8 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     playmantis: { fetchedAt: "2026-09-03T00:00:00.000Z", offers: pm },
     mate: null,
   });
-  if (!streamsPmOnly.resultPm || streamsPmOnly.resultCompare) {
-    messages.push("Compare must stay empty until more than one store allocate is completed");
+  if (!streamsPmOnly.resultPm || !streamsPmOnly.resultCompare) {
+    messages.push("Compare should be available when one store allocate is completed");
   }
 
   const streamsBoth = withAllocateResults({
@@ -699,6 +884,28 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   const searingCompare = compareAll.find((r) => r.name === "Searing Meditation");
   if (!searingCompare || searingCompare.mateWanted !== 0) {
     messages.push("Searing Meditation Mate want-full should still appear on Compare");
+  }
+
+  const pmPack = parseManaBoxCsv(manaBoxPackingCsv(csv, compareAll, "playmantis"));
+  const matePack = parseManaBoxCsv(manaBoxPackingCsv(csv, compareAll, "mate"));
+  const unsoldPack = parseManaBoxCsv(manaBoxPackingCsv(csv, compareAll, "unsold"));
+  const searingPmPack = pmPack.find((r) => r.name === "Searing Meditation");
+  const agelessMatePack = matePack.find((r) => r.name === "Ageless Entity");
+  const unknownUnsold = unsoldPack.find((r) => r.name === "Unknown Card");
+  if (!searingPmPack || searingPmPack.quantity !== 1) {
+    messages.push("ManaBox Playmantis export should use Compare Sell qty for Searing Meditation");
+  }
+  if (pmPack.some((r) => r.name === "Ageless Entity")) {
+    messages.push("ManaBox Playmantis export must not include Mate-only winners");
+  }
+  if (!agelessMatePack || agelessMatePack.quantity !== 1) {
+    messages.push("ManaBox Mate export should use Compare Sell qty for Ageless Entity");
+  }
+  if (!unknownUnsold || unknownUnsold.quantity !== 1) {
+    messages.push("ManaBox not-sold export should keep cards neither store is buying");
+  }
+  if (unsoldPack.some((r) => r.name === "Searing Meditation")) {
+    messages.push("Searing Meditation sold to Playmantis must not appear in not-sold");
   }
 
   return { ok: messages.length === 0, messages };

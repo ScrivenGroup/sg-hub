@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ScrivenGroup hub — decisions pack · 1–2 September 2026</title>
+  <style>
+    :root {
+      --ink: #3c3c3b;
+      --page: #f5f5f4;
+      --surface: #ffffff;
+      --muted: #6b6b69;
+      --border: #d4d4d2;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 2.25rem 1.25rem 4rem; }
+    header { margin-bottom: 1.75rem; }
+    h1 { font-size: 1.85rem; letter-spacing: -0.03em; margin: 0 0 0.4rem; }
+    h2 { font-size: 1.25rem; letter-spacing: -0.02em; margin: 2.25rem 0 0.75rem; }
+    h3 { font-size: 1.05rem; margin: 1.4rem 0 0.5rem; }
+    p { margin: 0 0 0.85rem; }
+    .lede { color: var(--muted); font-size: 0.95rem; }
+    .kicker { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+    .breath {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      font-weight: 600;
+    }
+    .meta { font-size: 0.88rem; color: var(--muted); }
+    .meta a { color: var(--ink); }
+    nav.toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      margin: 0 0 1.5rem;
+    }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc li { margin: 0.2rem 0; }
+    nav.toc a { color: var(--ink); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.88rem;
+      margin: 0 0 1rem;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { background: #ececec; font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.86em;
+      background: #ececec;
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    ul, ol { margin: 0 0 1rem; padding-left: 1.2rem; }
+    li { margin: 0.25rem 0; }
+    .note {
+      border-left: 3px solid var(--ink);
+      padding: 0.2rem 0 0.2rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    .gap {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.92rem;
+      margin-bottom: 1rem;
+    }
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      table, pre, .breath, nav.toc { break-inside: avoid; }
+      nav.toc { display: none; }
+      a { text-decoration: none; color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="kicker">Standalone brief · 1–2 September 2026</div>
+      <h1>Hub decisions pack</h1>
+      <p class="lede">Self-contained reading copy of the Cursor hub briefing: what those +3683 lines were, how we build HTML, how we publish, how we connect a real database, how we merge my-site, and how Cursor and Claude share the sky without sharing the deploy button.</p>
+      <p class="meta">Live hub: <a href="https://app-scrivengroup-ebcdarc2cwbtcjaa.australiaeast-01.azurewebsites.net">app-scrivengroup</a> · Repo folder: <code>scrivengroup</code> · This file does not need the app running.</p>
+    </header>
+
+    <p class="breath">Cursor ships the hub. Claude ships my-site until a leaf moves. New hub screens are React + Tailwind + SG chrome — not my-site HTML. A Save must eventually survive a zip deploy. That last part is wiring, not a new website.</p>
+
+    <nav class="toc" aria-label="Contents">
+      <p style="margin:0 0 0.5rem;font-weight:600;">Contents</p>
+      <ol>
+        <li><a href="#changes">Those +3683 changes</a></li>
+        <li><a href="#html">Why the HTML is different</a></li>
+        <li><a href="#stack">Future-proof HTML setup</a></li>
+        <li><a href="#locked">Locked decisions (one-liners)</a></li>
+        <li><a href="#cycle">Leaf development cycle</a></li>
+        <li><a href="#function">Consistent functional elements</a></li>
+        <li><a href="#design">Design / layout starting kit</a></li>
+        <li><a href="#db">Connect the database</a></li>
+        <li><a href="#publish">Publishing to the web</a></li>
+        <li><a href="#merge">Great Merging of ’26</a></li>
+        <li><a href="#agents">Cursor and Claude</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="changes">1. Those +3683 changes</h2>
+    <p>They are <strong>not</strong> unpushed product. Cursor was counting insertions in this working tree. Almost all of it is uncommitted teaching HTML and stack notes — mudmaps, atlas, web-stack brief — plus six lines in <code>PLATFORM.md</code>.</p>
+    <table>
+      <thead><tr><th>What</th><th>About</th><th>On live Azure?</th></tr></thead>
+      <tbody>
+        <tr><td><code>docs/mudmap/</code>, atlas, agent-school HTML</td><td>~3,300 lines</td><td>No. Teaching maps, not the app.</td></tr>
+        <tr><td>Web-stack HTML + <code>technical.md</code></td><td>~380 lines</td><td>No.</td></tr>
+        <tr><td><code>docs/PLATFORM.md</code></td><td>+6 lines</td><td>No (atlas pointer).</td></tr>
+        <tr><td>App / MRT source under <code>src/</code></td><td>0 of that +3683</td><td>Live is the last <strong>zip</strong>. Last git commit was still the Funds Forecaster skeleton.</td></tr>
+      </tbody>
+    </table>
+    <p>This workspace had <strong>no git remote</strong> at lock time. There is nothing to “push” the way my-site pushes to GitHub. Live is only a zip onto App Service.</p>
+    <p class="note">The real live risk is still JSON in <code>data/</code> inside the deploy zip — not these teaching files. Do not rush a zip just to “catch up” the +3683.</p>
+
+    <h2 id="html">2. Why the HTML is different (ELI5)</h2>
+    <p><strong>my-site</strong> is closer to Word documents on a website. Someone writes a real <code>.html</code> file. The browser downloads that file. CSS on top is Google Material Design 3, hand-rolled. If a page must remember something, JavaScript phones a <em>separate</em> Node backend, which talks to Azure SQL.</p>
+    <p><strong>The hub</strong> is a kit that prints the page when someone visits. You almost never edit an <code>.html</code> file. You edit React pieces (<code>.tsx</code>). Next.js assembles HTML on the server, then React takes over for anything that moves (Gantt, popups, filters). Tailwind is a box of small classes. House colours are a few variables (<code>--ink</code>, <code>--page</code>). A product’s 6-hex code colours the <strong>badge only</strong>, not the whole page.</p>
+    <table>
+      <thead><tr><th></th><th>my-site</th><th>Hub</th></tr></thead>
+      <tbody>
+        <tr><td>What you edit</td><td><code>.html</code> / <code>.css</code> / <code>.js</code></td><td><code>.tsx</code> + Tailwind + a little CSS</td></tr>
+        <tr><td>What the browser gets</td><td>Those files, unchanged</td><td>Generated HTML + a React script</td></tr>
+        <tr><td>Look-and-feel</td><td>MD3 tokens</td><td>SG tokens + Tailwind, Manrope</td></tr>
+        <tr><td>Hard screens (MRT Gantt)</td><td>Would be a giant custom JS app</td><td>Already React (Effort Gantt alone ~4,000 lines)</td></tr>
+        <tr><td>Simple screens</td><td>Natural fit</td><td>Also fine; heavier machinery</td></tr>
+      </tbody>
+    </table>
+    <p>You cannot always tell easy from hard because the request “tweak the HTML” might be a class name or a week of layout state.</p>
+    <table>
+      <thead><tr><th>Usually easy on the hub</th><th>Usually hard on the hub</th></tr></thead>
+      <tbody>
+        <tr><td>New room under /w /p /i /s, copy, table, form, existing dialog pattern, changelog, badge colour, Feedback</td><td>Works with JavaScript off; print as the real UI; “make it like the other site”; dump MRT as one <code>.html</code>; a new chart as clever as Effort Gantt</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Usually easy on my-site</th><th>Usually hard on my-site</th></tr></thead>
+      <tbody>
+        <tr><td>New page of copy, a card, a simple form that saves via the existing API</td><td>Anything MRT-shaped: drag timelines, split panes, popups that must not clip, guest sandbox vs live</td></tr>
+      </tbody>
+    </table>
+    <p>If unsure, say <strong>what the user must be able to do</strong>, not which file to edit. Default sentence for hub work: <em>Build it as a hub room: React + Tailwind + SG chrome.</em></p>
+
+    <h2 id="stack">3. Future-proof HTML setup</h2>
+    <p><strong>Do not start a third kit</strong> (Vue, Svelte, new Vite app, “clean HTML rewrite”). Two stacks is already enough.</p>
+    <p><strong>Standard for every new product leaf:</strong> this hub — Next.js App Router, React, TypeScript, Tailwind, SG tokens, Manrope, existing chrome. Persistence graduates through the same store to Postgres. my-site stays the leaflet island until a leaf is merged here, then that leaflet retires.</p>
+    <p>Do not unify by rebuilding the hub as static files. Do not rebuild my-site as Next. Two jobs, two front ends, one rule: <strong>new capability → hub.</strong></p>
+
+    <h2 id="locked">4. Locked decisions (1–2 Sep 2026)</h2>
+    <p>These are canon. Agents must not contradict them. Older rows (sessions, /w-studio, guest doors, janitor) stay in force.</p>
+    <table>
+      <thead><tr><th>Id</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td><code>dc-web-stack</code></td><td>All new hub UI is Next + React + TS + Tailwind + SG tokens. my-site vanilla HTML/MD3 is a legacy island until the Great Merging. No third front-end kit.</td></tr>
+        <tr><td><code>dc-leaf-cycle</code></td><td>Leaves: local dummy → skin online (sketched shell + plan) → skeleton online (building, same store types) → clean revision (live) → numbered + dated changelog cycles.</td></tr>
+        <tr><td><code>dc-leaf-contract</code></td><td>Every leaf gets a Development surface (changelog + bulk notes). Shipping versions show number and datetime. Global chrome always has Feedback to one register. Site network is the fast-travel map.</td></tr>
+        <tr><td><code>dc-design-defaults</code></td><td>Start from SG chrome and <code>globals.css</code> (<code>sg-card</code>, buttons, inputs, tokens). Hex on badge only unless a ThemeContract. Viewport-capped dialogs. Do not copy MD3 onto hub pages.</td></tr>
+        <tr><td><code>dc-db-cutover</code></td><td>Durable data via existing <code>DATABASE_URL</code> (Postgres/Neon), evolving <code>json-store</code> / <code>mrt-share</code>. Simple stores first, then MRT (guest sandbox revisited then). Zip must not ship <code>data/</code>.</td></tr>
+        <tr><td><code>dc-publish</code></td><td>You vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = zip to <code>app-scrivengroup</code>. GitHub Actions is a later slice.</td></tr>
+        <tr><td><code>dc-great-merge</code></td><td>Great Merging of ’26: my-site apps become hub leaves. Cursor implements. Claude/you export files + data (no secrets). Not a git merge of stacks.</td></tr>
+        <tr><td><code>dc-two-agents</code></td><td>Cursor is the only agent that ships the hub. Claude owns my-site until a leaf moves. Claude does not zip-deploy <code>app-scrivengroup</code>.</td></tr>
+      </tbody>
+    </table>
+    <div class="gap"><strong>Gap (honest):</strong> “Every leaf has Development + notes” is the <em>target</em>. Only MRT fully has it today. Other leaves get notes when they leave sketched — not automatically overnight.</div>
+
+    <h2 id="cycle">5. Leaf development cycle</h2>
+    <p>A <strong>leaf</strong> is a registry card: <code>/w/{slug}</code>, <code>/p/{slug}</code>, <code>/i/{slug}</code>, <code>/s/{slug}</code>.</p>
+    <table>
+      <thead><tr><th>Stage</th><th>Status</th><th>What exists</th><th>Dummy data</th></tr></thead>
+      <tbody>
+        <tr><td>1. Local dummy</td><td>not on the map yet</td><td>Mock on localhost only. Not a second repo.</td><td>Fine if it uses hub types when it will graduate</td></tr>
+        <tr><td>2. Skin the location online</td><td><code>sketched</code></td><td>Registry + route + featureless shell + changelog <strong>plan</strong>. No fake buttons.</td><td>None</td></tr>
+        <tr><td>3. Skeleton the mockup online</td><td><code>building</code></td><td>Real routes/chrome; screens may be incomplete.</td><td>Yes — <strong>same store/types</strong> as production</td></tr>
+        <tr><td>4. Clean revision</td><td><code>live</code></td><td>Real capability. Changelog release with version number + datetime</td><td>Production data (Postgres after cutover)</td></tr>
+        <tr><td>5. Leaf cycles</td><td>still <code>live</code></td><td>Small slices: plan → build → localhost → you say commit → you say live</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p>Do not skip stage 2 (a live URL with a plan) just because a dummy exists on a laptop.</p>
+
+    <h2 id="function">6. Consistent functional elements</h2>
+    <table>
+      <thead><tr><th>Element</th><th>Rule</th><th>Today</th></tr></thead>
+      <tbody>
+        <tr><td>Development</td><td>Changelog / plan plus a bulk text notes area for that leaf</td><td>MRT has both. Sketched leaves: changelog on the shell; notes missing until they leave sketched</td></tr>
+        <tr><td>Versions</td><td>Numeric version + datetime in the leaf header when shipping</td><td>MRT yes. Others: dates until first release</td></tr>
+        <tr><td>Feedback</td><td>Always in the global header (and mobile button). One register for the whole hub. Guests may be excluded (MRT).</td><td>Done in the shell</td></tr>
+        <tr><td>Fast travel</td><td>Site network in the header is the map (Home → Hubs → cards). Product interiors sit inside a card, not extra map nodes.</td><td>Done. Do not invent a second sitemap widget</td></tr>
+      </tbody>
+    </table>
+    <p>Chrome that stays: logo, Home, Site network, Feedback, Profile, Back + breadcrumbs — unless a leaf documents a guest-minimal shell (MRT guests).</p>
+
+    <h2 id="design">7. Design / layout starting kit</h2>
+    <p><strong>Do not copy my-site MD3.</strong> ThemeContract only when a leaf explicitly opts in (e.g. Fuel Tracker dark/car later).</p>
+    <ul>
+      <li><strong>Chrome:</strong> sticky header, white surface, hairline border. Page ground <code>#F5F5F4</code>, ink <code>#3C3C3B</code>. Manrope. 10px corners. Logo left; optional centred title; actions right.</li>
+      <li><strong>Body:</strong> Back/breadcrumbs, then a large heading + colour badge + status pill. Muted description. Cards <code>sg-card</code>. Buttons <code>sg-btn-primary</code> / <code>secondary</code> / <code>ghost</code> (44px tall). Inputs <code>sg-input</code>.</li>
+      <li><strong>Tables:</strong> simple HTML or that leaf’s own table CSS. No new table library.</li>
+      <li><strong>Dialogs:</strong> never taller than the window; the middle scrolls; footer stays on screen; Esc closes.</li>
+      <li><strong>Colour:</strong> 6-hex code → badge only. Traffic-light green / amber / red as already defined.</li>
+    </ul>
+
+    <h2 id="db">8. Connect the database</h2>
+    <p><strong>Goal:</strong> a Save in Feedback (then other small stores, then MRT) still exists after a zip deploy <em>and</em> after an App Service restage.</p>
+    <p><strong>Shape:</strong> keep one store in the hub. Talk to the existing Azure setting <code>DATABASE_URL</code> (Postgres; hobby Neon — not paid Azure Postgres). Do not add a second database style. MRT guest sandbox is <em>not</em> in the first coding pass.</p>
+    <h3>Phase 0 — you (outside Cursor)</h3>
+    <ol>
+      <li>Confirm the Postgres behind <code>DATABASE_URL</code> on <code>app-scrivengroup</code> is the one you want. If stale, replace it in Azure App Settings. <strong>Do not paste the string into chat.</strong></li>
+      <li>Optional: a Neon branch you are willing to wipe while testing.</li>
+      <li>Be able to <code>az login</code> (needed for zip deploy until Actions exist).</li>
+      <li>Do not zip-deploy until “stop putting <code>data/</code> in the zip” ships in the <em>same</em> release as the first DB write.</li>
+    </ol>
+    <p class="note">Cursor cannot log into Neon as you, rotate the URL, or safely print the secret.</p>
+    <h3>Phase 1 — Cursor (no MRT)</h3>
+    <ol>
+      <li>Add a Postgres client + Drizzle in this app (not Prisma — that stays on my-site for now).</li>
+      <li>Tables first: feedback, ideas, notes, changelogs, dependencies, development choices.</li>
+      <li>If <code>DATABASE_URL</code> is set, use Postgres; on a laptop without it, keep JSON files.</li>
+      <li>Stop copying <code>data/</code> into the deploy zip.</li>
+      <li>Migrate <strong>live</strong> Azure JSON for those simple files — not the laptop’s small MRT file.</li>
+      <li>You check Feedback on localhost, say commit, say make it live.</li>
+      <li><strong>Done:</strong> add Feedback on live → deploy or restage again → row still there.</li>
+    </ol>
+    <h3>Phase 2 — Cursor (MRT, later session)</h3>
+    <ol>
+      <li>Design before code: live plan in Postgres (maybe one JSON blob at first); share passwords as rows; sandbox = two desks still, but not zip-wiped files; activity log in DB.</li>
+      <li>Migrate the live ~427 KB MRT file from Azure, not the laptop 3-dam copy.</li>
+      <li>Stop the “fewer than 20 dams → wipe hours” rewrite against production.</li>
+      <li><strong>Done:</strong> Save on live Gantt → zip deploy → hours still there; guest password still works without recreating audiences.</li>
+    </ol>
+    <p><strong>Order:</strong> simple registers → zip exclude → migrate those files → then MRT. Sequential. One session per phase.</p>
+
+    <h2 id="publish">9. Publishing to the web</h2>
+    <p><strong>Locked loop:</strong> you vibe → Cursor codes → you review on localhost → <strong>you say commit</strong> → <strong>you say make it live</strong>. Cursor does not commit or deploy without those words.</p>
+    <table>
+      <thead><tr><th>You say</th><th>Cursor does</th></tr></thead>
+      <tbody>
+        <tr><td>develop / update / frame</td><td>Edit. Preview <code>http://localhost:3000</code>. No commit.</td></tr>
+        <tr><td>commit</td><td>Local git snapshot (never secrets).</td></tr>
+        <tr><td>is it live yet?</td><td>Say localhost vs Azure.</td></tr>
+        <tr><td>make it live / deploy</td><td><code>build</code> → <code>deploy:prepare</code> → <code>deploy:zip</code> → <code>az webapp deploy</code> (Microsoft login). No SCM password toggle.</td></tr>
+        <tr><td>roll back</td><td>Git revert / older zip; redeploy if live was hit.</td></tr>
+      </tbody>
+    </table>
+    <h3>Why Claude feels like magic</h3>
+    <p>my-site: GitHub remote + GitHub Actions on <code>main</code> → Azure Static Web Apps. Push, and the site updates.</p>
+    <p>This hub: local git only + a zip you (or Cursor, when you ask) upload to App Service. Pushing git somewhere would <strong>not</strong> update Azure until we add a pipeline. That pipeline is a later slice, not built yet.</p>
+    <p class="note">After DB cutover, the zip must not include <code>data/</code>. The old “delete everything in wwwroot” recovery still wipes JSON if anyone uses it.</p>
+
+    <h2 id="merge">10. Great Merging of ’26</h2>
+    <p>Move my-site web-apps and their data into this hub. Cursor implements here. Claude (or you) <strong>exports</strong>. This is not a git merge of two histories. Static HTML and Next do not fast-forward into one repo.</p>
+    <p>Each my-site app becomes a hub leaf (a card on a floor) with SG chrome and the hub store. my-site then shows a stub or removes the page.</p>
+    <h3>How to get source in front of Cursor</h3>
+    <p><strong>Preferred:</strong> clone my-site as a sibling folder, e.g. <code>C:\1D\Anyliki\Scriven Group - Documents\Cursor\my-site</code>, and tell Cursor that path. Do not nest it inside the hub repo.</p>
+    <p><strong>Also fine:</strong> a zip of Prisma schema, app folders, and JSON/CSV data with no secrets.</p>
+    <p><strong>Not useful:</strong> “Claude, describe the apps” with no files.</p>
+    <h3>Paste this to the Claude / my-site session</h3>
+    <pre>We are merging my-site products into the ScrivenGroup Next.js hub (Cursor repo).
+Please do not rewrite them as hub code.
+
+Give me a single pack:
+1. Inventory table: app name, folder path, URL on my-site, what it stores (tables or localStorage), who uses it.
+2. prisma/schema.prisma (or equivalent) and which tables belong to which app.
+3. A JSON or CSV export of those tables (no connection strings, no API keys, no Entra secrets).
+4. For each app: entry HTML/JS files and any shared CSS that is not just MD3 chrome.
+5. Anything that must keep working (auth assumptions, unguessable share links, cron, cold-start pings).
+6. Confirm: after Cursor ports an app, we will stop changing that app on my-site.
+
+Do not start a second Next.js app. The hub already exists.</pre>
+    <h3>Suggested order</h3>
+    <ol>
+      <li>Inventory from the pack.</li>
+      <li>Hub DB cutover for simple hub stores first, so new leaves are not born on JSON-in-wwwroot.</li>
+      <li>Port the smallest my-site app as sketched → building.</li>
+      <li>Load exported data into hub types.</li>
+      <li>You review localhost → commit → live.</li>
+      <li>Repeat. MRT is already on the hub — do not “merge MRT from my-site.”</li>
+      <li>When a leaf is live here, Claude archives it on my-site.</li>
+    </ol>
+    <p>Cursor will not rewrite MRT as vanilla HTML, will not add Azure SQL as a second hub ORM unless you later lock that, and will not merge git remotes. One leaf per session.</p>
+
+    <h2 id="agents">11. Cursor and Claude</h2>
+    <p>Two AIs. One live hub (<code>app-scrivengroup</code>). my-site is a different live site until merging finishes. Sharing an Azure subscription is not sharing an app. Hub and the my-site backend already share a B1 plan — still two programs. Cursor’s zip only touches the hub’s wwwroot.</p>
+    <table>
+      <thead><tr><th>Actor</th><th>May</th><th>Must not</th></tr></thead>
+      <tbody>
+        <tr><td>Cursor (this hub repo)</td><td>Edit the hub, localhost, zip-deploy the hub when you ask</td><td>Deploy my-site or the other backend unless you name that repo</td></tr>
+        <tr><td>Claude (my-site repo)</td><td>Edit my-site, its GitHub Actions, Prisma, Azure SQL for that app</td><td>Edit the hub repo, zip-deploy the hub, or add a second Next app</td></tr>
+        <tr><td>You</td><td>Say which site a request is for; say commit / make it live</td><td>Assume “the website” means both</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Cursor is the only agent that ships the hub.</strong> Claude may propose (markdown, screenshots, export packs). Cursor implements on the hub.</p>
+    <p>Claude’s “brain” for this treaty is a short card in my-site — not a second copy of the whole hub handbook:</p>
+    <pre>ScrivenGroup hub (Next.js, Azure app-scrivengroup) is owned by Cursor.
+Do not create a Next/Vite app. Do not instruct the human to zip-deploy the hub.
+Hub-bound work: export files + inventory for the Great Merging; stop editing a leaf once it has moved.
+This repo: static my-site + Express + Prisma + Azure SQL only.</pre>
+    <p>After a leaf is merged, Claude’s job for that leaf ends. Further change requests go to Cursor on the hub.</p>
+
+    <p class="breath" style="margin-top:2rem;">Nothing in this pack is live on Azure until you say commit (git) and, separately, make it live (zip). Database wiring has not started. Next useful words: commit this pack, and/or start database Phase 1.</p>
+  </main>
+</body>
+</html>

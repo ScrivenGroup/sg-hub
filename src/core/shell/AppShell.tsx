@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { auth, isMrtGuest, signOut } from "@/auth";
-import { getHubs, getChildren } from "@/core/registry";
+import { siteNetworkTree } from "@/core/registry";
 import { BackButton } from "@/core/shell/BackButton";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
 import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
@@ -26,10 +26,7 @@ export async function AppShell({
     currentHref === "/w/sunwater-mrt" ||
     currentHref.startsWith("/w/sunwater-mrt/");
   const homeHref = guest ? "/w/sunwater-mrt" : "/home";
-  const hubs = getHubs();
-  const childrenByHub = Object.fromEntries(
-    hubs.map((h) => [h.id, getChildren(h.id)]),
-  );
+  const { hubs, childrenByHub } = siteNetworkTree();
   const initials =
     session?.user?.name
       ?.split(/\s+/)

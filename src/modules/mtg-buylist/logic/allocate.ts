@@ -6,6 +6,7 @@ import type {
   MtgBuylistStore,
   PlaymantisOffer,
 } from "../schema";
+import { foilMatchesVariant } from "./playmantis";
 import {
   csvFinishToMate,
   csvJoinKeys,
@@ -333,6 +334,16 @@ export function findPlaymantis(
     const hit = offers.get(key);
     if (hit && !hit.missing) return hit;
   }
+  const id = row.scryfallId.trim().toLowerCase();
+  if (!id) return undefined;
+  const candidates: PlaymantisOffer[] = [];
+  for (const offer of offers.values()) {
+    if (offer.missing) continue;
+    if (offer.scryfallId.trim().toLowerCase() === id) candidates.push(offer);
+  }
+  const foilHit = candidates.find((o) => foilMatchesVariant(row.foil, o.finish));
+  if (foilHit) return foilHit;
+  if (candidates.length === 1) return candidates[0];
   return undefined;
 }
 
@@ -512,7 +523,7 @@ export function allocate(input: {
   };
 }
 
-/** Recompute PM-only, Mate-only, and Compare (active when >1 store allocates exist). */
+/** Recompute PM-only, Mate-only, and Compare (active when ≥1 store allocate exists). */
 export function withAllocateResults(store: MtgBuylistStore): MtgBuylistStore {
   if (!store.csv) {
     return {
@@ -540,7 +551,7 @@ export function withAllocateResults(store: MtgBuylistStore): MtgBuylistStore {
 
   const completed = [resultPm, resultMate].filter(Boolean);
   const resultCompare =
-    completed.length > 1
+    completed.length >= 1
       ? allocate({ rows, mateOffers, playmantisOffers, ...resolveShared })
       : null;
 

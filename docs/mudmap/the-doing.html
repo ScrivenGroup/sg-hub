@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Doing · Level 1</title>
+  <style>
+    :root {
+      --paper: #efe2c4; --ink: #241c14; --soft: #5e4f3d; --line: #8a7358;
+      --doing: #3f7a5c; --desk: #2f6f6c; --builder: #b5523a; --janitor: #6a7a38;
+      --reviewer: #3d4a6b; --board: #e6c85c; --pin: #9b2e2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font: 16px/1.45 "Segoe UI", Candara, sans-serif;
+      background: repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px), var(--paper);
+    }
+    .sheet { max-width: 900px; margin: 0 auto; padding: 1rem 1.1rem 2.5rem; }
+    a.back { color: var(--soft); font-size: .9rem; }
+    h1 { font: 700 2rem/1.1 Palatino, Georgia, serif; margin: .4rem 0 .3rem; }
+    .lede { color: var(--soft); margin: 0 0 1.2rem; }
+    h2 { font: 700 1.25rem/1.2 Palatino, Georgia, serif; border-left: 8px solid var(--doing); padding-left: .55rem; margin-top: 1.4rem; }
+    ul, ol { padding-left: 1.15rem; }
+    li { margin: .3rem 0; }
+    .words { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; }
+    .word { border: 1px solid var(--line); background: rgba(255,255,255,.5); padding: .65rem; min-height: 5.5rem; }
+    .word strong { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .25rem; }
+    .hats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .55rem; }
+    .hat { border-top: 8px solid var(--ink); background: rgba(255,255,255,.45); padding: .7rem; }
+    .hat.desk { border-top-color: var(--desk); }
+    .hat.builder { border-top-color: var(--builder); }
+    .hat.janitor { border-top-color: var(--janitor); }
+    .hat.reviewer { border-top-color: var(--reviewer); }
+    .hat h3 { margin: 0 0 .35rem; font-size: 1rem; }
+    .no { color: #8a2a2a; font-size: .9rem; }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.4); margin: .6rem 0 1rem; }
+    th, td { border: 1px solid var(--line); padding: .5rem .6rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0,0,0,.06); }
+    .here { background: #fff3c4; border: 2px solid var(--pin); padding: .8rem 1rem; }
+    .note { border-left: 3px solid var(--line); padding-left: .7rem; color: var(--soft); font-size: .92rem; }
+    code { font-size: .9em; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <a class="back" href="index.html">← Level 0</a>
+    · <a class="back" href="atlas.html">Atlas</a>
+    <h1>The Doing</h1>
+    <p class="lede">How work gets done — school metaphor. Independent of what The Thing is. This is the learning focus.</p>
+
+    <p style="margin:0 0 1.2rem">
+      <a href="the-doing-path.html" style="display:inline-block;border:2px solid #9b2e2e;background:#fff3c4;color:#241c14;text-decoration:none;padding:.55rem .8rem;font-weight:700;margin:0 .4rem .4rem 0">
+        → Hurdles roadmap &amp; path
+      </a>
+      <a href="the-doing-ops.html" style="display:inline-block;border:2px solid #3f7a5c;background:#e7f3ec;color:#241c14;text-decoration:none;padding:.55rem .8rem;font-weight:700;margin:0 .4rem .4rem 0">
+        → How you use it (brain pack)
+      </a>
+      <a href="USER-GUIDE.html" style="display:inline-block;border:2px solid #9b2e2e;background:#fff3c4;color:#241c14;text-decoration:none;padding:.55rem .8rem;font-weight:700;margin:0 .4rem .4rem 0">
+        → USER GUIDE (one page)
+      </a>
+    </p>
+
+    <h2>Five locked words</h2>
+    <div class="words">
+      <article class="word"><strong>Product</strong>A toy people can open (lives in The Thing).</article>
+      <article class="word"><strong>Ticket</strong>One job for one chat.</article>
+      <article class="word"><strong>Board</strong>Durable memory. Hallway bulletin. Not the chat.</article>
+      <article class="word"><strong>Hat</strong>A role. Not a forever-agent.</article>
+      <article class="word"><strong>Temp</strong>One agent session. Reads board → does ticket → writes back.</article>
+    </div>
+
+    <h2>Sequence</h2>
+    <ol>
+      <li><b>You</b> — owner. Talk mostly to Front desk.</li>
+      <li><b>Front desk</b> — split wishes into tickets; no building.</li>
+      <li><b>Board</b> — what’s true (products, tickets, status).</li>
+      <li><b>Hats</b> — temps wear one hat per chat.</li>
+      <li><b>Cursor workspace</b> — files under <code>C:\…\Cursor\</code> are the physical school grounds (hypothesis to design next).</li>
+    </ol>
+
+    <h2>Hats</h2>
+    <div class="hats">
+      <article class="hat desk">
+        <h3>Front desk</h3>
+        <ul>
+          <li>Listen, ask, ticketize</li>
+          <li>Update the board</li>
+        </ul>
+        <p class="no">No product code.</p>
+      </article>
+      <article class="hat builder">
+        <h3>Builder</h3>
+        <ul>
+          <li>One ticket only</li>
+          <li>Write result to board</li>
+        </ul>
+        <p class="no">No running the company.</p>
+      </article>
+      <article class="hat janitor">
+        <h3>Janitor</h3>
+        <ul>
+          <li>Harvest leftovers onto board</li>
+          <li>Park or bin half-ideas</li>
+        </ul>
+        <p class="no">No features “as tidy-up.”</p>
+      </article>
+      <article class="hat reviewer">
+        <h3>Reviewer</h3>
+        <ul>
+          <li>Handbook check</li>
+          <li>Board updated? yes/no</li>
+        </ul>
+        <p class="no">No quiet rebuilds.</p>
+      </article>
+    </div>
+
+    <h2>Where The Doing might live on disk</h2>
+    <p>Not decided yet — candidates to plan next:</p>
+    <table>
+      <thead><tr><th>Place</th><th>Role in The Doing</th></tr></thead>
+      <tbody>
+        <tr><td><code>C:\…\Cursor\</code></td><td>Campus root — many worlds / experiments</td></tr>
+        <tr><td><code>…\Cursor\scrivengroup\</code></td><td>Current Thing’s codebase + some handbooks</td></tr>
+        <tr><td>Board files (TBD)</td><td>Memory palace — tickets/status outside chat brains</td></tr>
+        <tr><td>Mission Control (TBD)</td><td>Ant-farm overview of The Doing — see <a href="mission-control.html">Mission Control</a></td></tr>
+      </tbody>
+    </table>
+    <p class="note">Website mirrors the board = later. First make the board real in files. Then Mission Control watches it. Then The Thing can display it.</p>
+
+    <h2>Hard truths</h2>
+    <ul>
+      <li>Agents are temps (substitute teachers), not staff.</li>
+      <li>Child workers vanish at the bell — not departments.</li>
+      <li>If the board wasn’t updated, the job isn’t done.</li>
+      <li>Consistency = forms + ritual, not a smarter model.</li>
+    </ul>
+
+    <div class="here">
+      <b>You are here</b>
+      <ul>
+        <li>Ops rev B: Plan-by-hats · one Primary · propose→lock design · zip&amp;go.</li>
+        <li>Next (when you say go): agents create <code>cursor-brain/</code> skeleton (still no human disk tourism).</li>
+        <li>Not yet: Mission Control app, website mirror, cleanup of old experiments.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

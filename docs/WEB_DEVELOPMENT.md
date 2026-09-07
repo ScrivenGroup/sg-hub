@@ -54,7 +54,7 @@ Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (B
 
 - `PageNav` then `<h1 className="text-3xl font-semibold tracking-tight">` + `CodeBadge` + `StatusPill`.
 - Description in `text-[var(--muted)]`.
-- Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` (44px min height).
+- Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` (`--sg-btn-height`, 32px — same as Kanban LAYOUT toggle). Tabs: `sg-tab` (underline, not pills).
 - Inputs: `sg-input`. Long text: `sg-prose`.
 
 ### Tables

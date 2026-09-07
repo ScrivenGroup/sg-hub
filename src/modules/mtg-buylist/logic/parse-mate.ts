@@ -139,3 +139,10 @@ export function parseMatePayload(raw: unknown): {
 
   throw new Error("Mate JSON needs uuid_data (a set /data dump or a combined harvest).");
 }
+
+/** Keep harvest rows whose set is on the ManaBox CSV — a full Mate dump is tens of thousands of cards. */
+export function filterMateOffersForCsv(offers: MateOffer[], csvSetCodes: string[]): MateOffer[] {
+  const want = new Set(csvSetCodes.map((code) => code.trim().toLowerCase()).filter(Boolean));
+  if (!want.size) return offers;
+  return offers.filter((o) => want.has((o.setCode || "").trim().toLowerCase()));
+}

@@ -9,6 +9,7 @@ const tokens = [
   { name: "--muted", value: "#6B6B69", note: "Secondary text" },
   { name: "font", value: "Manrope", note: "Geometric sans" },
   { name: "radius", value: "10px", note: "Cards & controls" },
+  { name: "--sg-btn-height", value: "32px", note: "Buttons, inputs, tabs — Kanban LAYOUT toggle" },
 ];
 
 export default function AppearancePage() {

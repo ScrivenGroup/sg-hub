@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Thing · Level 1</title>
+  <style>
+    :root {
+      --paper: #efe2c4; --ink: #241c14; --soft: #5e4f3d; --line: #8a7358;
+      --thing: #3e6ea3; --elephant: #6b5b4a; --world: #4a8bb8; --pin: #9b2e2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font: 16px/1.45 "Segoe UI", Candara, sans-serif;
+      background: repeating-linear-gradient(0deg, transparent, transparent 26px, rgba(138,115,88,.08) 27px), var(--paper);
+    }
+    .sheet { max-width: 900px; margin: 0 auto; padding: 1rem 1.1rem 2.5rem; }
+    a.back { color: var(--soft); font-size: .9rem; }
+    h1 { font: 700 2rem/1.1 Palatino, Georgia, serif; margin: .4rem 0 .3rem; }
+    .lede { color: var(--soft); margin: 0 0 1.2rem; }
+    h2 { font: 700 1.25rem/1.2 Palatino, Georgia, serif; border-left: 8px solid var(--thing); padding-left: .55rem; }
+    ul { padding-left: 1.15rem; }
+    li { margin: .3rem 0; }
+    .map-wrap { border: 2px solid var(--ink); background: #1a2740; padding: .5rem; overflow: auto; margin: 1rem 0; }
+    svg { width: 100%; min-width: 640px; height: auto; display: block; }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.4); margin: .8rem 0 1.2rem; }
+    th, td { border: 1px solid var(--line); padding: .5rem .6rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0,0,0,.06); }
+    .note { border-left: 3px solid var(--line); padding-left: .7rem; color: var(--soft); font-size: .92rem; }
+    .todo { background: #fff3c4; border: 2px solid var(--pin); padding: .8rem 1rem; margin-top: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <a class="back" href="index.html">← Level 0</a>
+    · <a class="back" href="atlas.html">Atlas</a>
+    <h1>The Thing</h1>
+    <p class="lede">The product world. Today: ScrivenGroup. Held up by external services. Continents are hubs.</p>
+
+    <h2>Stacked map (structure)</h2>
+    <div class="map-wrap">
+      <svg viewBox="0 0 900 520" role="img" aria-label="The Thing as a stacked world">
+        <rect width="900" height="520" fill="#152033"/>
+        <!-- cosmic dust -->
+        <circle cx="80" cy="60" r="1.5" fill="#cde"/>
+        <circle cx="820" cy="90" r="1.2" fill="#cde"/>
+        <circle cx="700" cy="40" r="1" fill="#cde"/>
+        <circle cx="120" cy="200" r="1.3" fill="#cde"/>
+
+        <text x="40" y="40" fill="#d9e6f5" font-family="Georgia, serif" font-size="22">The Thing — stacked world</text>
+        <text x="40" y="62" fill="#8aa0b8" font-family="Segoe UI, sans-serif" font-size="13">World = website · Continents = hubs · Elephants = external services</text>
+
+        <!-- world disc -->
+        <ellipse cx="450" cy="130" rx="300" ry="48" fill="#3e7eb0" stroke="#e8f2ff" stroke-width="2"/>
+        <ellipse cx="450" cy="122" rx="270" ry="30" fill="#5fa3d4"/>
+        <text x="450" y="128" text-anchor="middle" fill="#0d2030" font-size="16" font-weight="700" font-family="Segoe UI, sans-serif">WORLD — ScrivenGroup website</text>
+
+        <!-- continents on disc -->
+        <text x="260" y="118" text-anchor="middle" fill="#0d2030" font-size="11" font-weight="700">Work</text>
+        <text x="380" y="112" text-anchor="middle" fill="#0d2030" font-size="11" font-weight="700">Projects</text>
+        <text x="520" y="112" text-anchor="middle" fill="#0d2030" font-size="11" font-weight="700">Internal</text>
+        <text x="640" y="118" text-anchor="middle" fill="#0d2030" font-size="11" font-weight="700">System</text>
+
+        <!-- pillars / elephants -->
+        <text x="450" y="210" text-anchor="middle" fill="#8aa0b8" font-size="12" letter-spacing="1">ELEPHANTS — external services</text>
+
+        <!-- four elephant blocks -->
+        <g font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#f4ead8">
+          <rect x="140" y="230" width="130" height="90" rx="8" fill="#6b5b4a" stroke="#d9cbb5"/>
+          <text x="205" y="280" text-anchor="middle">Azure</text>
+          <rect x="300" y="230" width="130" height="90" rx="8" fill="#6b5b4a" stroke="#d9cbb5"/>
+          <text x="365" y="280" text-anchor="middle">Git</text>
+          <rect x="460" y="230" width="130" height="90" rx="8" fill="#6b5b4a" stroke="#d9cbb5"/>
+          <text x="525" y="280" text-anchor="middle">Neon</text>
+          <rect x="620" y="230" width="130" height="90" rx="8" fill="#6b5b4a" stroke="#d9cbb5"/>
+          <text x="685" y="272" text-anchor="middle">Domain</text>
+          <text x="685" y="290" text-anchor="middle" font-size="11" fill="#d9cbb5">TBA</text>
+        </g>
+
+        <!-- carrier base -->
+        <ellipse cx="450" cy="400" rx="280" ry="55" fill="#3a2f24" stroke="#c4a35a" stroke-width="2"/>
+        <text x="450" y="395" text-anchor="middle" fill="#f4ead8" font-size="15" font-weight="700">CARRIER BASE</text>
+        <text x="450" y="416" text-anchor="middle" fill="#d9cbb5" font-size="12">the services stand on reality (accounts, bills, DNS, deploys)</text>
+
+        <!-- support lines -->
+        <line x1="205" y1="178" x2="205" y2="230" stroke="#c4a35a" stroke-width="2" stroke-dasharray="4 4"/>
+        <line x1="365" y1="170" x2="365" y2="230" stroke="#c4a35a" stroke-width="2" stroke-dasharray="4 4"/>
+        <line x1="525" y1="170" x2="525" y2="230" stroke="#c4a35a" stroke-width="2" stroke-dasharray="4 4"/>
+        <line x1="685" y1="178" x2="685" y2="230" stroke="#c4a35a" stroke-width="2" stroke-dasharray="4 4"/>
+        <line x1="205" y1="320" x2="300" y2="360" stroke="#8a7358" stroke-width="1.5"/>
+        <line x1="365" y1="320" x2="400" y2="355" stroke="#8a7358" stroke-width="1.5"/>
+        <line x1="525" y1="320" x2="500" y2="355" stroke="#8a7358" stroke-width="1.5"/>
+        <line x1="685" y1="320" x2="600" y2="360" stroke="#8a7358" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <h2>Legend</h2>
+    <table>
+      <thead><tr><th>Picture word</th><th>Real word</th><th>Today</th></tr></thead>
+      <tbody>
+        <tr><td>World-disc</td><td>The overall product</td><td>ScrivenGroup (one Next.js hub)</td></tr>
+        <tr><td>Continent</td><td>Hub / major section</td><td>Work · Projects · Internal · System</td></tr>
+        <tr><td>City / site</td><td>Sub-hub / module</td><td>e.g. Sunwater MRT, Feedback, …</td></tr>
+        <tr><td>Elephant</td><td>External service holding it up</td><td>Azure · Git · Neon · Domain TBA</td></tr>
+        <tr><td>Carrier base</td><td>Ops reality under the elephants</td><td>Accounts, deploy path, DNS, secrets</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Important split</h2>
+    <ul>
+      <li><b>The Thing</b> = what people open in a browser (product + its service stack).</li>
+      <li><b>The Doing</b> = how agents and you build/tend it (see <a href="the-doing.html">The Doing</a>).</li>
+      <li>Other Cursor folders (<code>funds-forecaster</code>, <code>gannt-chart</code>, …) may become other worlds later — or stay side experiments. Level 0 currently pins ScrivenGroup as The Thing.</li>
+    </ul>
+
+    <p class="note">Painted Discworld-style art can come later (image ask). This page is the accurate stack in simple shapes.</p>
+
+    <div class="todo">
+      <b>Open on this page later</b>
+      <ul>
+        <li>List every elephant with “what breaks if it falls”</li>
+        <li>Continent → city map of live vs sketched modules</li>
+        <li>Optional Layer A painted overview image</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

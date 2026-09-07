@@ -5,4 +5,4 @@ alwaysApply: true
 
 # Development choices
 
-Before planning or building, read [`docs/DEV_CHOICES.md`](docs/DEV_CHOICES.md). Do not contradict locked rows.
+Before planning or building, read [`docs/DEV_CHOICES.md`](docs/DEV_CHOICES.md) and [`docs/WEB_DEVELOPMENT.md`](docs/WEB_DEVELOPMENT.md). Do not contradict locked rows.
