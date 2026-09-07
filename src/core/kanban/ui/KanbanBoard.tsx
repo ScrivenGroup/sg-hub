@@ -32,6 +32,7 @@ import {
 } from "../schema";
 import { clipText, copyText, PresenceChip, sortItems, type SortKey } from "./bits";
 import { LeafTagBadge } from "./LeafTagSelect";
+import { InboxAttachmentList } from "./InboxAttachments";
 
 export type LayoutMode = "columns" | "swimlanes";
 
@@ -409,7 +410,22 @@ export function KanbanBoard({
                 ? ` · raw ${openTicket.sourceIdeaId}`
                 : " · ad-hoc (no inbox)"}
             </p>
-            <p className="mt-3 whitespace-pre-wrap text-sm">{openTicket.body}</p>
+            <p className="mt-3 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap text-sm">
+              {openTicket.body}
+            </p>
+            <div className="mt-3">
+              {openTicket.sourceIdeaId ? (
+                <InboxAttachmentList
+                  readOnly
+                  attachments={
+                    board.ideas.find((idea) => idea.id === openTicket.sourceIdeaId)?.attachments ??
+                    []
+                  }
+                />
+              ) : (
+                <p className="text-xs text-[var(--muted)]">Ad-hoc ticket — no inbox files.</p>
+              )}
+            </div>
             <button type="button" className="sg-btn-ghost mt-3" onClick={() => setOpenTicket(null)}>
               Close
             </button>

@@ -8,6 +8,8 @@ type Props = {
   titleId: string;
   onClose: () => void;
   panelClassName?: string;
+  bodyClassName?: string;
+  footer?: ReactNode;
   children: ReactNode;
 };
 
@@ -16,9 +18,12 @@ export function ShellModal({
   titleId,
   onClose,
   panelClassName,
+  bodyClassName,
+  footer,
   children,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const withFooter = footer != null;
 
   useEffect(() => {
     setMounted(true);
@@ -46,10 +51,25 @@ export function ShellModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`max-h-[min(90dvh,calc(100dvh-1.5rem))] w-full overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl ${panelClassName ?? "max-w-lg"}`}
+          className={`${
+            withFooter
+              ? "flex max-h-[min(90dvh,calc(100dvh-1.5rem))] flex-col overflow-hidden"
+              : "max-h-[min(90dvh,calc(100dvh-1.5rem))] overflow-auto"
+          } w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl ${panelClassName ?? "max-w-lg"}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {children}
+          {withFooter ? (
+            <>
+              <div className={`min-h-0 flex-1 ${bodyClassName ?? "overflow-y-auto"}`}>
+                {children}
+              </div>
+              <div className="mt-3 shrink-0 border-t border-[var(--border)] pt-3">
+                {footer}
+              </div>
+            </>
+          ) : (
+            children
+          )}
         </div>
       </div>
     </div>,

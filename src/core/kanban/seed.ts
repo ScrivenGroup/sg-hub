@@ -129,8 +129,42 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
   },
 ];
 
+const GLOBAL_IDEAS: KanbanInboxNote[] = [
+  {
+    id: "IN-20260907-02",
+    nodeId: "global",
+    title: "Raise an Idea leaf tag",
+    body: "Leaf tag should be a label until click, then the Site-network tree in a nested popup. Details box grows. Save/Cancel always visible. Same on Inbox edit.",
+    status: "open",
+    createdAt: "2026-09-07T02:00:00.000Z",
+    updatedAt: "2026-09-07T02:00:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260907-03",
+    nodeId: "global",
+    title: "Kanban Online tag colour",
+    body: "i-kanban code is pink D45A78. Internal hub is 4A8FDC. Badge should be a blue tint of Internal, not pink.",
+    status: "open",
+    createdAt: "2026-09-07T02:10:00.000Z",
+    updatedAt: "2026-09-07T02:10:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260907-04",
+    nodeId: "global",
+    title: "Empty leaf shells from old my-site",
+    body: "Do not register empty my-site leaves. Leave this note open so a comparison can be uploaded as an attachment.",
+    status: "open",
+    createdAt: "2026-09-07T02:20:00.000Z",
+    updatedAt: "2026-09-07T02:20:00.000Z",
+    copiedAt: null,
+  },
+];
+
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
   "p-mtg-buylist": { ideas: MTG_BUYLIST_IDEAS, tickets: MTG_BUYLIST_TICKETS },
+  global: { ideas: GLOBAL_IDEAS, tickets: [] },
 };
 
 /** Add missing seeded ids across the whole row set (retag must not re-seed). */

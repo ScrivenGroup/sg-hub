@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   doublePrecision,
   integer,
   jsonb,
@@ -8,6 +9,20 @@ import {
   serial,
   text,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Uint8Array }>({
+  dataType() {
+    return "bytea";
+  },
+  toDriver(value: Buffer) {
+    return value;
+  },
+  fromDriver(value: unknown) {
+    if (Buffer.isBuffer(value)) return value;
+    if (value instanceof Uint8Array) return Buffer.from(value);
+    return Buffer.alloc(0);
+  },
+});
 
 /** Simple hub registers + MRT relational plan + share. Sandbox and mtg-buylist stay JSON. */
 
@@ -370,4 +385,15 @@ export const kanbanMeta = pgTable("kanban_meta", {
   liveBaseline: jsonb("live_baseline"),
   events: jsonb("events").notNull(),
   lanes: jsonb("lanes").notNull(),
+});
+
+export const kanbanAttachments = pgTable("kanban_attachments", {
+  id: text("id").primaryKey(),
+  ideaId: text("idea_id").notNull(),
+  nodeId: text("node_id").notNull(),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  createdAt: text("created_at").notNull(),
+  bytes: bytea("bytes").notNull(),
 });
