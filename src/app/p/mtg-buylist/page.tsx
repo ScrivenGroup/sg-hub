@@ -23,6 +23,7 @@ export default async function MtgBuylistPage() {
         href={MTG_BUYLIST_HREF}
         title="MTG Buylist"
         intent="Staff Microsoft sign-in required. This run is yours alone — no guest door."
+        page
         canRaise={false}
         hostKind={kind}
         host={host}
@@ -41,6 +42,7 @@ export default async function MtgBuylistPage() {
       href={MTG_BUYLIST_HREF}
       title="MTG Buylist"
       intent="Shared ManaBox CSV, then isolated Playmantis and MTGMate streams. Compare (filters and exports) is available from the first harvested store — credit vs credit when both exist, Mate cash shown. This run is keyed to your login."
+      page
       hostKind={kind}
       host={host}
     >

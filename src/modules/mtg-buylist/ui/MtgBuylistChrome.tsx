@@ -18,6 +18,7 @@ export function MtgBuylistChrome({
   intent,
   children,
   wide,
+  page,
   canRaise = true,
   hostKind,
   host,
@@ -28,6 +29,8 @@ export function MtgBuylistChrome({
   children?: ReactNode;
   /** Fill the viewport (KanBan / Development). */
   wide?: boolean;
+  /** Full content width with vertical page scroll (Run). */
+  page?: boolean;
   canRaise?: boolean;
   hostKind?: DevHostKind;
   host?: string;
@@ -44,11 +47,19 @@ export function MtgBuylistChrome({
   return (
     <AppShell
       currentHref={href}
-      frameClassName={wide ? "h-dvh max-h-dvh overflow-hidden" : undefined}
+      frameClassName={
+        wide
+          ? "h-dvh max-h-dvh overflow-hidden"
+          : page
+            ? "min-w-0"
+            : undefined
+      }
       mainClassName={
         wide
           ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 pb-3 pt-3"
-          : "mx-auto max-w-5xl px-4 pb-8 pt-3"
+          : page
+            ? "w-full min-w-0 overflow-x-hidden px-4 pb-8 pt-3"
+            : "mx-auto max-w-5xl px-4 pb-8 pt-3"
       }
     >
       <div className="shrink-0">
@@ -70,7 +81,13 @@ export function MtgBuylistChrome({
         hostKind={hostKind}
         host={host}
       />
-      <div className={wide ? "flex min-h-0 flex-1 flex-col" : undefined}>{children}</div>
+      <div
+        className={
+          wide ? "flex min-h-0 flex-1 flex-col" : page ? "min-w-0" : undefined
+        }
+      >
+        {children}
+      </div>
     </AppShell>
   );
 }

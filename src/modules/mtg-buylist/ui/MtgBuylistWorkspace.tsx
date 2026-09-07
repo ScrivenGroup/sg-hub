@@ -71,7 +71,7 @@ function CollapsibleSection({
   });
   return (
     <details
-      className="sg-card group p-0"
+      className="sg-card group min-w-0 p-0"
       open={open}
       onToggle={(e) => {
         const next = e.currentTarget.open;
@@ -639,7 +639,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   }
 
   return (
-    <div className="space-y-4" aria-busy={busy}>
+    <div className="min-w-0 space-y-4" aria-busy={busy}>
       <div className="flex flex-wrap items-center gap-1.5">
         <div role="tablist" aria-label="Runs" className="flex flex-wrap">
           <button type="button" role="tab" aria-selected className="sg-tab">
@@ -1132,7 +1132,7 @@ function StreamTable({
           ? "Want full"
           : "Not found";
   return (
-    <div className="mt-4 border-t border-[var(--border)] pt-4">
+    <div className="mt-4 min-w-0 border-t border-[var(--border)] pt-4">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <dl className="grid gap-3 sm:grid-cols-2">
@@ -1183,22 +1183,22 @@ function StreamTable({
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RecoveryLegend />
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-left text-sm">
+      <div className="min-w-0 overflow-x-auto">
+        <table className="w-full text-left text-sm">
           <thead className="bg-[var(--surface)]">
             <tr className="text-[var(--muted)]">
-              <th className="py-1 font-medium">Name</th>
-              <th className="py-1 font-medium">Set</th>
-              <th className="py-1 font-medium">#</th>
-              <th className="py-1 font-medium">Finish</th>
-              <th className="py-1 font-medium tabular-nums">Have</th>
-              <th className="py-1 font-medium tabular-nums">Wanted</th>
-              <th className="py-1 font-medium tabular-nums">Sell</th>
-              <th className="py-1 font-medium tabular-nums">Listed</th>
-              <th className="py-1 font-medium tabular-nums">Credit</th>
-              <th className="py-1 font-medium tabular-nums">Gain</th>
+              <th className="min-w-0 py-1 font-medium">Name</th>
+              <th className="whitespace-nowrap py-1 font-medium">Set</th>
+              <th className="whitespace-nowrap py-1 font-medium">#</th>
+              <th className="whitespace-nowrap py-1 font-medium">Finish</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Have</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Wanted</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Sell</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Listed</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Credit</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Gain</th>
               {mode === "mate" ? (
-                <th className="py-1 font-medium tabular-nums">Cash</th>
+                <th className="whitespace-nowrap py-1 font-medium tabular-nums">Cash</th>
               ) : null}
             </tr>
           </thead>
@@ -1238,8 +1238,8 @@ function StreamRowBlock({
     return (
       <>
         <tr className={`border-t border-[var(--border)] ${toneClass(headerTone)}`}>
-          <td className="py-1.5" colSpan={colCount}>
-            <div className="flex flex-wrap items-center gap-2">
+          <td className="min-w-0 py-1.5" colSpan={colCount}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <CardNameCell
                 name={row.name}
                 ownedImageUrl={row.ownedImageUrl}
@@ -1279,8 +1279,8 @@ function StreamRowBlock({
               key={v.mateUuid}
               className={`border-t border-[var(--border)] ${toneClass(variantTone)}`}
             >
-              <td className="py-1.5 pl-6">
-                <div className="flex flex-wrap items-center gap-2">
+              <td className="min-w-0 py-1.5 pl-6">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <label className="inline-flex items-center gap-1.5 text-xs font-medium">
                     <input
                       type="checkbox"
@@ -1299,21 +1299,21 @@ function StreamRowBlock({
                   />
                 </div>
               </td>
-              <td className="py-1.5">{row.setCode}</td>
-              <td className="py-1.5">{row.collectorNumber}</td>
-              <td className="py-1.5">{row.finish}</td>
-              <td className="py-1.5 tabular-nums">{row.have}</td>
-              <td className="py-1.5 tabular-nums">{v.wanted}</td>
-              <td className="py-1.5 tabular-nums font-semibold">{v.sell}</td>
-              <td className="py-1.5 tabular-nums">{money(row.listedCents)}</td>
-              <td className="py-1.5 tabular-nums">{money(v.creditCents)}</td>
+              <td className="whitespace-nowrap py-1.5">{row.setCode}</td>
+              <td className="whitespace-nowrap py-1.5">{row.collectorNumber}</td>
+              <td className="whitespace-nowrap py-1.5">{row.finish}</td>
+              <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
+              <td className="whitespace-nowrap py-1.5 tabular-nums">{v.wanted}</td>
+              <td className="whitespace-nowrap py-1.5 tabular-nums font-semibold">{v.sell}</td>
+              <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
+              <td className="whitespace-nowrap py-1.5 tabular-nums">{money(v.creditCents)}</td>
               <td
-                className={`py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(v.creditCents, row.listedCents))}`}
+                className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(v.creditCents, row.listedCents))}`}
               >
                 {formatRecovered(recoveredPercent(v.creditCents, row.listedCents))}
               </td>
               <td
-                className="py-1.5 tabular-nums"
+                className="whitespace-nowrap py-1.5 tabular-nums"
                 title={`Cash recovered ${formatRecovered(recoveredPercent(v.cashCents, row.listedCents))} of listed`}
               >
                 {money(v.cashCents)}
@@ -1327,8 +1327,8 @@ function StreamRowBlock({
 
   return (
     <tr className={`border-t border-[var(--border)] ${toneClass(row.tone)}`}>
-      <td className="py-1.5">
-        <div className="flex flex-wrap items-center gap-2">
+      <td className="min-w-0 py-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <CardNameCell
             name={row.name}
             ownedImageUrl={row.ownedImageUrl}
@@ -1349,22 +1349,22 @@ function StreamRowBlock({
           ) : null}
         </div>
       </td>
-      <td className="py-1.5">{row.setCode}</td>
-      <td className="py-1.5">{row.collectorNumber}</td>
-      <td className="py-1.5">{row.finish}</td>
-      <td className="py-1.5 tabular-nums">{row.have}</td>
-      <td className="py-1.5 tabular-nums">{row.wanted}</td>
-      <td className="py-1.5 tabular-nums font-semibold">{row.sell}</td>
-      <td className="py-1.5 tabular-nums">{money(row.listedCents)}</td>
-      <td className="py-1.5 tabular-nums">{money(row.creditCents)}</td>
+      <td className="whitespace-nowrap py-1.5">{row.setCode}</td>
+      <td className="whitespace-nowrap py-1.5">{row.collectorNumber}</td>
+      <td className="whitespace-nowrap py-1.5">{row.finish}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.wanted}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums font-semibold">{row.sell}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.creditCents)}</td>
       <td
-        className={`py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(row.creditCents, row.listedCents))}`}
+        className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(row.creditCents, row.listedCents))}`}
       >
         {formatRecovered(recoveredPercent(row.creditCents, row.listedCents))}
       </td>
       {mode === "mate" ? (
         <td
-          className="py-1.5 tabular-nums"
+          className="whitespace-nowrap py-1.5 tabular-nums"
           title={`Cash recovered ${formatRecovered(recoveredPercent(row.cashCents, row.listedCents))} of listed`}
         >
           {money(row.cashCents)}
@@ -1408,7 +1408,7 @@ function CompareTable({
     "rounded px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--muted)_18%,transparent)] text-[var(--muted)]";
 
   return (
-    <div>
+    <div className="min-w-0">
       <dl className="mb-3 grid gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-xs text-[var(--muted)]">Mate credit</dt>
@@ -1449,18 +1449,18 @@ function CompareTable({
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RecoveryLegend />
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[42rem] text-left text-sm">
+      <div className="min-w-0 overflow-x-auto">
+        <table className="w-full text-left text-sm">
           <thead className="bg-[var(--surface)]">
             <tr className="text-[var(--muted)]">
-              <th className="py-1 font-medium">Card</th>
-              <th className="py-1 font-medium tabular-nums">Have</th>
-              <th className="py-1 font-medium tabular-nums">Listed</th>
-              <th className="py-1 font-medium">Mate</th>
-              <th className="py-1 font-medium">Playmantis</th>
-              <th className="py-1 font-medium">Winner</th>
-              <th className="py-1 font-medium tabular-nums">Sell</th>
-              <th className="py-1 font-medium tabular-nums">Gain</th>
+              <th className="min-w-0 py-1 font-medium">Card</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Have</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Listed</th>
+              <th className="whitespace-nowrap py-1 font-medium">Mate</th>
+              <th className="whitespace-nowrap py-1 font-medium">Playmantis</th>
+              <th className="whitespace-nowrap py-1 font-medium">Winner</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Sell</th>
+              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Gain</th>
             </tr>
           </thead>
           <tbody>
@@ -1570,8 +1570,8 @@ function CompareRowBlock({
 
   return (
     <tr className={`border-t border-[var(--border)] ${rowTone}`}>
-      <td className="py-1.5">
-        <div className="flex flex-wrap items-center gap-2">
+      <td className="min-w-0 py-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <CardNameCell
             name={row.name}
             ownedImageUrl={row.ownedImageUrl}
@@ -1591,9 +1591,9 @@ function CompareRowBlock({
           ) : null}
         </div>
       </td>
-      <td className="py-1.5 tabular-nums">{row.have}</td>
-      <td className="py-1.5 tabular-nums">{money(row.listedCents)}</td>
-      <td className="py-1.5 tabular-nums">
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
+      <td className="whitespace-nowrap py-1.5 tabular-nums">
         <span
           className={storeCellClass(
             row.winner === "mate" || row.winner === "split",
@@ -1614,7 +1614,7 @@ function CompareRowBlock({
               : "—"}
         </span>
       </td>
-      <td className="py-1.5 tabular-nums">
+      <td className="whitespace-nowrap py-1.5 tabular-nums">
         <span
           className={storeCellClass(
             row.winner === "playmantis" || row.winner === "split",
@@ -1627,9 +1627,9 @@ function CompareRowBlock({
             : "—"}
         </span>
       </td>
-      <td className="py-1.5">{winnerLabel}</td>
+      <td className="whitespace-nowrap py-1.5">{winnerLabel}</td>
       <td
-        className={`py-1.5 tabular-nums font-semibold ${
+        className={`whitespace-nowrap py-1.5 tabular-nums font-semibold ${
           shortSell ? "text-[var(--rag-amber)]" : ""
         }`}
         title={shortSell ? `Sell ${sell} of ${row.have} owned` : undefined}
@@ -1641,7 +1641,7 @@ function CompareRowBlock({
           </span>
         ) : null}
       </td>
-      <td className={`py-1.5 tabular-nums ${recoveryBandClass(gainBand)}`}>
+      <td className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(gainBand)}`}>
         {row.sellable ? formatRecovered(recoveredPercent(winnerCredit, row.listedCents)) : "—"}
       </td>
     </tr>

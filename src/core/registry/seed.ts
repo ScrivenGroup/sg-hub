@@ -561,6 +561,21 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.1",
+    createdAt: "2026-09-07T11:00:00.000Z",
+    title: "1.5.1 (dev) — Run uses the page width",
+    body: `## Publish to localhost (not live)
+
+- Run fills the window (not the 64rem hub column). Development stays the locked full-viewport board.
+- Playmantis, Mate, and Compare tables stretch to that width. Long card names wrap; the page does not scroll sideways.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
