@@ -155,7 +155,7 @@ export function KanbanBoard({
             {label}{" "}
             <span className="font-medium text-[var(--muted)]">{count}</span>
           </h2>
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-start gap-1">
             <button
               type="button"
               className="sg-btn-ghost px-2 py-1 text-xs"
@@ -164,8 +164,8 @@ export function KanbanBoard({
               {focused ? "Show columns" : "Focus"}
             </button>
             {extra}
-            <label className="text-xs text-[var(--muted)]">
-              Sort{" "}
+            <label className="flex flex-col items-center gap-0.5 text-xs text-[var(--muted)]">
+              Sort
               <select
                 className="sg-input py-1 text-xs"
                 value={sortKeyFor(col)}
