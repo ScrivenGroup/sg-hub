@@ -7,7 +7,8 @@ You speak in product language. The agent maps that to git/deploy.
 | You say | Agent does |
 | ------- | ---------- |
 | develop / update / frame … | Edit code. Preview at http://localhost:3000. **No commit** until you ask |
-| commit / save a snapshot | `git add` + `git commit` (never `.env*` / secrets) |
+| commit / save a snapshot | `git add` + `git commit` **and** `git push` to the current branch’s GitHub upstream (first time on a new branch: publish with `-u`). Never `.env*` / secrets. **Does not merge to `main`.** **Does not change Azure.** |
+| merge to main | Standalone ask. Never implied by commit. |
 | is it live yet? | Report localhost vs Azure App Service |
 | make it live / deploy / publish | `npm run build` → `deploy:prepare` → `deploy:zip` → `deploy:azure` (`az webapp deploy`, Entra). SCM Basic Auth stays Off |
 | roll back / undo that release | `git` revert / older zip; redeploy if live was affected |
@@ -16,7 +17,7 @@ You speak in product language. The agent maps that to git/deploy.
 
 Claude’s my-site: GitHub **remote** + **GitHub Actions** on `main` → Azure Static Web Apps.
 
-This hub (measured): **no git remote** in this workspace at lock time. History is local `git` on `main`. **Live is only the zip** onto `app-scrivengroup`. Pushing git somewhere would **not** update Azure until we add a pipeline.
+This hub: locker is GitHub `ScrivenGroup/sg-hub` (`main`, `wip/kanban`, `wip/buylist`, …). **Live is still only the zip** onto `app-scrivengroup`. Pushing a branch would **not** update Azure until we add a pipeline.
 
 ## Later slice (not done)
 

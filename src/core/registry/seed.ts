@@ -1164,7 +1164,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "publish",
     status: "locked",
     decision:
-      "Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = deploy:prepare + zip + az webapp deploy to app-scrivengroup. GitHub Actions auto-deploy is a later slice. Details: docs/GIT_AND_RELEASE.md.",
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to main is never implied), you say make it live. Live = deploy:prepare + zip + az webapp deploy to app-scrivengroup. GitHub Actions auto-deploy is a later slice. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-great-merge",
