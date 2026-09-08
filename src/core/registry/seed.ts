@@ -144,7 +144,7 @@ export const seedNodes: RegistryNode[] = [
     hubPrefix: "i",
     slug: "kanban",
     title: "Kanban Online",
-    code: "D45A78",
+    code: "6BA4E3",
     kind: "tool",
     parentId: "hub-internal",
     href: "/i/kanban",
@@ -894,6 +894,19 @@ Out of this version
 - Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
   },
   {
+    id: "cl-kanban-online-0.0.1",
+    nodeId: "i-kanban",
+    kind: "plan",
+    version: "0.0.1",
+    createdAt: "2026-09-07T06:00:00.000Z",
+    title: "Inbox attachments + compact Raise (localhost WIP toward 0.2)",
+    body: `Kanban Online plan 0.0.1. Localhost / save-slot wip/kanban only. Not live. Live stays 0.1.6 until Bill says make it live (then 0.2 from station main).
+
+- Inbox notes can hold files (Neon bytea / local JSON+bin). Tickets inherit via sourceIdeaId. No Azure Blob.
+- Raise / Inbox leaf tag is a label until click (nested Site network popup). Details grow. Save/Cancel stay on screen.
+- Kanban Online CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
+  },
+  {
     id: "cl-kanban-online-0.1.1",
     nodeId: "i-kanban",
     kind: "release",
@@ -1151,7 +1164,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "publish",
     status: "locked",
     decision:
-      "Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge main is not live. Details: docs/GIT_AND_RELEASE.md.",
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to main is never implied), you say make it live. Live = tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge main is not live. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-versioning",

@@ -56,7 +56,7 @@ Canon for agents and humans. Do not contradict **locked** rows. In-app: Internal
 
 ### `dc-publish` — publish (locked)
 
-**Decision:** Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = tag `hub-*`/`v*` or GitHub **Run workflow** (same zip via OIDC onto `app-scrivengroup`). Hand zip is fallback. Push/merge `main` is not live. Details: `docs/GIT_AND_RELEASE.md`.
+**Decision:** Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit **and** push to the current GitHub branch; merge to `main` is never implied), you say make it live. Live = tag `hub-*`/`v*` or GitHub **Run workflow** (same zip via OIDC onto `app-scrivengroup`). Hand zip is fallback. Push/merge `main` is not live. Details: `docs/GIT_AND_RELEASE.md`.
 
 ### `dc-versioning` — versioning (locked)
 

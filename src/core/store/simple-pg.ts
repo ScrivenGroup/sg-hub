@@ -16,6 +16,7 @@ import {
   devChoices,
   feedback,
   ideas,
+  kanbanAttachments,
   kanbanIdeas,
   kanbanMeta,
   kanbanTickets,
@@ -35,9 +36,11 @@ import type {
   KanbanTicket,
 } from "@/core/kanban/schema";
 import {
+  kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
+  type KanbanAttachmentStoreRow,
 } from "@/core/kanban/schema";
 
 export const MRT_LIVE_ID = "live";
@@ -147,6 +150,17 @@ const DDL = [
     events jsonb NOT NULL,
     lanes jsonb NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS kanban_attachments (
+    id text PRIMARY KEY,
+    idea_id text NOT NULL,
+    node_id text NOT NULL,
+    filename text NOT NULL,
+    mime_type text NOT NULL,
+    byte_size integer NOT NULL,
+    created_at text NOT NULL,
+    bytes bytea NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS kanban_attachments_idea_id ON kanban_attachments (idea_id)`,
 ];
 
 type PgGlobal = {
@@ -595,5 +609,75 @@ export async function pgReplaceKanbanRows(input: {
 export async function pgDeleteKanbanIdea(id: string): Promise<void> {
   const db = await getDb();
   await db.delete(kanbanIdeas).where(eq(kanbanIdeas.id, id));
+}
+
+function attachmentMetaFromRow(
+  row: typeof kanbanAttachments.$inferSelect,
+): KanbanAttachmentStoreRow {
+  return kanbanAttachmentStoreRowSchema.parse({
+    id: row.id,
+    ideaId: row.ideaId,
+    nodeId: row.nodeId,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    byteSize: row.byteSize,
+    createdAt: row.createdAt,
+  });
+}
+
+export async function pgGetKanbanAttachmentMeta(): Promise<KanbanAttachmentStoreRow[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      id: kanbanAttachments.id,
+      ideaId: kanbanAttachments.ideaId,
+      nodeId: kanbanAttachments.nodeId,
+      filename: kanbanAttachments.filename,
+      mimeType: kanbanAttachments.mimeType,
+      byteSize: kanbanAttachments.byteSize,
+      createdAt: kanbanAttachments.createdAt,
+    })
+    .from(kanbanAttachments);
+  return rows.map((row) => kanbanAttachmentStoreRowSchema.parse(row));
+}
+
+export async function pgGetKanbanAttachment(
+  id: string,
+): Promise<{ meta: KanbanAttachmentStoreRow; bytes: Buffer } | null> {
+  const db = await getDb();
+  const rows = await db.select().from(kanbanAttachments).where(eq(kanbanAttachments.id, id));
+  const row = rows[0];
+  if (!row) return null;
+  return { meta: attachmentMetaFromRow(row), bytes: row.bytes };
+}
+
+export async function pgInsertKanbanAttachment(
+  row: KanbanAttachmentStoreRow,
+  bytes: Buffer,
+): Promise<void> {
+  const db = await getDb();
+  await db.insert(kanbanAttachments).values({
+    id: row.id,
+    ideaId: row.ideaId,
+    nodeId: row.nodeId,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    byteSize: row.byteSize,
+    createdAt: row.createdAt,
+    bytes,
+  });
+}
+
+export async function pgDeleteKanbanAttachment(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(kanbanAttachments).where(eq(kanbanAttachments.id, id));
+}
+
+export async function pgRetagKanbanAttachments(ideaId: string, nodeId: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(kanbanAttachments)
+    .set({ nodeId })
+    .where(eq(kanbanAttachments.ideaId, ideaId));
 }
 

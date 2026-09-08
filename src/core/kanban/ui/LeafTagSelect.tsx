@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { RegistryNode } from "@/core/contracts/types";
 import { siteNetworkTree } from "@/core/registry";
 import { SiteNetworkNestedList } from "@/core/shell/SiteNetworkTree";
@@ -55,49 +57,104 @@ export function LeafTagSelect({
   label?: string;
 }) {
   const { hubs, childrenByHub } = siteNetworkTree();
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const selectedTitle =
     options.find((row) => row.id === value)?.title ??
     (value === KANBAN_GLOBAL_NODE_ID ? "Global" : value);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  function pick(nodeId: string) {
+    onChange(nodeId);
+    setOpen(false);
+  }
+
   return (
-    <div className="block text-sm font-medium">
+    <div className="block shrink-0 text-sm font-medium">
       {label}
       {id ? <input type="hidden" id={id} value={value} readOnly /> : null}
-      <p className="mt-1 text-xs font-normal text-[var(--muted)]">
-        {selectedTitle}
-      </p>
-      <div className="mt-2 rounded-[10px] border border-[var(--border)] p-2">
-        <SiteNetworkNestedList
-          hubs={hubs}
-          childrenByHub={childrenByHub}
-          home={
-            <PickRow
-              label="Global"
-              selected={value === KANBAN_GLOBAL_NODE_ID}
-              onPick={() => onChange(KANBAN_GLOBAL_NODE_ID)}
-            />
-          }
-          renderHub={(hub) => (
-            <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-              {hub.title}
-            </div>
-          )}
-          renderChild={(child) =>
-            child.kind === "hub" ? (
-              <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-                {child.title}
+      <button
+        type="button"
+        className="sg-input mt-1 flex w-full items-center justify-between gap-2 text-left font-normal"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+      >
+        <span>{selectedTitle}</span>
+        <span className="text-xs text-[var(--muted)]">Change</span>
+      </button>
+      {mounted && open
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-3 sm:items-center sm:p-4"
+              role="presentation"
+              onClick={() => setOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Leaf tag"
+                className="max-h-[min(70dvh,calc(100dvh-2rem))] w-full max-w-md overflow-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="mb-2 text-sm font-medium">Tag this note</p>
+                <SiteNetworkNestedList
+                  hubs={hubs}
+                  childrenByHub={childrenByHub}
+                  home={
+                    <PickRow
+                      label="Global"
+                      selected={value === KANBAN_GLOBAL_NODE_ID}
+                      onPick={() => pick(KANBAN_GLOBAL_NODE_ID)}
+                    />
+                  }
+                  renderHub={(hub) => (
+                    <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
+                      {hub.title}
+                    </div>
+                  )}
+                  renderChild={(child) =>
+                    child.kind === "hub" ? (
+                      <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
+                        {child.title}
+                      </div>
+                    ) : (
+                      <PickRow
+                        label={child.title}
+                        selected={value === child.id}
+                        badge={child}
+                        onPick={() => pick(child.id)}
+                      />
+                    )
+                  }
+                />
+                <button
+                  type="button"
+                  className="sg-btn-ghost mt-3"
+                  onClick={() => setOpen(false)}
+                >
+                  Close
+                </button>
               </div>
-            ) : (
-              <PickRow
-                label={child.title}
-                selected={value === child.id}
-                badge={child}
-                onPick={() => onChange(child.id)}
-              />
-            )
-          }
-        />
-      </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

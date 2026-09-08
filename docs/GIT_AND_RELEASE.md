@@ -24,8 +24,9 @@ Teaching poster: [`docs/publish-yard.html`](./publish-yard.html). Do not rebuild
 | You say | Agent does |
 | ------- | ---------- |
 | develop / update / frame … | Edit code on **this chat’s desk**. Preview on that desk’s localhost port. **No commit** until you ask |
-| commit / save a snapshot | `git add` + `git commit` on this desk’s branch (never `.env*` / secrets) |
-| push / save to the locker | `git push` to `ScrivenGroup/sg-hub`. **Does not** change Azure |
+| commit / save a snapshot | `git add` + `git commit` **and** `git push` to this desk’s GitHub branch (first time: publish with `-u`). Never `.env*` / secrets. **Does not merge to `main`.** **Does not change Azure.** |
+| merge to main | Standalone ask. Never implied by commit. |
+| push / save to the locker | `git push` to `ScrivenGroup/sg-hub` if commits are already sitting un-pushed. **Does not** change Azure |
 | is it live yet? | Report localhost vs Azure App Service |
 | make it live / deploy / publish | From **station `main`**: **tag** `hub-*` / `v*` or GitHub **Run workflow** (`Publish shop window`). Cloud: `npm ci` → `build` → `deploy:prepare` → zip → `az webapp deploy` via **OIDC**. Push `main` is **not** live. Hand zip (`deploy:azure`) is fallback. SCM Basic Auth stays Off |
 | roll back / undo that release | `git` revert / older zip; redeploy if live was affected |
@@ -45,7 +46,7 @@ Private remote: **https://github.com/ScrivenGroup/sg-hub**. `gh` as ScrivenGroup
 
 Claude’s my-site: GitHub **remote** + **GitHub Actions** on `main` → Azure Static Web Apps.
 
-This hub: locker exists. **Live is still the full zip** onto `app-scrivengroup`. Next.js is **glue + full zip**. Git diffs do not patch Azure. Azure does not apply `git` diffs.
+This hub: locker is GitHub `ScrivenGroup/sg-hub`. **Live is still the full zip** onto `app-scrivengroup`. Next.js is **glue + full zip**. Git diffs do not patch Azure. Pushing a branch is not live.
 
 ## Make it live — `dc-publish`
 
