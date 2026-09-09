@@ -28,7 +28,7 @@ Login → Home
   ├── Work      /w     client-context (org only, no client logins)
   ├── Projects  /p     personal / spin-out capable
   ├── Internal  /i     ScrivenGroup tools (`/i/feedback`, `/i/dev-choices`, …)
-  └── System    /s     Definition + Appearance
+  └── System    /s     Definition + Appearance + Standards
 ```
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.

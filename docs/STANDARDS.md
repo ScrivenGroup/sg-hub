@@ -1,5 +1,7 @@
 # Standards (agent checklist)
 
+In-app teaching surface: System → Standards (`/s/standards`). This file stays the agent checklist.
+
 See also `src/core/checklist.md` and [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPMENT.md).
 
 - Hex code → **badge colour only**; SG theme default; ThemeContract opt-in per sub-hub  

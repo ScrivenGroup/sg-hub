@@ -72,7 +72,7 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "Definition and Appearance of this site.",
+    description: "Definition, Appearance, and Standards of this site.",
     order: 4,
   },
   {
@@ -259,6 +259,21 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description: "Theme tokens, templates, icons.",
     order: 2,
+  },
+  {
+    id: "s-standards",
+    hubPrefix: "s",
+    slug: "standards",
+    title: "Standards",
+    code: "9A74C8",
+    kind: "tool",
+    parentId: "hub-system",
+    href: "/s/standards",
+    accessMode: "shared",
+    status: "building",
+    hasNetworkMap: false,
+    description: "How we develop on the hub: desks, station, and make it live.",
+    order: 3,
   },
 ];
 
@@ -1033,6 +1048,20 @@ Out of this version
 - Design spec tab only on /i/kanban. Chrome labels live in src/core/kanban/chrome.ts.
 - Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
 - Buylist product work on wip/buylist is not in this train.`,
+  },
+  {
+    id: "cl-s-standards-plan",
+    nodeId: "s-standards",
+    kind: "plan",
+    createdAt: "2026-09-09T01:00:00.000Z",
+    title: "Process tab + Kanban Development (building)",
+    body: `System card beside Appearance. Design Library (atlas s-design-gallery) stays parked.
+
+- Process teaches the live yard: wip/<leaf> desks → merge to station (dev_main :3000) → you say make it live → main + Azure zip. Spoken words: develop → commit → merge to station → make it live.
+- Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes, Raise tagged to Standards). Design spec stays on /i/kanban only.
+- Does not replace Internal → Development choices or Kanban Online.
+- Leaf cycle: sketched shell+plan → building same store types → live + version+datetime.
+- One locker: ScrivenGroup/sg-hub. Never zip from a wip desk.`,
   },
 ];
 

@@ -369,7 +369,7 @@
       { id: "hub-work", hubPrefix: "w", slug: "", title: "Work", code: "3FAE6A", kind: "hub", parentId: null, href: "/w", accessMode: "shared", status: "live", description: "Client-context products (org only).", order: 1, areas: 1 },
       { id: "hub-projects", hubPrefix: "p", slug: "", title: "Projects", code: "F2D04E", kind: "hub", parentId: null, href: "/p", accessMode: "shared", status: "live", description: "Personal products — spin-out capable.", order: 2, areas: 2 },
       { id: "hub-internal", hubPrefix: "i", slug: "", title: "Internal", code: "4A8FDC", kind: "hub", parentId: null, href: "/i", accessMode: "shared", status: "live", description: "ScrivenGroup capture and tools.", order: 3, areas: 5 },
-      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition and Appearance of this site.", order: 4, areas: 2 },
+      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition, Appearance, and Standards of this site.", order: 4, areas: 3 },
       {
         id: "w-sunwater-mrt", hubPrefix: "w", slug: "sunwater-mrt", title: "Sunwater - Milestone Resourcing Tracker",
         code: "4E8C6B", kind: "subhub", parentId: "hub-work", href: "/w/sunwater-mrt", accessMode: "shared", status: "live",
@@ -488,6 +488,19 @@
           "Sub-hub hex codes colour the <strong>badge only</strong>, unless a ThemeContract override is added for that card."
         ],
         state: "Live for the global SG theme. Per-card ThemeContract overrides (for example Fuel Tracker dark/car) are planned, not shipped."
+      },
+      {
+        id: "s-standards", hubPrefix: "s", slug: "standards", title: "Standards",
+        code: "9A74C8", kind: "tool", parentId: "hub-system", href: "/s/standards", accessMode: "shared", status: "building",
+        description: "How we develop on the hub: desks, station, and make it live.",
+        inUse: true,
+        contents: [
+          "Process tab: lanes (desk → station → live git → Azure), spoken words, leaf cycle, yard glossary.",
+          "Development tab: Kanban Online host tagged to this leaf. Design spec stays on <code>/i/kanban</code>.",
+          "Does not replace Internal → Development choices or the global Kanban board.",
+          "Design Library (atlas <code>s-design-gallery</code>) stays parked beside this card — not built in this sitting."
+        ],
+        state: "Building. Teaching surface + leaf board. Not live."
       }
     ];
 
