@@ -280,7 +280,7 @@ const HUB_DECISIONS_TICKETS: KanbanTicket[] = [
     title: "Make DB cutover live (zip deploy)",
     body: `Code for simple stores + MRT relational rows + zip exclude of data/ is in-repo. Not live until you say make it live.
 
-Done when: Feedback add and an MRT Save survive zip deploy and App Service restage. Plan: docs/NEON_CUTOVER.md. Do not deploy from a random chat — wait for that phrase.
+Done when: a Feedback add, a Kanban Raise, and an MRT Save survive zip deploy and App Service restage. Notes durability: kt-notes-survive-publish. Plan: docs/NEON_CUTOVER.md. Do not deploy from a random chat — wait for that phrase.
 
 Chat: persistence / hub-decisions pack (close that thread).`,
     lane: "platform",
@@ -288,6 +288,25 @@ Chat: persistence / hub-decisions pack (close that thread).`,
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-notes-survive-publish",
+    nodeId: "global",
+    title: "Live Feedback and Kanban notes must survive publish",
+    body: `Durability/publish card. sourceIdeaId IN-20260909-03.
+
+Live staff notes live on Neon when DATABASE_URL is set. Zip strips data/. persistKanbanBundle upserts; pgReplaceKanbanRows has no callers. Seed only adds missing ids. w-sunwater-mrt seed ideas: [] is not the live inbox.
+
+Sittings: npx --yes tsx scripts/inspect-neon-inbox.ts (Neon SELECT first) then /i/feedback then seed. Do not call getKanbanBoard for forensics (it can seed-write). Never print DATABASE_URL.
+
+Done when: a Feedback add and a Kanban Raise survive zip + App Service restage. That live proof is kt-db-make-live (still Open). Do not zip from a wip desk. No MRT product work on this card.
+
+Feedback Bug stays on /i/feedback; Idea copies to Kanban Inbox; Raise is Kanban only.`,
+    lane: "platform",
+    column: "open",
+    sourceIdeaId: "IN-20260909-03",
+    createdAt: "2026-09-09T06:20:00.000Z",
+    updatedAt: "2026-09-09T06:20:00.000Z",
   },
   {
     id: "kt-db-phase0-neon",
@@ -409,6 +428,7 @@ const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTic
     tickets: [...GLOBAL_DONE_TICKETS, ...HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "global")],
   },
   "w-sunwater-mrt": {
+    // Empty on purpose — seed is not the live board. Inbox sittings query Neon first.
     ideas: [],
     tickets: HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "w-sunwater-mrt"),
   },
