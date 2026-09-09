@@ -380,29 +380,20 @@ Card: hub (app-scrivengroup) is owned by Cursor; do not zip-deploy the hub from 
     id: "kt-git-three-lane",
     nodeId: "global",
     title: "Git race: live lane vs station vs wip desks",
-    body: `Yard sitting — not the Kanban template chat. Bill's picture: three lanes, live always last.
+    body: `Yard sitting. Bake-in A locked 2026-09-09. Branch name: **dev_main** (not main_dev).
 
-Lanes (Bill's words)
-- main = live, always most behind, matches Azure.
-- main_dev = latest combination ready to go live, held for QA, second last.
-- wip/<leaf> = per-leaf desks (kanban, buylist, …), ahead of both.
+Lanes (after the rename sitting — parked until Bill says go on that plan)
+- main = Azure live (shop window), always most behind.
+- dev_main = station / QA combination, folder scrivengroup, localhost:3000.
+- wip/<leaf> = per-leaf desks, ahead of both.
 
-Today's names (locked dc-publish) — same jobs, different labels
-- Live / most behind = Azure app-scrivengroup (shop window). Not a git branch. Last zip only. Push/merge main does not restock it.
-- QA combination / second last = git main (station, orange cloud). Merge here when a room is happy.
-- Leaf desks = wip/<leaf> (purple/pink clouds). Commit+push stays on that branch.
+Make it live = fast-forward main to dev_main and zip (tag hub-* / v* or GitHub Run workflow).
 
-Why it felt broken (2026-09-09)
-- Localhost :3001 = this folder including dirty files (blue badge, Design spec, new Raise).
-- origin/main and origin/wip/kanban were the same commit; 20 uncommitted files ahead of both.
-- Live still pink / old Raise because make-it-live has not run since that zip.
+2026-09-09 catch-up: wip/kanban merged to station main and published (Kanban 0.2 / hub 1.6) so live, locker main, and the kanban desk match. wip/buylist ignored.
 
-Bake-in later (pick one in the yard sitting; do not mix with Kanban WIP)
-1. Rename: git main = live; add main_dev (or develop) as station; port 3000 sits on main_dev; make-it-live fast-forwards main and zips.
-2. Keep git main as station; add a live git ref that only moves after a successful zip. Least disruption.
-Do not invent a third GitHub repo. Still: never zip from a wip desk; commit does not imply merge; merge does not imply live.
+Still: one locker ScrivenGroup/sg-hub; never zip from a wip desk; commit ≠ merge ≠ live.
 
-Touch: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc. New sitting, new chat. Prompt is in that chat's first message (copy from the 9 Sep Kanban thread).`,
+Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc.`,
     lane: "platform",
     column: "open",
     sourceIdeaId: null,

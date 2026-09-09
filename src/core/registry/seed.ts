@@ -912,10 +912,10 @@ Out of this version
     nodeId: "w-sunwater-mrt",
     kind: "plan",
     createdAt: "2026-09-08T12:00:00.000Z",
-    title: "Development tab uses the Kanban template (localhost)",
+    title: "Development tab uses the Kanban template",
     body: `- Staff Development is the shared Kanban Online host (Inbox, board, Changelog, Notes, Raise tagged to MRT).
 - Notes still save on the live plan (openNotes). Guests do not see Development.
-- Not live until make it live.`,
+- Shipped with Kanban 0.2 / hub 1.6.`,
   },
   {
     id: "cl-kanban-online-0.0.1",
@@ -1019,6 +1019,20 @@ Out of this version
 - Labels and layout notes live in src/core/kanban/chrome.ts. Design spec tab is only on /i/kanban.
 - Notes persist in kanban_leaf_notes (Neon when DATABASE_URL is set).
 - Buylist and MRT Development embed the same host. Sketched leaves stay changelog-only.`,
+  },
+  {
+    id: "cl-kanban-online-0.2",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2",
+    createdAt: "2026-09-09T00:10:00.000Z",
+    title: "0.2 — Development template live (hub 1.6)",
+    body: `Kanban Online 0.2. Zip-deployed with hub 1.6. Live at /i/kanban.
+
+- Development on Buylist and MRT is the same host (Inbox, board, Changelog, Notes, Raise).
+- Design spec tab only on /i/kanban. Chrome labels live in src/core/kanban/chrome.ts.
+- Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
+- Buylist product work on wip/buylist is not in this train.`,
   },
 ];
 
