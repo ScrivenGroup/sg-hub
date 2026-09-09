@@ -604,6 +604,23 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.4",
+    createdAt: "2026-09-09T23:50:00.000Z",
+    title: "1.5.4 (dev) — Sticky sections, Mate row and harvest polish",
+    body: `## Publish to localhost (not live)
+
+- Section headings stay under the hub header so you can collapse a long table.
+- Mate **Wrong printing** is a compact ↻ icon; row height stays the default.
+- Recovered-% chips ( >100% / ≥80% / … ) filter Playmantis, Mate, and Compare. Click again to clear.
+- Mate bookmark harvest filename ends with local date_time.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

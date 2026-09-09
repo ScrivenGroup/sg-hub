@@ -33,6 +33,7 @@ import {
   recoveredPercent,
   streamRowsCsv,
   type CompareRow,
+  type RecoveryBand,
   type StreamRow,
   type StreamTone,
 } from "../logic/tables";
@@ -75,34 +76,35 @@ function CollapsibleSection({
     if (saved === "0") return false;
     return defaultOpen;
   });
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    sessionStorage.setItem(storageKey, next ? "1" : "0");
+  }
+
   return (
-    <details
-      className="sg-card group min-w-0 p-0"
-      open={open}
-      onToggle={(e) => {
-        const next = e.currentTarget.open;
-        setOpen(next);
-        sessionStorage.setItem(storageKey, next ? "1" : "0");
-      }}
-    >
-      <summary className="sticky top-14 z-20 cursor-pointer list-none border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2 font-medium shadow-sm [&::-webkit-details-marker]:hidden">
-        <span className="inline-flex items-center gap-2">
-          <span className="text-[var(--muted)]" aria-hidden>
-            {open ? "▾" : "▸"}
-          </span>
-          {title}
-          {hint ? (
-            <span
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <InfoTip label={hint} />
-            </span>
-          ) : null}
+    <section className="sg-card min-w-0 overflow-visible p-0">
+      <button
+        type="button"
+        className="sticky top-14 z-20 flex w-full cursor-pointer items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-left font-medium shadow-sm"
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <span className="text-[var(--muted)]" aria-hidden>
+          {open ? "▾" : "▸"}
         </span>
-      </summary>
-      <div className="space-y-3 px-4 py-3">{children}</div>
-    </details>
+        {title}
+        {hint ? (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <InfoTip label={hint} />
+          </span>
+        ) : null}
+      </button>
+      {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
+    </section>
   );
 }
 
@@ -233,7 +235,13 @@ function CsvFilenameLink({
   );
 }
 
-function RecoveryLegend() {
+function RecoveryLegend({
+  selected,
+  onToggle,
+}: {
+  selected?: Set<RecoveryBand>;
+  onToggle?: (band: RecoveryBand) => void;
+}) {
   const colorVar: Record<(typeof RECOVERY_BAND_CHIPS)[number]["color"], string> = {
     green: "var(--rag-green)",
     amber: "var(--rag-amber)",
@@ -241,21 +249,47 @@ function RecoveryLegend() {
   };
   return (
     <ul className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-      {RECOVERY_BAND_CHIPS.map((chip) => (
-        <li key={chip.band}>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5"
-            title={chip.hint}
-          >
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: colorVar[chip.color] }}
-              aria-hidden
-            />
-            <span className="tabular-nums font-medium">{chip.label}</span>
-          </span>
-        </li>
-      ))}
+      {RECOVERY_BAND_CHIPS.map((chip) => {
+        const active = selected?.has(chip.band) ?? false;
+        const filtering = Boolean(onToggle);
+        const className = `inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 ${
+          active
+            ? "border-[var(--ink)] bg-[color-mix(in_srgb,var(--ink)_8%,var(--surface))]"
+            : "border-[var(--border)] bg-[var(--surface)]"
+        } ${filtering ? "cursor-pointer hover:border-[var(--ink)]" : ""}`;
+        const title = filtering
+          ? `${chip.hint} Click to show only this band. Click again to clear.`
+          : chip.hint;
+        return (
+          <li key={chip.band}>
+            {onToggle ? (
+              <button
+                type="button"
+                className={className}
+                title={title}
+                aria-pressed={active}
+                onClick={() => onToggle(chip.band)}
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: colorVar[chip.color] }}
+                  aria-hidden
+                />
+                <span className="tabular-nums font-medium">{chip.label}</span>
+              </button>
+            ) : (
+              <span className={className} title={title}>
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: colorVar[chip.color] }}
+                  aria-hidden
+                />
+                <span className="tabular-nums font-medium">{chip.label}</span>
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -298,6 +332,39 @@ const COMPARE_FILTERS: { id: CompareFilter; label: string }[] = [
   { id: "playmantis", label: "Playmantis picklist" },
   { id: "unsold", label: "Not sold" },
 ];
+
+function toggleBandInSet(prev: Set<RecoveryBand>, band: RecoveryBand): Set<RecoveryBand> {
+  const next = new Set(prev);
+  if (next.has(band)) next.delete(band);
+  else next.add(band);
+  return next;
+}
+
+function streamRowMatchesBand(row: StreamRow, bands: Set<RecoveryBand>): boolean {
+  if (bands.size === 0) return true;
+  if (row.showVariants && row.variants.length) {
+    return row.variants.some((v) => bands.has(recoveryBand(v.creditCents, row.listedCents)));
+  }
+  return bands.has(recoveryBand(row.creditCents, row.listedCents));
+}
+
+function compareRowCredit(row: CompareRow, filter: CompareFilter): number {
+  if (filter === "mate") return row.mateCreditCents;
+  if (filter === "playmantis") return row.playmantisCreditCents;
+  if (row.winner === "mate") return row.mateCreditCents;
+  if (row.winner === "playmantis") return row.playmantisCreditCents;
+  if (row.winner === "split") return Math.max(row.mateCreditCents, row.playmantisCreditCents);
+  return 0;
+}
+
+function compareRowMatchesBand(
+  row: CompareRow,
+  filter: CompareFilter,
+  bands: Set<RecoveryBand>,
+): boolean {
+  if (bands.size === 0) return true;
+  return bands.has(recoveryBand(compareRowCredit(row, filter), row.listedCents));
+}
 
 function filterStreamRows(rows: StreamRow[], filter: StreamFilter): StreamRow[] {
   if (filter === "sell") {
@@ -1270,7 +1337,10 @@ function StreamTable({
   onRejectMate?: (rowKey: string) => void;
   onDownload: () => void;
 }) {
-  const visible = filterStreamRows(rows, filter);
+  const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
+  const visible = filterStreamRows(rows, filter).filter((row) =>
+    streamRowMatchesBand(row, bandFilter),
+  );
   const sellCopies = rows.reduce((n, r) => n + r.sell, 0);
   const colCount = mode === "mate" ? 11 : 10;
   const filterLabel =
@@ -1322,7 +1392,8 @@ function StreamTable({
         />
       </div>
       <p className="sticky top-12 z-10 mb-2 flex flex-wrap items-center gap-1.5 rounded bg-[var(--surface)] py-1 text-xs font-medium text-[var(--muted)]">
-        Showing {filterLabel} · {visible.length} of {rows.length}
+        Showing {filterLabel}
+        {bandFilter.size > 0 ? " · recovered % filter" : ""} · {visible.length} of {rows.length}
         <InfoTip
           label={`Green = sellable · grey = want full · amber = not found${
             mode === "mate"
@@ -1332,7 +1403,10 @@ function StreamTable({
         />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <RecoveryLegend />
+      <RecoveryLegend
+        selected={bandFilter}
+        onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
+      />
       <div className="min-w-0 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-[var(--surface)]">
@@ -1478,7 +1552,7 @@ function StreamRowBlock({
   return (
     <tr className={`border-t border-[var(--border)] ${toneClass(row.tone)}`}>
       <td className="min-w-0 py-1.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <CardNameCell
             name={row.name}
             ownedImageUrl={row.ownedImageUrl}
@@ -1487,11 +1561,14 @@ function StreamRowBlock({
           {mode === "mate" && row.canReject && onRejectMate ? (
             <button
               type="button"
-              className="sg-btn-ghost text-xs"
-              title="This Mate printing is wrong — show all variants again"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              title="Wrong printing — show all variants again"
+              aria-label="Wrong printing"
               onClick={() => onRejectMate(row.rowKey)}
             >
-              Wrong printing
+              <span className="text-sm leading-none" aria-hidden>
+                ↻
+              </span>
             </button>
           ) : null}
           {mode === "mate" && row.resolveSource === "image" ? (
@@ -1549,7 +1626,10 @@ function CompareTable({
   onExportCsv: () => void;
   onExportManaBox: () => void;
 }) {
-  const visible = filterCompareRows(rows, filter);
+  const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
+  const visible = filterCompareRows(rows, filter).filter((row) =>
+    compareRowMatchesBand(row, filter, bandFilter),
+  );
   const putAside = rows.filter((r) => r.putAside);
 
   const winCell =
@@ -1598,7 +1678,10 @@ function CompareTable({
         <InfoTip label="Who wins, how many to pull (Sell), and whether Sell < Have. Confirm Mate printings in the Mate stream. Hover O = owned. ManaBox exports keep original columns; quantity is this table’s Sell (or leftover Have for not sold — re-import into ManaBox)." />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <RecoveryLegend />
+      <RecoveryLegend
+        selected={bandFilter}
+        onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
+      />
       <div className="min-w-0 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-[var(--surface)]">

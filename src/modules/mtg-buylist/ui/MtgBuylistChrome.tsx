@@ -58,7 +58,7 @@ export function MtgBuylistChrome({
         wide
           ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 pb-3 pt-3"
           : page
-            ? "w-full min-w-0 overflow-x-hidden px-4 pb-8 pt-3"
+            ? "w-full min-w-0 px-4 pb-8 pt-3"
             : "mx-auto max-w-5xl px-4 pb-8 pt-3"
       }
     >

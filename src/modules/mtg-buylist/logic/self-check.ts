@@ -26,6 +26,7 @@ import {
   resolveMateOffer,
 } from "./allocate";
 import type { MateOffer } from "../schema";
+import { buildMateHarvestScript } from "./bookmarklet";
 
 const TINY_CSV = `Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency,Added
 Ageless Entity,DDH,Duel Decks: Ajani vs. Nicol Bolas,18,normal,rare,1,18974,a4f9d79a-dff5-46e1-b767-30a451b54942,0.68,false,false,near_mint,en,AUD,2026-09-02T23:42:47.831Z
@@ -936,6 +937,15 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   ]);
   if (ghost.unmatched.length !== 1 || ghost.removedCopies !== 0) {
     messages.push("Unknown submission line should stay unmatched and not remove copies");
+  }
+
+  const harvestScript = buildMateHarvestScript({
+    hubOrigin: "http://localhost:3003",
+    token: "test",
+    setCodes: ["ddh"],
+  });
+  if (!harvestScript.includes("mtgmate-buylist-harvest_")) {
+    messages.push("Mate harvest download should use a dated filename");
   }
 
   return { ok: messages.length === 0, messages };
