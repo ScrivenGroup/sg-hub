@@ -15,6 +15,11 @@ import {
 } from "../actions";
 import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency, manaBoxRowsToCsv } from "../logic/parse-csv";
 import {
+  parseSubmissionCsv,
+  subtractSoldFromManaBox,
+  type ReprepareResult,
+} from "../logic/reprepare";
+import {
   buildCompareRows,
   buildMateStreamRows,
   buildPmStreamRows,
@@ -34,6 +39,7 @@ import {
 import {
   PRICE_SOURCE_LABELS,
   PRICE_SOURCES,
+  type ManaBoxRow,
   type MtgBuylistStore,
   type PriceSource,
 } from "../schema";
@@ -344,6 +350,14 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   } | null>(null);
   const [priceSource, setPriceSource] = useState<PriceSource>("tcgplayer");
   const [priceCurrency, setPriceCurrency] = useState("AUD");
+  const [pmSubmission, setPmSubmission] = useState<{
+    filename: string;
+    rows: ManaBoxRow[];
+  } | null>(null);
+  const [mateSubmission, setMateSubmission] = useState<{
+    filename: string;
+    rows: ManaBoxRow[];
+  } | null>(null);
 
   useEffect(() => {
     setStore(initialStore);
@@ -353,6 +367,19 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     () => (store.csv ? uniqueSetCodes(store.csv.rows) : []),
     [store.csv],
   );
+  const leftover: ReprepareResult | null = useMemo(() => {
+    if (!store.csv) return null;
+    const lists = [pmSubmission?.rows, mateSubmission?.rows].filter(
+      (rows): rows is ManaBoxRow[] => Boolean(rows?.length),
+    );
+    if (!lists.length) return null;
+    return subtractSoldFromManaBox(store.csv.rows, lists);
+  }, [store.csv, pmSubmission, mateSubmission]);
+
+  useEffect(() => {
+    setPmSubmission(null);
+    setMateSubmission(null);
+  }, [store.csv?.uploadedAt, store.csv?.filename]);
   const pmTotal = store.csv
     ? new Set(store.csv.rows.map((r) => r.scryfallId.trim().toLowerCase()).filter(Boolean)).size
     : 0;
@@ -526,6 +553,31 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       await new Promise((resolve) => setTimeout(resolve, opts.gapMs));
     }
     return last;
+  }
+
+  function acceptSubmission(
+    file: File,
+    storeName: "playmantis" | "mate",
+  ) {
+    void readFileText(file).then((text) => {
+      try {
+        const rows = parseSubmissionCsv(text);
+        if (!rows.length) {
+          setError("No card rows in that submission CSV");
+          return;
+        }
+        setError("");
+        const next = { filename: file.name, rows };
+        if (storeName === "playmantis") setPmSubmission(next);
+        else setMateSubmission(next);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Need a ManaBox-shaped CSV (Name, Set code, Quantity)",
+        );
+      }
+    });
   }
 
   function confirmCsvUpload() {
@@ -1045,6 +1097,104 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           <p className="text-sm text-[var(--muted)]">
             Harvest Playmantis or upload Mate to use filters and exports here.
           </p>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="reprepare"
+        title="5. Re-prepare ManaBox after pick"
+        hint="After the shop floor, 1–2 cards may not have been picked. Upload the Playmantis and/or Mate submission CSVs (ManaBox-shaped — the templates this app exported, or the files you actually sent). Leftover = this run’s original CSV minus those copies. Overwrite ManaBox with the download — not the Compare Not-sold export."
+        defaultOpen={Boolean(store.csv)}
+      >
+        {!store.csv ? (
+          <p className="text-sm text-[var(--muted)]">
+            Upload a ManaBox CSV in step 1 first. This step uses that file, not Compare Sell qty.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <FileDropZone
+                  accept=".csv,text/csv"
+                  disabled={pending || busy}
+                  label="Playmantis submission"
+                  hint="ManaBox-shaped CSV of what you sent / they took"
+                  onFile={(file) => acceptSubmission(file, "playmantis")}
+                />
+                {pmSubmission ? (
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                    {pmSubmission.filename} · {pmSubmission.rows.length} printings
+                    <button
+                      type="button"
+                      className="sg-btn-ghost"
+                      onClick={() => setPmSubmission(null)}
+                    >
+                      Clear
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <FileDropZone
+                  accept=".csv,text/csv"
+                  disabled={pending || busy}
+                  label="MTGMate submission"
+                  hint="ManaBox-shaped CSV of what you sent / they took"
+                  onFile={(file) => acceptSubmission(file, "mate")}
+                />
+                {mateSubmission ? (
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                    {mateSubmission.filename} · {mateSubmission.rows.length} printings
+                    <button
+                      type="button"
+                      className="sg-btn-ghost"
+                      onClick={() => setMateSubmission(null)}
+                    >
+                      Clear
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            {leftover ? (
+              <div className="space-y-2">
+                <p className="text-sm">
+                  Removed {leftover.removedCopies} copies · leftover {leftover.leftoverCopies} copies
+                  ({leftover.leftover.length} printings)
+                </p>
+                <button
+                  type="button"
+                  className="sg-btn-primary"
+                  onClick={() => {
+                    const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
+                    downloadText(`${stem}-leftover-manabox.csv`, leftover.leftoverCsv);
+                  }}
+                >
+                  Download leftover ManaBox CSV
+                </button>
+                {leftover.unmatched.length ? (
+                  <div className="sg-card border-[var(--rag-amber)] text-sm">
+                    <p className="font-medium">
+                      {leftover.unmatched.length} submission line
+                      {leftover.unmatched.length === 1 ? "" : "s"} did not match the original CSV
+                    </p>
+                    <ul className="mt-1 list-disc pl-5">
+                      {leftover.unmatched.slice(0, 8).map((line, i) => (
+                        <li key={`${line.name}-${line.setCode}-${i}`}>
+                          {line.name} ({line.setCode || "no set"}) · {line.remaining} left unmatched
+                          — {line.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--muted)]">
+                Drop at least one submission to build the leftover file.
+              </p>
+            )}
+          </div>
         )}
       </CollapsibleSection>
     </div>

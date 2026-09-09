@@ -17,6 +17,7 @@ import {
   recoveredPercent,
   recoveryBand,
 } from "./tables";
+import { parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
 import {
   findMate,
   indexMateOffers,
@@ -906,6 +907,35 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   }
   if (unsoldPack.some((r) => r.name === "Searing Meditation")) {
     messages.push("Searing Meditation sold to Playmantis must not appear in not-sold");
+  }
+
+  const leftoverSold = parseSubmissionCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nSearing Meditation,DDH,1,6f5e0200-21c9-4926-b238-3f9b1f5fc6ed,normal\n",
+  );
+  const leftover = subtractSoldFromManaBox(csv, [leftoverSold]);
+  if (leftover.leftover.some((r) => r.name === "Searing Meditation")) {
+    messages.push("Leftover ManaBox should drop a fully submitted printing");
+  }
+  if (leftover.removedCopies !== 1) {
+    messages.push("Leftover subtract should remove 1 submitted copy");
+  }
+  const stack = parseManaBoxCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nForest,DDH,3,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,normal\n",
+  );
+  const soldOne = parseSubmissionCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nForest,DDH,1,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,normal\n",
+  );
+  const partial = subtractSoldFromManaBox(stack, [soldOne]);
+  if (partial.leftover[0]?.quantity !== 2) {
+    messages.push("Partial store submission should leave remaining quantity");
+  }
+  const ghost = subtractSoldFromManaBox(csv, [
+    parseSubmissionCsv(
+      "Name,Set code,Quantity,Scryfall ID,Foil\nGhost Card,XXX,1,eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee,normal\n",
+    ),
+  ]);
+  if (ghost.unmatched.length !== 1 || ghost.removedCopies !== 0) {
+    messages.push("Unknown submission line should stay unmatched and not remove copies");
   }
 
   return { ok: messages.length === 0, messages };

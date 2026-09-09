@@ -590,6 +590,20 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.3",
+    createdAt: "2026-09-09T01:10:00.000Z",
+    title: "1.5.3 (dev) — Re-prepare ManaBox after pick",
+    body: `## Publish to localhost (not live)
+
+- Run step 5: upload Playmantis and/or Mate submission CSVs (ManaBox-shaped) after the shop floor.
+- Download a leftover ManaBox CSV = this run’s original file minus those copies. Overwrite ManaBox with that, not Compare Not-sold.
+- Unmatched submission lines are listed. Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
