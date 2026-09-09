@@ -82,19 +82,19 @@
       Newest is at the bottom.
     </p>
     <div class="legend">
-      <span style="color: var(--main)"><i class="swatch"></i> main — station</span>
+      <span style="color: var(--main)"><i class="swatch"></i> dev_main — station :3000</span>
       <span style="color: var(--kanban)"><i class="swatch"></i> wip/kanban — desk 1 :3001</span>
       <span style="color: var(--mrt)"><i class="swatch"></i> wip/mrt — desk 2 :3002</span>
       <span style="color: var(--buylist)"><i class="swatch"></i> wip/buylist — desk 3 :3003 · second PC</span>
-      <span style="color: var(--live)"><i class="swatch"></i> Azure live</span>
+      <span style="color: var(--live)"><i class="swatch"></i> Azure live (= git main after publish)</span>
     </div>
 
     <div class="frame">
       <svg viewBox="0 0 1120 900" role="img" aria-labelledby="yardTitle yardDesc">
         <title id="yardTitle">Git yard example: three WIP branches, Kanban merges, then hub 1.5 publish</title>
         <desc id="yardDesc">
-          Hub 1.4 is live on Azure. Kanban, MRT, and Buylist grow on separate branches.
-          Kanban merges to main. You say make it live and hub 1.5 ships.
+          Hub 1.4 is live on Azure (git main). Kanban, MRT, and Buylist grow on separate branches.
+          Kanban merges to dev_main. You say make it live: main fast-forwards and hub 1.5 ships.
           MRT and Buylist stay open on their desks.
         </desc>
 
@@ -103,7 +103,7 @@
         <line x1="660" y1="118" x2="660" y2="790" stroke="#c47a12" stroke-width="3"/>
         <line x1="890" y1="118" x2="890" y2="850" stroke="#2b6e8f" stroke-width="3"/>
 
-        <text class="lane-title" x="210" y="36" text-anchor="middle" fill="#3c3c3b">main</text>
+        <text class="lane-title" x="210" y="36" text-anchor="middle" fill="#3c3c3b">dev_main</text>
         <text class="lane-sub" x="210" y="54" text-anchor="middle">station desk</text>
         <text class="lane-sub" x="210" y="70" text-anchor="middle">localhost:3000</text>
 
@@ -155,11 +155,11 @@
         <path d="M430 310 C430 500, 210 500, 210 550" fill="none" stroke="#2f8f4e" stroke-width="3"/>
         <circle cx="210" cy="550" r="9" fill="#3c3c3b"/>
         <text class="node-label" x="226" y="546">merge wip/kanban</text>
-        <text class="node-sub" x="226" y="562">on main — not live yet</text>
+        <text class="node-sub" x="226" y="562">on dev_main — not live yet</text>
 
         <circle cx="210" cy="640" r="11" fill="#3c3c3b"/>
         <text class="node-label" x="226" y="636">hub 1.5 tag</text>
-        <text class="node-sub" x="226" y="652">you said make it live</text>
+        <text class="node-sub" x="226" y="652">FF main + you said make it live</text>
 
         <rect x="16" y="612" width="118" height="56" rx="8" fill="#fff" stroke="#c0392b" stroke-width="2"/>
         <text class="node-label" x="75" y="634" text-anchor="middle" fill="#c0392b">SHOP WINDOW</text>
@@ -210,8 +210,8 @@
     </table>
 
     <p class="note">
-      <span class="k">Merge</span> puts a room onto <span class="k">main</span>.
-      <span class="k">Make it live</span> is the only step that moves the shop window.
+      <span class="k">Merge</span> puts a room onto <span class="k">dev_main</span>.
+      <span class="k">Make it live</span> fast-forwards <span class="k">main</span> and is the only step that moves the shop window.
       Other desks keep painting.
     </p>
     <p class="you">You are here: teaching poster of one example week. The live yard board comes later on Brain Kanban.</p>

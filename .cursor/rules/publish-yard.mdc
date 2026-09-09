@@ -1,5 +1,5 @@
 ---
-description: Station is main, save-slots are wip branches, locker is sg-hub, shop window is Azure
+description: Station is dev_main, live git is main, save-slots are wip branches, locker is sg-hub, shop window is Azure
 alwaysApply: true
 ---
 
@@ -7,7 +7,7 @@ alwaysApply: true
 
 Read [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md) before commit, push, or deploy.
 
-- **Station** = `main` (keep it clean). **Save-slot** = `wip/<leaf>`. **Locker** = GitHub `ScrivenGroup/sg-hub`. **Shop window** = Azure `app-scrivengroup`.
+- **Station** = `dev_main` (keep it clean). **Live lane** = `main` (most behind; matches Azure after make it live). **Save-slot** = `wip/<leaf>`. **Locker** = GitHub `ScrivenGroup/sg-hub`. **Shop window** = Azure `app-scrivengroup`.
 - One chat = one desk. `move_agent_to_root` to that worktree before disk. Do not `git init` in a leaf.
-- Never zip-deploy from a wip desk. Publish only from merged `main` / the station desk.
-- Push / merge `main` is **not** live. **Make it live** = tag `hub-*`/`v*` or GitHub **Run workflow**. Hand zip from the station desk is fallback.
+- Never zip-deploy from a wip desk. Publish only after merge to `dev_main` and a spoken **make it live**.
+- Push / merge `dev_main` is **not** live. **Make it live** = fast-forward `main` to `dev_main`, then tag `hub-*`/`v*` or GitHub **Run workflow**. Hand zip from the station desk is fallback.

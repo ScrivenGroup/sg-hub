@@ -1,4 +1,6 @@
-# Shop window: tag or Run workflow. Push to main is not live.
+# Shop window: tag or Run workflow.
+# Push to dev_main is not live. Fast-forward main is the live git pointer;
+# Azure still needs this zip (tag hub-* / v* or workflow_dispatch).
 name: Publish shop window
 
 on:
