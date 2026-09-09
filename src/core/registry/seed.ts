@@ -144,7 +144,7 @@ export const seedNodes: RegistryNode[] = [
     hubPrefix: "i",
     slug: "kanban",
     title: "Kanban Online",
-    code: "D45A78",
+    code: "6BA4E3",
     kind: "tool",
     parentId: "hub-internal",
     href: "/i/kanban",
@@ -576,6 +576,20 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.2",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "1.5.2",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "1.5.2 — Development uses the Kanban template (localhost)",
+    body: `## Localhost
+
+- Development is the shared Kanban Online host: Inbox, board, Changelog, Notes, Raise tagged to Buylist.
+- Parser fixture check stays under Testing.
+- Per-login notes still save on the buylist store. Not live until make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
@@ -909,6 +923,29 @@ Out of this version
 - Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
   },
   {
+    id: "cl-sunwater-mrt-dev-template",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "Development tab uses the Kanban template",
+    body: `- Staff Development is the shared Kanban Online host (Inbox, board, Changelog, Notes, Raise tagged to MRT).
+- Notes still save on the live plan (openNotes). Guests do not see Development.
+- Shipped with Kanban 0.2 / hub 1.6.`,
+  },
+  {
+    id: "cl-kanban-online-0.0.1",
+    nodeId: "i-kanban",
+    kind: "plan",
+    version: "0.0.1",
+    createdAt: "2026-09-07T06:00:00.000Z",
+    title: "Inbox attachments + compact Raise (localhost WIP toward 0.2)",
+    body: `Kanban Online plan 0.0.1. Localhost / save-slot wip/kanban only. Not live. Live stays 0.1.6 until Bill says make it live (then 0.2 from station main).
+
+- Inbox notes can hold files (Neon bytea / local JSON+bin). Tickets inherit via sourceIdeaId. No Azure Blob.
+- Raise / Inbox leaf tag is a label until click (nested Site network popup). Details grow. Save/Cancel stay on screen.
+- Kanban Online CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
+  },
+  {
     id: "cl-kanban-online-0.1.1",
     nodeId: "i-kanban",
     kind: "release",
@@ -983,6 +1020,34 @@ Out of this version
 - Inbox, column tabs, Changelog, and Raise an idea are on the live origin.
 - Same changelogs store (nodeId i-kanban). 0.1.1–0.1.5 ids unchanged.
 - Whole app zip (Kanban cannot ship alone). Laptop data/ not in the zip.`,
+  },
+  {
+    id: "cl-kanban-online-0.0.2",
+    nodeId: "i-kanban",
+    kind: "plan",
+    version: "0.0.2",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "Development template + Notes + Design spec (localhost WIP)",
+    body: `Kanban Online plan 0.0.2. Localhost / save-slot wip/kanban only. Not live.
+
+- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes, Raise).
+- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec tab is only on /i/kanban.
+- Notes persist in kanban_leaf_notes (Neon when DATABASE_URL is set).
+- Buylist and MRT Development embed the same host. Sketched leaves stay changelog-only.`,
+  },
+  {
+    id: "cl-kanban-online-0.2",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2",
+    createdAt: "2026-09-09T00:10:00.000Z",
+    title: "0.2 — Development template live (hub 1.6)",
+    body: `Kanban Online 0.2. Zip-deployed with hub 1.6. Live at /i/kanban.
+
+- Development on Buylist and MRT is the same host (Inbox, board, Changelog, Notes, Raise).
+- Design spec tab only on /i/kanban. Chrome labels live in src/core/kanban/chrome.ts.
+- Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
+- Buylist product work on wip/buylist is not in this train.`,
   },
 ];
 
@@ -1166,7 +1231,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "publish",
     status: "locked",
     decision:
-      "Loop: you vibe, Cursor codes, localhost, you review, you say commit, you say make it live. Live = tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge main is not live. Details: docs/GIT_AND_RELEASE.md.",
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to dev_main is never implied), you say make it live. Make it live = fast-forward main to dev_main, then tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge dev_main is not live. Fast-forward main without the zip is not Azure. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-versioning",

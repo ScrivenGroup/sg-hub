@@ -96,7 +96,17 @@ export function fragmentsToChangelog(
 }
 
 export function exportBoardJson(board: KanbanBoard): string {
-  return JSON.stringify(board, null, 2);
+  const ideas = board.ideas.map((idea) => ({
+    ...idea,
+    attachments: (idea.attachments ?? []).map((file) => ({
+      id: file.id,
+      filename: file.filename,
+      mimeType: file.mimeType,
+      byteSize: file.byteSize,
+      createdAt: file.createdAt,
+    })),
+  }));
+  return JSON.stringify({ ...board, ideas }, null, 2);
 }
 
 export function boardFromUnknown(nodeId: string, raw: unknown): KanbanBoard {

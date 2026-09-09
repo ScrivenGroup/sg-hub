@@ -129,9 +129,353 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
   },
 ];
 
+const GLOBAL_IDEAS: KanbanInboxNote[] = [
+  {
+    id: "IN-20260907-02",
+    nodeId: "global",
+    title: "Raise an Idea leaf tag",
+    body: "Leaf tag should be a label until click, then the Site-network tree in a nested popup. Details box grows. Save/Cancel always visible. Same on Inbox edit.",
+    status: "archived",
+    createdAt: "2026-09-07T02:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260907-03",
+    nodeId: "global",
+    title: "Kanban Online tag colour",
+    body: "i-kanban code is pink D45A78. Internal hub is 4A8FDC. Badge should be a blue tint of Internal, not pink.",
+    status: "archived",
+    createdAt: "2026-09-07T02:10:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260907-04",
+    nodeId: "global",
+    title: "Empty leaf shells from old my-site",
+    body: "Do not register empty my-site leaves. Leave this note open so a comparison can be uploaded as an attachment.",
+    status: "open",
+    createdAt: "2026-09-07T02:20:00.000Z",
+    updatedAt: "2026-09-07T02:20:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260907-05",
+    nodeId: "global",
+    title: "Attachment verify note",
+    body: "Verify screenshot + CSV attachments persist after reload.",
+    status: "archived",
+    createdAt: "2026-09-07T06:47:41.655Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+    copiedAt: "2026-09-07T06:49:32.526Z",
+  },
+  {
+    id: "IN-20260908-02",
+    nodeId: "global",
+    title: "Kanban as Development template",
+    body: "Kanban Online is the template for other leaves' Development tabs: Raise (leaf-tagged), Inbox, board, Changelog, Notes. Design spec (labels, width, Raise, colours) lives only on global /i/kanban. Relabel in chrome.ts so every copy follows. New leaves get this host when they leave sketched. Design Library apply-to-all is later.",
+    status: "archived",
+    createdAt: "2026-09-08T02:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+    copiedAt: null,
+  },
+];
+
+const GLOBAL_DONE_TICKETS: KanbanTicket[] = [
+  {
+    id: "kt-inbox-attachments",
+    nodeId: "global",
+    title: "Inbox file attachments",
+    body: "Inbox notes hold files (8 MB each, 5 per note). Neon bytea + JSON+bin fallback. Tickets inherit via sourceIdeaId (read-only). Raise saves the note first, then POSTs files. Copy prompt inlines small text; images/PDFs are listed only.",
+    lane: "data",
+    column: "done",
+    sourceIdeaId: "IN-20260907-04",
+    createdAt: "2026-09-07T06:10:00.000Z",
+    updatedAt: "2026-09-07T06:20:00.000Z",
+  },
+  {
+    id: "kt-raise-compact",
+    nodeId: "global",
+    title: "Compact Raise / Inbox leaf tag",
+    body: "Leaf tag is a label until click, then the same Site-network tree in a nested popup. Details textarea takes leftover height. Save/Cancel stay on screen. Same on Inbox edit.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260907-02",
+    createdAt: "2026-09-07T06:10:00.000Z",
+    updatedAt: "2026-09-07T06:20:00.000Z",
+  },
+  {
+    id: "kt-kanban-badge-blue",
+    nodeId: "global",
+    title: "Kanban Online badge blue tint",
+    body: "i-kanban CodeBadge is a blue tint of Internal hub 4A8FDC (now 6BA4E3), not pink D45A78. Inbox lane accent stays pink.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260907-03",
+    createdAt: "2026-09-07T06:10:00.000Z",
+    updatedAt: "2026-09-07T06:20:00.000Z",
+  },
+  {
+    id: "kt-kanban-dev-template",
+    nodeId: "global",
+    title: "Development tab = Kanban Online host",
+    body: "Leaves that have left sketched use KanbanOnlineHost: Inbox, board, Changelog, Notes, Raise tagged to the leaf. Sketched shells stay changelog-only. Design spec tab is global /i/kanban only.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-chrome-tokens",
+    nodeId: "global",
+    title: "Kanban chrome labels in one file",
+    body: "Copy and layout notes live in src/core/kanban/chrome.ts (KANBAN_CHROME). Relabel there; every host follows. Not the Design Library atlas.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-design-spec",
+    nodeId: "global",
+    title: "Design spec tab on /i/kanban only",
+    body: "Global Kanban Online shows a Design spec tab that documents chrome.ts. Leaf Development embeds do not show it.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-rollout-buylist",
+    nodeId: "p-mtg-buylist",
+    title: "Buylist Development uses the Kanban host",
+    body: "MTG Buylist Development is the shared host (Inbox, board, Changelog, Notes, Raise). Parser fixture check stays a Testing extra. Per-login notes still save via the buylist store.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-rollout-mrt",
+    nodeId: "w-sunwater-mrt",
+    title: "MRT Development uses the Kanban host",
+    body: "Sunwater MRT Development tab embeds KanbanOnlineHost. Notes still save on the plan store openNotes field. Staff-only; guests do not see Development.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+];
+
+const HUB_DECISIONS_TICKETS: KanbanTicket[] = [
+  {
+    id: "kt-db-make-live",
+    nodeId: "global",
+    title: "Make DB cutover live (zip deploy)",
+    body: `Code for simple stores + MRT relational rows + zip exclude of data/ is in-repo. Not live until you say make it live.
+
+Done when: Feedback add and an MRT Save survive zip deploy and App Service restage. Plan: docs/NEON_CUTOVER.md. Do not deploy from a random chat — wait for that phrase.
+
+Chat: persistence / hub-decisions pack (close that thread).`,
+    lane: "platform",
+    column: "open",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-db-phase0-neon",
+    nodeId: "global",
+    title: "You: confirm Neon / DATABASE_URL",
+    body: `Done on the laptop: DATABASE_URL is in gitignored .env.local on the desks; localhost Kanban writes Neon. Do not paste the connection string into chat.
+
+Make it live (kt-db-make-live) is still the Azure zip so App Service uses the same URL.`,
+    lane: "data",
+    column: "done",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-mrt-sandbox-pg",
+    nodeId: "w-sunwater-mrt",
+    title: "MRT guest sandbox + activity as Postgres tables",
+    body: `NEON_CUTOVER pass 2. Keep one product, two desks (dc-guest-shape) but stop using zip-wiped JSON files.
+
+Sandbox rows keyed by guest; TTL 168h; persist across deploy; Reset-to-live clones Neon live plan. Guest activity cap 500 in DB. Not JSONB. Own session. After kt-db-make-live.`,
+    lane: "data",
+    column: "later",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-publish-gha",
+    nodeId: "global",
+    title: "GitHub Actions so push can equal live",
+    body: `dc-publish later slice. Hub locker is GitHub sg-hub; live is still the zip onto Azure until Actions exist.
+
+Add OIDC + workflow: build standalone, exclude data/, az webapp deploy. Until then “make it live” always means the zip commands. docs/GIT_AND_RELEASE.md.`,
+    lane: "platform",
+    column: "later",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-great-merge-pack",
+    nodeId: "global",
+    title: "Great Merging of ’26 — export pack then port leaves",
+    body: `Blocked on fb-atlas-ia-review (keep vs fold cards) then fb-atlas-skin-hub (sketched shells). This ticket is the data/code port, not the atlas framing.
+
+Cursor implements in scrivengroup. Claude/you export: inventory, prisma schema, JSON/CSV (no secrets), app HTML/JS. Preferred: sibling folder Cursor/my-site. Not a git merge of stacks. MRT is already on the hub. docs/GREAT_MERGING.md. Paste for Claude is in that doc and docs/hub-decisions-pack.html.`,
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-two-agents-claude-md",
+    nodeId: "global",
+    title: "Paste two-agent treaty into my-site CLAUDE.md",
+    body: `You or Claude. Cursor does not edit my-site unless that folder is the workspace.
+
+Card: hub (app-scrivengroup) is owned by Cursor; do not zip-deploy the hub from Claude; export packs for Great Merging; stop editing a leaf after it moves. Full treaty: docs/TWO_AGENTS.md.`,
+    lane: "platform",
+    column: "later",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-leaf-dev-notes",
+    nodeId: "global",
+    title: "Development tab + bulk notes on every leaf",
+    body: `Done as the Kanban Online host: Inbox, board, Changelog, Notes, Raise. Notes persist (kanban_leaf_notes, or a leaf callback). Sketched shells stay changelog-only. Handbook: docs/WEB_DEVELOPMENT.md.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-commit-decisions-pack",
+    nodeId: "global",
+    title: "Commit hub-decisions pack and related canon docs",
+    body: `Done on the WIP/main catch-up. Canon docs and dc-* rows are in git. Not a reason to zip-deploy.`,
+    lane: "platform",
+    column: "done",
+    sourceIdeaId: null,
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-git-three-lane",
+    nodeId: "global",
+    title: "Git race: live lane vs station vs wip desks",
+    body: `Yard sitting. Bake-in A locked 2026-09-09. Branch name: **dev_main** (not main_dev).
+
+Lanes (after the rename sitting — parked until Bill says go on that plan)
+- main = Azure live (shop window), always most behind.
+- dev_main = station / QA combination, folder scrivengroup, localhost:3000.
+- wip/<leaf> = per-leaf desks, ahead of both.
+
+Make it live = fast-forward main to dev_main and zip (tag hub-* / v* or GitHub Run workflow).
+
+2026-09-09 catch-up: wip/kanban merged to station main and published (Kanban 0.2 / hub 1.6) so live, locker main, and the kanban desk match. wip/buylist ignored.
+
+Still: one locker ScrivenGroup/sg-hub; never zip from a wip desk; commit ≠ merge ≠ live.
+
+Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc.`,
+    lane: "platform",
+    column: "open",
+    sourceIdeaId: null,
+    createdAt: "2026-09-09T00:00:00.000Z",
+    updatedAt: "2026-09-09T00:00:00.000Z",
+  },
+];
+
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
   "p-mtg-buylist": { ideas: MTG_BUYLIST_IDEAS, tickets: MTG_BUYLIST_TICKETS },
+  global: {
+    ideas: GLOBAL_IDEAS,
+    tickets: [...GLOBAL_DONE_TICKETS, ...HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "global")],
+  },
+  "w-sunwater-mrt": {
+    ideas: [],
+    tickets: HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "w-sunwater-mrt"),
+  },
 };
+
+const HYGIENE_IDEA_IDS = new Set([
+  "IN-20260907-02",
+  "IN-20260907-03",
+  "IN-20260907-05",
+  "IN-20260908-02",
+]);
+
+const HYGIENE_TICKET_IDS = new Set([
+  "kt-db-phase0-neon",
+  "kt-commit-decisions-pack",
+  "kt-leaf-dev-notes",
+  "kt-kanban-dev-template",
+  "kt-kanban-chrome-tokens",
+  "kt-kanban-design-spec",
+  "kt-kanban-rollout-buylist",
+  "kt-kanban-rollout-mrt",
+]);
+
+function allSeedIdeas(): KanbanInboxNote[] {
+  return Object.values(BOARD_SEEDS).flatMap((seed) => seed.ideas);
+}
+
+function allSeedTickets(): KanbanTicket[] {
+  return Object.values(BOARD_SEEDS).flatMap((seed) => seed.tickets);
+}
+
+/** Archive / Done patches for ids that already exist on Neon (seed merge does not overwrite). */
+export function applyKanbanHygiene(bundle: {
+  ideas: KanbanInboxNote[];
+  tickets: KanbanTicket[];
+}): boolean {
+  const ideaSeed = new Map(allSeedIdeas().map((row) => [row.id, row]));
+  const ticketSeed = new Map(allSeedTickets().map((row) => [row.id, row]));
+  let changed = false;
+  for (const idea of bundle.ideas) {
+    if (!HYGIENE_IDEA_IDS.has(idea.id)) continue;
+    const seed = ideaSeed.get(idea.id);
+    if (!seed) continue;
+    if (idea.status !== seed.status) {
+      idea.status = seed.status;
+      idea.updatedAt = seed.updatedAt;
+      changed = true;
+    }
+  }
+  for (const ticket of bundle.tickets) {
+    if (!HYGIENE_TICKET_IDS.has(ticket.id)) continue;
+    const seed = ticketSeed.get(ticket.id);
+    if (!seed) continue;
+    if (
+      ticket.column !== seed.column ||
+      ticket.title !== seed.title ||
+      ticket.body !== seed.body
+    ) {
+      ticket.column = seed.column;
+      ticket.title = seed.title;
+      ticket.body = seed.body;
+      ticket.updatedAt = seed.updatedAt;
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 /** Add missing seeded ids across the whole row set (retag must not re-seed). */
 export function missingKanbanSeed(existing: {

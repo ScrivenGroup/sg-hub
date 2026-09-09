@@ -87,6 +87,22 @@ export const inboxStatusSchema = z.enum(INBOX_STATUSES);
 /** Leaf tag for Global (Internal) rows. Not a swimlane. */
 export const KANBAN_GLOBAL_NODE_ID = "global";
 
+/** Metadata only — never bytes / base64. */
+export const kanbanAttachmentMetaSchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  mimeType: z.string(),
+  byteSize: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type KanbanAttachmentMeta = z.infer<typeof kanbanAttachmentMetaSchema>;
+
+export const kanbanAttachmentStoreRowSchema = kanbanAttachmentMetaSchema.extend({
+  ideaId: z.string(),
+  nodeId: z.string(),
+});
+export type KanbanAttachmentStoreRow = z.infer<typeof kanbanAttachmentStoreRowSchema>;
+
 export const kanbanInboxNoteSchema = z.object({
   id: z.string(),
   nodeId: z.string().default(KANBAN_GLOBAL_NODE_ID),
@@ -96,6 +112,7 @@ export const kanbanInboxNoteSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   copiedAt: z.string().nullable().optional().default(null),
+  attachments: z.array(kanbanAttachmentMetaSchema).optional(),
 });
 export type KanbanInboxNote = z.infer<typeof kanbanInboxNoteSchema>;
 

@@ -7,23 +7,31 @@ import type { DevHostKind } from "../host";
 import { leafOptionsWithRows, type KanbanLeafOption } from "../leaves";
 import {
   CATEGORY_LABELS,
-  COLUMN_FILTERS,
   KANBAN_CATEGORIES,
   KANBAN_GLOBAL_NODE_ID,
   type ColumnFilterId,
   type KanbanBoard as KanbanBoardData,
   type KanbanCategory,
 } from "../schema";
+import { KANBAN_CHROME } from "../chrome";
 import { type SortKey } from "./bits";
 import { InboxPanel } from "./InboxPanel";
 import { KanbanBoard, type LayoutMode } from "./KanbanBoard";
 import { KanbanChangelogPanel } from "./KanbanChangelogPanel";
+import { KanbanDesignSpec } from "./KanbanDesignSpec";
+import { KanbanNotesPanel } from "./KanbanNotesPanel";
 import { RaiseIdeaButton } from "./RaiseIdeaButton";
 
 export type KanbanOnlineScope = "all" | "leaf";
 export type KanbanOnlinePanel = "inbox" | "kanban";
-export type KanbanOnlineStart = "inbox" | "kanban" | "changelog";
-export type ChromeTab = "inbox" | "changelog" | ColumnFilterId;
+export type KanbanOnlineStart =
+  | "inbox"
+  | "kanban"
+  | "changelog"
+  | "notes"
+  | "spec"
+  | ColumnFilterId;
+export type ChromeTab = "inbox" | "changelog" | "notes" | "spec" | ColumnFilterId;
 
 const chromeSelect =
   "min-h-8 h-8 w-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs font-medium normal-case tracking-normal text-[var(--ink)]";
@@ -55,12 +63,20 @@ function initialChromeTab(
   const start = panel ?? initialTab ?? "inbox";
   if (start === "kanban") return "all";
   if (start === "changelog") return "changelog";
+  if (start === "notes") return "notes";
+  if (start === "spec") return "spec";
+  if (start === "inbox") return "inbox";
+  if (KANBAN_CHROME.labels.boardFilters.some((f) => f.id === start)) {
+    return start;
+  }
   return "inbox";
 }
 
 function urlTabFor(next: ChromeTab): string {
   if (next === "inbox") return "inbox";
   if (next === "changelog") return "changelog";
+  if (next === "notes") return "notes";
+  if (next === "spec") return "spec";
   return "kanban";
 }
 
@@ -81,6 +97,9 @@ export function KanbanOnlineHost({
   showTabs = true,
   hideRaise = false,
   forcedTab,
+  notes = "",
+  showDesignSpec = false,
+  onSaveNotes,
 }: {
   board: KanbanBoardData;
   scope: KanbanOnlineScope;
@@ -98,6 +117,9 @@ export function KanbanOnlineHost({
   forcedTab?: ChromeTab;
   initialTab?: KanbanOnlineStart;
   changelogs?: ChangelogEntry[];
+  notes?: string;
+  showDesignSpec?: boolean;
+  onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const router = useRouter();
   const [chromeTabState, setChromeTab] = useState<ChromeTab>(() =>
@@ -114,7 +136,9 @@ export function KanbanOnlineHost({
   const showChangelogTab = Array.isArray(changelogs);
   const inboxOn = chromeTab === "inbox";
   const changelogOn = chromeTab === "changelog";
-  const boardOn = !inboxOn && !changelogOn;
+  const notesOn = chromeTab === "notes";
+  const specOn = chromeTab === "spec";
+  const boardOn = !inboxOn && !changelogOn && !notesOn && !specOn;
   const columnFilter: ColumnFilterId = boardOn ? chromeTab : "all";
   const filtered = useMemo(
     () => (scope === "all" ? filterBoard(board, leafFilter) : board),
@@ -174,9 +198,10 @@ export function KanbanOnlineHost({
               className="sg-tab"
               onClick={() => selectChrome("inbox")}
             >
-              Inbox{openInbox > 0 ? ` (${openInbox})` : ""}
+              {KANBAN_CHROME.labels.inbox}
+              {openInbox > 0 ? ` (${openInbox})` : ""}
             </button>
-            {COLUMN_FILTERS.map((f) => (
+            {KANBAN_CHROME.labels.boardFilters.map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -196,7 +221,27 @@ export function KanbanOnlineHost({
                 className="sg-tab"
                 onClick={() => selectChrome("changelog")}
               >
-                Changelog
+                {KANBAN_CHROME.labels.changelog}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={notesOn}
+              className="sg-tab"
+              onClick={() => selectChrome("notes")}
+            >
+              {KANBAN_CHROME.labels.notes}
+            </button>
+            {showDesignSpec ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={specOn}
+                className="sg-tab"
+                onClick={() => selectChrome("spec")}
+              >
+                {KANBAN_CHROME.labels.designSpec}
               </button>
             ) : null}
           </div>
@@ -226,11 +271,11 @@ export function KanbanOnlineHost({
         </div>
       )}
 
-      {(scope === "all" && !changelogOn) || inboxOn || boardOn ? (
+      {(inboxOn || boardOn) ? (
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {scope === "all" && !changelogOn ? (
+        {scope === "all" && (inboxOn || boardOn) ? (
           <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Leafs
+            {KANBAN_CHROME.labels.leafs}
             <select
               className={chromeSelect}
               value={leafFilter}
@@ -250,7 +295,7 @@ export function KanbanOnlineHost({
         {inboxOn ? (
           <>
             <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-              Sort
+              {KANBAN_CHROME.labels.sort}
               <select
                 className={chromeSelect}
                 value={inboxSort}
@@ -278,7 +323,7 @@ export function KanbanOnlineHost({
               className={chromeBtn("secondary")}
               onClick={() => setInboxMoreOpen(true)}
             >
-              More options
+              {KANBAN_CHROME.labels.more}
             </button>
           </>
         ) : null}
@@ -287,7 +332,7 @@ export function KanbanOnlineHost({
           <>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Layout
+                {KANBAN_CHROME.labels.layout}
               </span>
               <div
                 role="group"
@@ -300,7 +345,7 @@ export function KanbanOnlineHost({
                   className={layoutToggleClass(layout === "columns")}
                   onClick={() => setLayout("columns")}
                 >
-                  Columns
+                  {KANBAN_CHROME.labels.columns}
                 </button>
                 <button
                   type="button"
@@ -308,12 +353,12 @@ export function KanbanOnlineHost({
                   className={layoutToggleClass(layout === "swimlanes")}
                   onClick={() => setLayout("swimlanes")}
                 >
-                  Swimlanes
+                  {KANBAN_CHROME.labels.swimlanes}
                 </button>
               </div>
             </div>
             <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-              Category
+              {KANBAN_CHROME.labels.category}
               <select
                 className={chromeSelect}
                 value={categoryFilter}
@@ -335,7 +380,7 @@ export function KanbanOnlineHost({
               className={chromeBtn("secondary")}
               onClick={() => setBoardMoreOpen(true)}
             >
-              More options
+              {KANBAN_CHROME.labels.more}
             </button>
           </>
         ) : null}
@@ -365,6 +410,15 @@ export function KanbanOnlineHost({
         <div className="flex min-h-0 flex-1 flex-col">
           <KanbanChangelogPanel changelogs={changelogs ?? []} />
         </div>
+      ) : notesOn ? (
+        <KanbanNotesPanel
+          nodeId={actionNodeId}
+          revalidateHref={revalidateHref}
+          notes={notes}
+          onSave={onSaveNotes}
+        />
+      ) : specOn ? (
+        <KanbanDesignSpec />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <KanbanBoard

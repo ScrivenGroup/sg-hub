@@ -16,7 +16,9 @@ import {
   devChoices,
   feedback,
   ideas,
+  kanbanAttachments,
   kanbanIdeas,
+  kanbanLeafNotes,
   kanbanMeta,
   kanbanTickets,
   mrtDams,
@@ -35,9 +37,11 @@ import type {
   KanbanTicket,
 } from "@/core/kanban/schema";
 import {
+  kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
+  type KanbanAttachmentStoreRow,
 } from "@/core/kanban/schema";
 
 export const MRT_LIVE_ID = "live";
@@ -54,6 +58,8 @@ export type MrtShareRow = {
 };
 
 type SimpleSchema = typeof schema;
+
+const DDL_VERSION = 2;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -147,12 +153,29 @@ const DDL = [
     events jsonb NOT NULL,
     lanes jsonb NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS kanban_attachments (
+    id text PRIMARY KEY,
+    idea_id text NOT NULL,
+    node_id text NOT NULL,
+    filename text NOT NULL,
+    mime_type text NOT NULL,
+    byte_size integer NOT NULL,
+    created_at text NOT NULL,
+    bytes bytea NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS kanban_attachments_idea_id ON kanban_attachments (idea_id)`,
+  `CREATE TABLE IF NOT EXISTS kanban_leaf_notes (
+    node_id text PRIMARY KEY,
+    body text NOT NULL,
+    updated_at text NOT NULL
+  )`,
 ];
 
 type PgGlobal = {
   __sgPgSql?: Sql;
   __sgPgDb?: PostgresJsDatabase<SimpleSchema>;
   __sgPgReady?: Promise<void>;
+  __sgPgDdlVersion?: number;
 };
 
 function pgGlobal(): PgGlobal {
@@ -181,7 +204,8 @@ async function getDb(): Promise<PostgresJsDatabase<SimpleSchema>> {
     g.__sgPgSql = postgres(url, { max: 3, prepare: false });
     g.__sgPgDb = drizzle(g.__sgPgSql, { schema });
   }
-  if (!g.__sgPgReady) {
+  if (!g.__sgPgReady || g.__sgPgDdlVersion !== DDL_VERSION) {
+    g.__sgPgDdlVersion = DDL_VERSION;
     g.__sgPgReady = (async () => {
       for (const stmt of DDL) {
         await g.__sgPgSql!.unsafe(stmt);
@@ -595,5 +619,100 @@ export async function pgReplaceKanbanRows(input: {
 export async function pgDeleteKanbanIdea(id: string): Promise<void> {
   const db = await getDb();
   await db.delete(kanbanIdeas).where(eq(kanbanIdeas.id, id));
+}
+
+function attachmentMetaFromRow(
+  row: typeof kanbanAttachments.$inferSelect,
+): KanbanAttachmentStoreRow {
+  return kanbanAttachmentStoreRowSchema.parse({
+    id: row.id,
+    ideaId: row.ideaId,
+    nodeId: row.nodeId,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    byteSize: row.byteSize,
+    createdAt: row.createdAt,
+  });
+}
+
+export async function pgGetKanbanAttachmentMeta(): Promise<KanbanAttachmentStoreRow[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      id: kanbanAttachments.id,
+      ideaId: kanbanAttachments.ideaId,
+      nodeId: kanbanAttachments.nodeId,
+      filename: kanbanAttachments.filename,
+      mimeType: kanbanAttachments.mimeType,
+      byteSize: kanbanAttachments.byteSize,
+      createdAt: kanbanAttachments.createdAt,
+    })
+    .from(kanbanAttachments);
+  return rows.map((row) => kanbanAttachmentStoreRowSchema.parse(row));
+}
+
+export async function pgGetKanbanAttachment(
+  id: string,
+): Promise<{ meta: KanbanAttachmentStoreRow; bytes: Buffer } | null> {
+  const db = await getDb();
+  const rows = await db.select().from(kanbanAttachments).where(eq(kanbanAttachments.id, id));
+  const row = rows[0];
+  if (!row) return null;
+  return { meta: attachmentMetaFromRow(row), bytes: row.bytes };
+}
+
+export async function pgInsertKanbanAttachment(
+  row: KanbanAttachmentStoreRow,
+  bytes: Buffer,
+): Promise<void> {
+  const db = await getDb();
+  await db.insert(kanbanAttachments).values({
+    id: row.id,
+    ideaId: row.ideaId,
+    nodeId: row.nodeId,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    byteSize: row.byteSize,
+    createdAt: row.createdAt,
+    bytes,
+  });
+}
+
+export async function pgDeleteKanbanAttachment(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(kanbanAttachments).where(eq(kanbanAttachments.id, id));
+}
+
+export async function pgRetagKanbanAttachments(ideaId: string, nodeId: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(kanbanAttachments)
+    .set({ nodeId })
+    .where(eq(kanbanAttachments.ideaId, ideaId));
+}
+
+export async function pgGetKanbanLeafNote(nodeId: string): Promise<string> {
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(kanbanLeafNotes)
+    .where(eq(kanbanLeafNotes.nodeId, nodeId))
+    .limit(1);
+  return rows[0]?.body ?? "";
+}
+
+export async function pgUpsertKanbanLeafNote(
+  nodeId: string,
+  body: string,
+  updatedAt: string,
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(kanbanLeafNotes)
+    .values({ nodeId, body, updatedAt })
+    .onConflictDoUpdate({
+      target: kanbanLeafNotes.nodeId,
+      set: { body, updatedAt },
+    });
 }
 

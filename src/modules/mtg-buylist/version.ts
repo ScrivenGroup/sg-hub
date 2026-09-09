@@ -6,8 +6,8 @@
  * - Publish to localhost (dev): 1.x.y — each slice gets its own changelog row.
  * - 2.0 / 3.0 only when the user explicitly says so.
  */
-export const MTG_BUYLIST_VERSION = "1.5.1";
+export const MTG_BUYLIST_VERSION = "1.5.2";
 /** Instant this version shipped (ISO UTC). */
-export const MTG_BUYLIST_VERSION_AT = "2026-09-07T11:00:00.000Z";
+export const MTG_BUYLIST_VERSION_AT = "2026-09-08T12:00:00.000Z";
 /** Fixed Australia/Brisbane display — avoids locale hydration mismatch. */
-export const MTG_BUYLIST_VERSION_WHEN = "7 Sep 2026, 9:00 pm";
+export const MTG_BUYLIST_VERSION_WHEN = "8 Sep 2026, 10:00 pm";

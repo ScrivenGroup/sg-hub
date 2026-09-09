@@ -11,11 +11,14 @@ function newestFirst(a: ChangelogEntry, b: ChangelogEntry) {
 
 /** Later hub Changelog register reads the same `changelogs` store by nodeId / all nodes. */
 export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntry[] }) {
-  const releases = useMemo(
-    () => [...changelogs].filter((row) => row.kind === "release").sort(newestFirst),
+  const rows = useMemo(
+    () =>
+      [...changelogs]
+        .filter((row) => row.kind === "release" || row.kind === "plan")
+        .sort(newestFirst),
     [changelogs],
   );
-  const latestId = releases[0]?.id ?? null;
+  const latestId = rows[0]?.id ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(latestId);
   const activeId = selectedId ?? latestId;
 
@@ -23,10 +26,10 @@ export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntr
     <section className="min-h-0 flex-1 overflow-y-auto">
       <div className="overflow-x-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Releases
+          Versions
         </h2>
-        {releases.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">No release rows yet.</p>
+        {rows.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">No version rows yet.</p>
         ) : (
           <table className="w-full min-w-[28rem] text-left text-sm">
             <thead>
@@ -37,7 +40,7 @@ export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntr
               </tr>
             </thead>
             <tbody>
-              {releases.map((entry) => {
+              {rows.map((entry) => {
                 const active = entry.id === activeId;
                 return (
                   <Fragment key={entry.id}>
@@ -49,7 +52,14 @@ export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntr
                       }`}
                       onClick={() => setSelectedId(entry.id)}
                     >
-                      <td className="py-1.5 font-semibold">{entry.version || "—"}</td>
+                      <td className="py-1.5 font-semibold">
+                        {entry.version || "—"}
+                        {entry.kind === "plan" ? (
+                          <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
+                            plan
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="py-1.5 text-[var(--muted)]">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>

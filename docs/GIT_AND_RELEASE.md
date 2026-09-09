@@ -4,7 +4,7 @@ You speak in product language. The agent maps that to git/deploy.
 
 **Locked (`dc-publish`):** you vibe → Cursor codes → **localhost** → you review → **you say commit** → **you say make it live**. The agent does not commit or deploy until those words.
 
-**Push / merge `main` is not live.** Azure is the shop window. GitHub is the locker.
+**Push / merge `dev_main` is not live.** Fast-forward `main` is the live **git** pointer. Azure is the shop window and still needs the zip.
 
 ## Yard words
 
@@ -13,7 +13,8 @@ You speak in product language. The agent maps that to git/deploy.
 | **Room** | Leaf folder inside one Next.js app (not its own git repo) |
 | **Desk** | Git worktree sibling folder + unique localhost port |
 | **Save-slot** | Branch `wip/<leaf>` |
-| **Station** | `main` — merge here when a room is happy; keep it clean |
+| **Station** | `dev_main` — merge here when a room is happy; keep it clean |
+| **Live lane** | `main` — always most behind; matches Azure after a successful **make it live** |
 | **Locker** | GitHub `ScrivenGroup/sg-hub` — push/pull across devices |
 | **Shop window** | Azure `app-scrivengroup` — only when Bill says **make it live** |
 
@@ -24,40 +25,43 @@ Teaching poster: [`docs/publish-yard.html`](./publish-yard.html). Do not rebuild
 | You say | Agent does |
 | ------- | ---------- |
 | develop / update / frame … | Edit code on **this chat’s desk**. Preview on that desk’s localhost port. **No commit** until you ask |
-| commit / save a snapshot | `git add` + `git commit` on this desk’s branch (never `.env*` / secrets) |
-| push / save to the locker | `git push` to `ScrivenGroup/sg-hub`. **Does not** change Azure |
+| commit / save a snapshot | `git add` + `git commit` **and** `git push` to this desk’s GitHub branch (first time: publish with `-u`). Never `.env*` / secrets. **Does not merge to `dev_main`.** **Does not change Azure.** |
+| merge to station / merge to `dev_main` | Standalone ask. Never implied by commit. |
+| push / save to the locker | `git push` to `ScrivenGroup/sg-hub` if commits are already sitting un-pushed. **Does not** change Azure |
 | is it live yet? | Report localhost vs Azure App Service |
-| make it live / deploy / publish | From **station `main`**: **tag** `hub-*` / `v*` or GitHub **Run workflow** (`Publish shop window`). Cloud: `npm ci` → `build` → `deploy:prepare` → zip → `az webapp deploy` via **OIDC**. Push `main` is **not** live. Hand zip (`deploy:azure`) is fallback. SCM Basic Auth stays Off |
+| make it live / deploy / publish | From **station `dev_main`**: fast-forward **`main`** to `dev_main`, **tag** `hub-*` / `v*` (or GitHub **Run workflow**). Cloud: `npm ci` → `build` → `deploy:prepare` → zip → `az webapp deploy` via **OIDC**. Push `dev_main` is **not** live. Fast-forward `main` without the tag/zip is **not** Azure. Hand zip (`deploy:azure`) from the station folder is fallback. SCM Basic Auth stays Off |
 | roll back / undo that release | `git` revert / older zip; redeploy if live was affected |
 
 ## Locker (already exists)
 
-Private remote: **https://github.com/ScrivenGroup/sg-hub**. `gh` as ScrivenGroup. Local `main` is on the locker.
+Private remote: **https://github.com/ScrivenGroup/sg-hub**. `gh` as ScrivenGroup.
 
 - **One sitting = one `wip/` branch = one device writing.** Other devices pull first.
 - **One chat = one desk.** Worker `move_agent_to_root` to that worktree **before** disk.
 - Do not `git init` inside a leaf folder. A room is not a repo.
-- Never zip-deploy from a wip desk. Publish only from merged `main`.
+- Never zip-deploy from a wip desk. Publish only from merged `dev_main` after you say **make it live** (then `main` + tag).
 
-**Desks:** sibling git worktrees. Port **3000** = station (`scrivengroup` / `main`). Ports **3001+** = desks (`scrivengroup-wip-<leaf>` / `wip/<leaf>`). Add/remove commands: [`docs/YARD_DESKS.md`](./YARD_DESKS.md). `move_agent_to_root` to that desk folder before disk.
+**Desks:** sibling git worktrees. Port **3000** = station (`scrivengroup` / `dev_main`). Ports **3001+** = desks (`scrivengroup-wip-<leaf>` / `wip/<leaf>`). Add/remove commands: [`docs/YARD_DESKS.md`](./YARD_DESKS.md). `move_agent_to_root` to that desk folder before disk.
 
 ## Why this is not Claude’s “push and magic”
 
 Claude’s my-site: GitHub **remote** + **GitHub Actions** on `main` → Azure Static Web Apps.
 
-This hub: locker exists. **Live is still the full zip** onto `app-scrivengroup`. Next.js is **glue + full zip**. Git diffs do not patch Azure. Azure does not apply `git` diffs.
+This hub: locker is GitHub `ScrivenGroup/sg-hub`. **Live is still the full zip** onto `app-scrivengroup`. Next.js is **glue + full zip**. Git diffs do not patch Azure. Pushing a branch is not live.
 
 ## Make it live — `dc-publish`
 
-GitHub Actions on **tag** (`hub-*` / `v*`) or **workflow_dispatch** (Run workflow) builds the same zip and deploys via **OIDC**. **Not** `on: push: branches: [main]`.
+GitHub Actions on **tag** (`hub-*` / `v*`) or **workflow_dispatch** (Run workflow) builds the same zip and deploys via **OIDC**. **Not** `on: push: branches: [main]` and **not** `on: push: branches: [dev_main]`.
 
 | Path | When |
 | --- | --- |
-| Tag `hub-*` or `v*` on station `main` | Spoken **make it live** (preferred) |
+| Fast-forward `main` to `dev_main`, then tag `hub-*` or `v*` | Spoken **make it live** (preferred) |
 | Actions → **Publish shop window** → Run workflow | Same zip, no tag (test or explicit dispatch) |
-| Laptop `deploy:prepare` → `deploy:zip` → `deploy:azure` | Fallback if Actions/OIDC is down |
+| Laptop `deploy:prepare` → `deploy:zip` → `deploy:azure` | Fallback if Actions/OIDC is down (station folder only) |
 
 Never zip-deploy from a wip desk. SCM Basic Auth stays Off. Zip still **excludes** `data/`. Never commit `.env*`.
+
+If a zip lands but `/home/site/wwwroot/.next` stays old (Kanban still the previous chrome), delete that folder via Kudu and zip again from the station. Do not `--clean` the whole wwwroot (that can wipe `data/`).
 
 ## Versions (`dc-versioning`)
 

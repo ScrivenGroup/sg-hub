@@ -1,6 +1,10 @@
 import { formatDeltaSummary, type KanbanDelta } from "./fingerprint";
 import type { KanbanBoard, KanbanInboxNote } from "./schema";
 import { COLUMN_LABELS, LANE_LABELS } from "./schema";
+import {
+  formatAttachmentPromptBlock,
+  type AttachmentPromptFile,
+} from "./attachments";
 
 export function buildSessionPrompt(opts: {
   leafTitle: string;
@@ -9,8 +13,9 @@ export function buildSessionPrompt(opts: {
   idea: KanbanInboxNote;
   board: KanbanBoard;
   delta: KanbanDelta;
+  attachmentFiles?: AttachmentPromptFile[];
 }): string {
-  const { leafTitle, leafHref, nodeId, idea, board, delta } = opts;
+  const { leafTitle, leafHref, nodeId, idea, board, delta, attachmentFiles } = opts;
   const openTickets = board.tickets.filter((t) => t.column !== "archived");
   const ticketLines =
     openTickets.length === 0
@@ -62,7 +67,8 @@ Read before building: \`docs/PLATFORM.md\`, \`docs/DEV_CHOICES.md\`, \`docs/WEB_
 - **body:**
 ${idea.body || "(empty)"}
 
-Do **not** turn this raw note into a single ticket. Split into as many tickets as needed. Each ticket gets a **category** (colour badge / swimlane): experience, structure, behaviour, data, platform. Keep \`sourceIdeaId: "${idea.id}"\`. When those tickets are saved in the session pack, **archive this raw id** (do not delete the note).
+${formatAttachmentPromptBlock(attachmentFiles ?? [])}
+Do **not** turn this raw note into a single ticket. Split into as many tickets as needed. Each ticket gets a **category** (colour badge / swimlane): experience, structure, behaviour, data, platform. Keep \`sourceIdeaId: "${idea.id}"\`. When those tickets are saved in the session pack, **archive this raw id** (do not delete the note). Tickets from this note keep \`sourceIdeaId\`.
 
 ## Current board snapshot (revision ${board.revision})
 ${ticketLines}

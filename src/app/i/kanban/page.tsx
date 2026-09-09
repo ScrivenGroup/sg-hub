@@ -7,7 +7,7 @@ import { hostKindFromHeaders } from "@/core/kanban/host";
 import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { KANBAN_GLOBAL_NODE_ID } from "@/core/kanban/schema";
 import { KanbanOnlineHost } from "@/core/kanban/ui/KanbanOnlineHost";
-import { getChangelogsForNode, getKanbanAllBoard } from "@/core/store/json-store";
+import { getChangelogsForNode, getKanbanAllBoard, getKanbanLeafNotes } from "@/core/store/json-store";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 
@@ -24,9 +24,18 @@ export default async function InternalKanbanPage({
   const params = await searchParams;
   const raw = params.tab;
   const initialTab =
-    raw === "kanban" ? "kanban" : raw === "changelog" ? "changelog" : "inbox";
+    raw === "kanban"
+      ? "kanban"
+      : raw === "changelog"
+        ? "changelog"
+        : raw === "notes"
+          ? "notes"
+          : raw === "spec"
+            ? "spec"
+            : "inbox";
   const board = await getKanbanAllBoard();
   const changelogs = await getChangelogsForNode("i-kanban");
+  const notes = await getKanbanLeafNotes(KANBAN_GLOBAL_NODE_ID);
   const { kind } = hostKindFromHeaders(await headers());
   const node = getNodeByHref("/i/kanban");
   const leafOptions = kanbanLeafOptions();
@@ -61,6 +70,8 @@ export default async function InternalKanbanPage({
         showTabs
         initialTab={initialTab}
         changelogs={changelogs}
+        notes={notes}
+        showDesignSpec
       />
     </AppShell>
   );

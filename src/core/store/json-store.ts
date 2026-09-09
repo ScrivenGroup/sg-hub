@@ -17,10 +17,13 @@ import type {
 } from "@/core/contracts/types";
 import {
   emptyKanbanMeta,
+  kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
   prependEvent,
+  type KanbanAttachmentMeta,
+  type KanbanAttachmentStoreRow,
   type KanbanBoard,
   type KanbanEvent,
   type KanbanInboxNote,
@@ -30,7 +33,13 @@ import {
   KANBAN_GLOBAL_NODE_ID,
 } from "@/core/kanban/schema";
 import { boardFromUnknown } from "@/core/kanban/pack";
-import { missingKanbanSeed } from "@/core/kanban/seed";
+import { applyKanbanHygiene, missingKanbanSeed } from "@/core/kanban/seed";
+import {
+  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_MAX_PER_NOTE,
+  newAttachmentId,
+  safeFilename,
+} from "@/core/kanban/attachments";
 import {
   emptyScheduleStore,
   scheduleStoreSchema,
@@ -69,6 +78,13 @@ import {
   pgUpsertKanbanIdea,
   pgUpsertKanbanTicket,
   pgUpsertKanbanMeta,
+  pgGetKanbanAttachmentMeta,
+  pgGetKanbanAttachment,
+  pgInsertKanbanAttachment,
+  pgDeleteKanbanAttachment,
+  pgRetagKanbanAttachments,
+  pgGetKanbanLeafNote,
+  pgUpsertKanbanLeafNote,
 } from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
@@ -502,6 +518,60 @@ export async function saveMtgBuylistStore(
   await writeJson(mtgBuylistFile(userKey), parsed);
 }
 
+function ideaRowForDisk(idea: KanbanInboxNote): KanbanInboxNote {
+  return {
+    id: idea.id,
+    nodeId: idea.nodeId,
+    title: idea.title,
+    body: idea.body,
+    status: idea.status,
+    createdAt: idea.createdAt,
+    updatedAt: idea.updatedAt,
+    copiedAt: idea.copiedAt ?? null,
+  };
+}
+
+function metaFromIdeaAttachments(
+  rows: KanbanAttachmentStoreRow[],
+  ideaId: string,
+): KanbanAttachmentMeta[] {
+  return rows
+    .filter((row) => row.ideaId === ideaId)
+    .map((row) => ({
+      id: row.id,
+      filename: row.filename,
+      mimeType: row.mimeType,
+      byteSize: row.byteSize,
+      createdAt: row.createdAt,
+    }));
+}
+
+async function loadAttachmentRowsFromJson(): Promise<KanbanAttachmentStoreRow[]> {
+  const raw = await readJsonIfExists(path.join("kanban", "attachments.json"));
+  if (!Array.isArray(raw)) return [];
+  const out: KanbanAttachmentStoreRow[] = [];
+  for (const row of raw) {
+    const parsed = kanbanAttachmentStoreRowSchema.safeParse(row);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
+
+async function loadAttachmentRows(): Promise<KanbanAttachmentStoreRow[]> {
+  if (postgresEnabled()) return pgGetKanbanAttachmentMeta();
+  return loadAttachmentRowsFromJson();
+}
+
+async function persistAttachmentMeta(rows: KanbanAttachmentStoreRow[]): Promise<void> {
+  if (!postgresEnabled() || dualWriteJson()) {
+    await writeJson(path.join("kanban", "attachments.json"), rows);
+  }
+}
+
+function attachmentBinPath(id: string): string {
+  return path.join(dataDir, "kanban", "attachments", `${id}.bin`);
+}
+
 function kanbanRowFile(name: "ideas.json" | "tickets.json" | "meta.json") {
   return path.join("kanban", name);
 }
@@ -646,39 +716,47 @@ function applyKanbanSeedToBundle(bundle: KanbanRowBundle): boolean {
     ideaIds: new Set(bundle.ideas.map((row) => row.id)),
     ticketIds: new Set(bundle.tickets.map((row) => row.id)),
   });
-  if (missing.ideas.length === 0 && missing.tickets.length === 0) return false;
-  const now = new Date().toISOString();
-  bundle.ideas.push(...missing.ideas);
-  bundle.tickets.push(...missing.tickets);
-  const nodeIds = new Set<string>();
-  for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
-  for (const ticket of missing.tickets) nodeIds.add(ticket.nodeId);
-  for (const nodeId of nodeIds) {
-    const current =
-      bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
-    upsertMeta(bundle.meta, {
-      ...current,
-      revision: current.revision + 1,
-      updatedAt: now,
-      events: prependEvent(current.events, {
-        at: now,
-        kind: "inbox",
-        summary: `Seeded ${missing.ideas.filter((i) => i.nodeId === nodeId).length} inbox note(s) and ${missing.tickets.filter((t) => t.nodeId === nodeId).length} ticket(s) from the live zip.`,
-      }),
-    });
+  let changed = missing.ideas.length > 0 || missing.tickets.length > 0;
+  if (changed) {
+    const now = new Date().toISOString();
+    bundle.ideas.push(...missing.ideas);
+    bundle.tickets.push(...missing.tickets);
+    const nodeIds = new Set<string>();
+    for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
+    for (const ticket of missing.tickets) nodeIds.add(ticket.nodeId);
+    for (const nodeId of nodeIds) {
+      const current =
+        bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
+      upsertMeta(bundle.meta, {
+        ...current,
+        revision: current.revision + 1,
+        updatedAt: now,
+        events: prependEvent(current.events, {
+          at: now,
+          kind: "inbox",
+          summary: `Seeded ${missing.ideas.filter((i) => i.nodeId === nodeId).length} inbox note(s) and ${missing.tickets.filter((t) => t.nodeId === nodeId).length} ticket(s) from the live zip.`,
+        }),
+      });
+    }
   }
-  return true;
+  if (applyKanbanHygiene(bundle)) changed = true;
+  return changed;
 }
 
-function assembleKanbanBoard(nodeId: string, bundle: KanbanRowBundle): KanbanBoard {
+function assembleKanbanBoard(
+  nodeId: string,
+  bundle: KanbanRowBundle,
+  attachments: KanbanAttachmentStoreRow[],
+): KanbanBoard {
   const meta =
     bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
-  return boardFromRows(
-    nodeId,
-    bundle.ideas.filter((row) => row.nodeId === nodeId),
-    bundle.tickets.filter((row) => row.nodeId === nodeId),
-    meta,
-  );
+  const ideas = bundle.ideas
+    .filter((row) => row.nodeId === nodeId)
+    .map((idea) => ({
+      ...idea,
+      attachments: metaFromIdeaAttachments(attachments, idea.id),
+    }));
+  return boardFromRows(nodeId, ideas, bundle.tickets.filter((row) => row.nodeId === nodeId), meta);
 }
 
 async function loadKanbanFromJsonFiles(): Promise<{
@@ -701,7 +779,10 @@ async function persistKanbanBundle(bundle: KanbanRowBundle): Promise<void> {
     for (const row of bundle.tickets) await pgUpsertKanbanTicket(row);
     for (const row of bundle.meta) await pgUpsertKanbanMeta(row);
   }
-  await persistSimpleJson(kanbanRowFile("ideas.json"), bundle.ideas);
+  await persistSimpleJson(
+    kanbanRowFile("ideas.json"),
+    bundle.ideas.map(ideaRowForDisk),
+  );
   await persistSimpleJson(kanbanRowFile("tickets.json"), bundle.tickets);
   await persistSimpleJson(kanbanRowFile("meta.json"), bundle.meta);
 }
@@ -738,11 +819,13 @@ async function loadKanbanRows(): Promise<KanbanRowBundle> {
 
 export async function getKanbanBoard(nodeId: string): Promise<KanbanBoard> {
   const bundle = await loadKanbanRows();
-  return assembleKanbanBoard(nodeId, bundle);
+  const attachments = await loadAttachmentRows();
+  return assembleKanbanBoard(nodeId, bundle, attachments);
 }
 
 export async function getKanbanAllBoard(): Promise<KanbanBoard> {
   const bundle = await loadKanbanRows();
+  const attachments = await loadAttachmentRows();
   const globalMeta =
     bundle.meta.find((row) => row.nodeId === KANBAN_GLOBAL_NODE_ID) ??
     emptyKanbanMeta(KANBAN_GLOBAL_NODE_ID);
@@ -750,7 +833,11 @@ export async function getKanbanAllBoard(): Promise<KanbanBoard> {
     (max, row) => Math.max(max, row.revision),
     globalMeta.revision,
   );
-  return boardFromRows(KANBAN_GLOBAL_NODE_ID, bundle.ideas, bundle.tickets, {
+  const ideas = bundle.ideas.map((idea) => ({
+    ...idea,
+    attachments: metaFromIdeaAttachments(attachments, idea.id),
+  }));
+  return boardFromRows(KANBAN_GLOBAL_NODE_ID, ideas, bundle.tickets, {
     ...globalMeta,
     revision,
   });
@@ -758,33 +845,142 @@ export async function getKanbanAllBoard(): Promise<KanbanBoard> {
 
 export async function saveKanbanBoard(board: KanbanBoard): Promise<void> {
   const bundle = await loadKanbanRows();
-  for (const idea of board.ideas) upsertRow(bundle.ideas, idea);
+  for (const idea of board.ideas) upsertRow(bundle.ideas, ideaRowForDisk(idea));
   for (const ticket of board.tickets) upsertRow(bundle.tickets, ticket);
   upsertMeta(bundle.meta, metaFromBoard(board));
   await persistKanbanBundle(bundle);
 }
 
+type LeafNotesFile = Record<string, { body: string; updatedAt: string }>;
+
+export async function getKanbanLeafNotes(nodeId: string): Promise<string> {
+  if (postgresEnabled()) return pgGetKanbanLeafNote(nodeId);
+  const all = await readJson("kanban/leaf-notes.json", {} as LeafNotesFile);
+  return all[nodeId]?.body ?? "";
+}
+
+export async function saveKanbanLeafNotes(nodeId: string, body: string): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  if (postgresEnabled()) await pgUpsertKanbanLeafNote(nodeId, body, updatedAt);
+  if (!postgresEnabled() || dualWriteJson()) {
+    const all = await readJson("kanban/leaf-notes.json", {} as LeafNotesFile);
+    all[nodeId] = { body, updatedAt };
+    await persistSimpleJson("kanban/leaf-notes.json", all);
+  }
+}
+
 export async function upsertKanbanIdea(idea: KanbanInboxNote): Promise<void> {
   const bundle = await loadKanbanRows();
-  upsertRow(bundle.ideas, idea);
+  upsertRow(bundle.ideas, ideaRowForDisk(idea));
   bumpKanbanMeta(bundle, idea.nodeId, {
     at: idea.updatedAt,
     kind: "inbox",
     summary: `Saved raw ${idea.id}`,
   });
   await persistKanbanBundle(bundle);
+  await retagKanbanAttachments(idea.id, idea.nodeId);
 }
 
 export async function getKanbanIdeaById(
   id: string,
 ): Promise<KanbanInboxNote | null> {
   const bundle = await loadKanbanRows();
-  return bundle.ideas.find((row) => row.id === id) ?? null;
+  const idea = bundle.ideas.find((row) => row.id === id);
+  if (!idea) return null;
+  const attachments = await loadAttachmentRows();
+  return { ...idea, attachments: metaFromIdeaAttachments(attachments, idea.id) };
 }
 
 export async function listKanbanIdeas(): Promise<KanbanInboxNote[]> {
   const bundle = await loadKanbanRows();
   return bundle.ideas.slice();
+}
+
+export async function listKanbanAttachmentMeta(): Promise<KanbanAttachmentStoreRow[]> {
+  return loadAttachmentRows();
+}
+
+export async function getKanbanAttachment(
+  id: string,
+): Promise<{ meta: KanbanAttachmentStoreRow; bytes: Buffer } | null> {
+  if (postgresEnabled()) return pgGetKanbanAttachment(id);
+  const rows = await loadAttachmentRows();
+  const meta = rows.find((row) => row.id === id);
+  if (!meta) return null;
+  try {
+    const bytes = await fs.readFile(attachmentBinPath(id));
+    return { meta, bytes };
+  } catch {
+    return null;
+  }
+}
+
+export async function addKanbanAttachment(input: {
+  ideaId: string;
+  filename: string;
+  mimeType: string;
+  bytes: Buffer;
+}): Promise<KanbanAttachmentStoreRow> {
+  const idea = await getKanbanIdeaById(input.ideaId);
+  if (!idea) throw new Error("Inbox note not found");
+  const existing = (await loadAttachmentRows()).filter((row) => row.ideaId === input.ideaId);
+  if (existing.length >= ATTACHMENT_MAX_PER_NOTE) {
+    throw new Error(`At most ${ATTACHMENT_MAX_PER_NOTE} files per note`);
+  }
+  if (input.bytes.length > ATTACHMENT_MAX_BYTES) {
+    throw new Error("File is over 8 MB");
+  }
+  const row: KanbanAttachmentStoreRow = {
+    id: newAttachmentId(),
+    ideaId: idea.id,
+    nodeId: idea.nodeId,
+    filename: safeFilename(input.filename),
+    mimeType: input.mimeType,
+    byteSize: input.bytes.length,
+    createdAt: new Date().toISOString(),
+  };
+  if (postgresEnabled()) {
+    await pgInsertKanbanAttachment(row, input.bytes);
+  }
+  if (!postgresEnabled() || dualWriteJson()) {
+    const rows = await loadAttachmentRowsFromJson();
+    if (!rows.some((item) => item.id === row.id)) rows.push(row);
+    await persistAttachmentMeta(rows);
+    await fs.mkdir(path.dirname(attachmentBinPath(row.id)), { recursive: true });
+    await fs.writeFile(attachmentBinPath(row.id), input.bytes);
+  }
+  return row;
+}
+
+export async function deleteKanbanAttachment(id: string): Promise<boolean> {
+  const existing = await getKanbanAttachment(id);
+  if (!existing) return false;
+  if (postgresEnabled()) await pgDeleteKanbanAttachment(id);
+  if (!postgresEnabled() || dualWriteJson()) {
+    const rows = (await loadAttachmentRowsFromJson()).filter((row) => row.id !== id);
+    await persistAttachmentMeta(rows);
+    try {
+      await fs.unlink(attachmentBinPath(id));
+    } catch {
+      // bin already gone
+    }
+  }
+  return true;
+}
+
+export async function retagKanbanAttachments(ideaId: string, nodeId: string): Promise<void> {
+  if (postgresEnabled()) await pgRetagKanbanAttachments(ideaId, nodeId);
+  if (!postgresEnabled() || dualWriteJson()) {
+    const rows = await loadAttachmentRowsFromJson();
+    let changed = false;
+    for (const row of rows) {
+      if (row.ideaId === ideaId && row.nodeId !== nodeId) {
+        row.nodeId = nodeId;
+        changed = true;
+      }
+    }
+    if (changed) await persistAttachmentMeta(rows);
+  }
 }
 
 export async function upsertChangelogEntries(

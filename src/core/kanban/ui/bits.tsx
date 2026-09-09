@@ -1,4 +1,5 @@
 import type { LivePresence } from "../fingerprint";
+import { KANBAN_CHROME } from "../chrome";
 import { COLUMN_ACCENT } from "../schema";
 
 export const PRESENCE_LABEL: Record<LivePresence, string> = {
@@ -73,7 +74,7 @@ export function HatInbox() {
       className="inline-block shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium"
       style={{ color: COLUMN_ACCENT.inbox, borderColor: COLUMN_ACCENT.inbox }}
     >
-      Inbox
+      {KANBAN_CHROME.labels.inbox}
     </span>
   );
 }
