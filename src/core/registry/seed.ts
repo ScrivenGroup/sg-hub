@@ -561,6 +561,20 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.1",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "1.5.1",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "1.5.1 — Development uses the Kanban template (localhost)",
+    body: `## Localhost
+
+- Development is the shared Kanban Online host: Inbox, board, Changelog, Notes, Raise tagged to Buylist.
+- Parser fixture check stays under Testing.
+- Per-login notes still save on the buylist store. Not live until make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
@@ -894,6 +908,16 @@ Out of this version
 - Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
   },
   {
+    id: "cl-sunwater-mrt-dev-template",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "Development tab uses the Kanban template (localhost)",
+    body: `- Staff Development is the shared Kanban Online host (Inbox, board, Changelog, Notes, Raise tagged to MRT).
+- Notes still save on the live plan (openNotes). Guests do not see Development.
+- Not live until make it live.`,
+  },
+  {
     id: "cl-kanban-online-0.0.1",
     nodeId: "i-kanban",
     kind: "plan",
@@ -981,6 +1005,20 @@ Out of this version
 - Inbox, column tabs, Changelog, and Raise an idea are on the live origin.
 - Same changelogs store (nodeId i-kanban). 0.1.1–0.1.5 ids unchanged.
 - Whole app zip (Kanban cannot ship alone). Laptop data/ not in the zip.`,
+  },
+  {
+    id: "cl-kanban-online-0.0.2",
+    nodeId: "i-kanban",
+    kind: "plan",
+    version: "0.0.2",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    title: "Development template + Notes + Design spec (localhost WIP)",
+    body: `Kanban Online plan 0.0.2. Localhost / save-slot wip/kanban only. Not live.
+
+- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes, Raise).
+- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec tab is only on /i/kanban.
+- Notes persist in kanban_leaf_notes (Neon when DATABASE_URL is set).
+- Buylist and MRT Development embed the same host. Sketched leaves stay changelog-only.`,
   },
 ];
 

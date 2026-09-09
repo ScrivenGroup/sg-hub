@@ -397,3 +397,9 @@ export const kanbanAttachments = pgTable("kanban_attachments", {
   createdAt: text("created_at").notNull(),
   bytes: bytea("bytes").notNull(),
 });
+
+export const kanbanLeafNotes = pgTable("kanban_leaf_notes", {
+  nodeId: text("node_id").primaryKey(),
+  body: text("body").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
+import type { DevHostKind } from "@/core/kanban/host";
+import type { KanbanBoard } from "@/core/kanban/schema";
 import { saveSunwaterMrtStoreAction, saveGuestMrtSandboxAction, resetMrtSandboxAction } from "../actions";
 import type { ScheduleStore } from "../schema";
 import { AdminTab } from "./AdminTab";
@@ -36,12 +38,16 @@ export function MrtWorkspace({
   showDevelopment,
   readOnly = false,
   sandbox = false,
+  board,
+  hostKind,
 }: {
   initialStore: ScheduleStore;
   changelogs: ChangelogEntry[];
   showDevelopment: boolean;
   readOnly?: boolean;
   sandbox?: boolean;
+  board: KanbanBoard;
+  hostKind: DevHostKind;
 }) {
   const tabs = showDevelopment && !readOnly
     ? ([...BASE_TABS, "Admin", "Development"] as const)
@@ -295,6 +301,8 @@ export function MrtWorkspace({
           changelogs={changelogs}
           store={store}
           onChange={persist}
+          board={board}
+          hostKind={hostKind}
         />
       ) : null}
       </div>

@@ -7,6 +7,7 @@ import {
   getKanbanIdeaById,
   listKanbanIdeas,
   saveKanbanBoard,
+  saveKanbanLeafNotes,
   upsertChangelogEntries,
   upsertKanbanIdea,
 } from "@/core/store/json-store";
@@ -214,4 +215,16 @@ export async function setLiveBaselineFromThisBoardAction(
   };
   await persist(next, revalidateHref);
   return { ok: true as const, board: next };
+}
+
+export async function saveKanbanLeafNotesAction(
+  nodeId: string,
+  revalidateHref: string,
+  body: string,
+) {
+  const staff = await requireStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  await saveKanbanLeafNotes(nodeId, body);
+  revalidateKanban(revalidateHref);
+  return { ok: true as const };
 }

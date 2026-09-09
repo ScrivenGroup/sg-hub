@@ -64,7 +64,7 @@ Treat as its own job (`dc-sessions`).
 
 Simple registers → zip exclude → live migrate of those files → **then** MRT design + MRT migrate.
 
-**Kanban Online (2026-09-05):** `kanban_ideas` + `kanban_tickets` (+ `kanban_meta`) rows with `node_id`. Not JSONB-per-leaf. Same `DATABASE_URL`. JSON fallback mirrors columns. Not deployed until Bill says.
+**Kanban Online (2026-09-05):** `kanban_ideas` + `kanban_tickets` (+ `kanban_meta`) rows with `node_id`. Leaf scratchpad: `kanban_leaf_notes`. Not JSONB-per-leaf. Same `DATABASE_URL`. JSON fallback mirrors columns. Not deployed until Bill says.
 
 ---
 

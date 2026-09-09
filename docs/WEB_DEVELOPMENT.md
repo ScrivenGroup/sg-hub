@@ -30,7 +30,7 @@ Every **leaf** (not every inner tab) eventually has:
 
 | Element | Rule | Today (gap) |
 | ------- | ---- | ----------- |
-| **Development** | A Development surface with (1) changelog / plan and (2) a **bulk text notes** area for that leaf. | MRT has both. Sketched leaves show changelog on the shell only; notes are missing. Add notes when the leaf leaves `sketched`. |
+| **Development** | When a leaf leaves `sketched`, its Development surface is **Kanban Online** (`KanbanOnlineHost`): Raise (leaf-tagged), Inbox, board, Changelog, Notes. Relabel in `src/core/kanban/chrome.ts`. Design spec tab is **only** on global `/i/kanban`. Sketched shells: changelog on the shell only — no fake Kanban. | Template is `/i/kanban`. Buylist and MRT Development use the host. Other live/building leaves still to roll on. |
 | **Versions** | Show **numeric version + datetime** in the leaf header when `live` / shipping (MRT pattern). Changelog rows carry `version` + `createdAt`. **MTG Buylist:** each live update increments 1.x → 1.(x+1). In-dev patches will be 1.x.y. Major N.0 only when asked. | MRT yes. Buylist 1.2. Other leaves: changelog dates only until first release. |
 | **Feedback** | Global header (and mobile FAB) **always** has Feedback. Writes **one** register: `/i/feedback` + `data/feedback.json` (Postgres after cutover). Guests may be excluded (MRT). | Done in `AppShell`. |
 | **Site map / fast travel** | **Site network** in chrome is the fast-travel map (Home → Hubs → cards). Definition is the same map for reading. Product interiors are inside a card, not extra map nodes (v1). | Done. Do not invent a second sitemap widget. |

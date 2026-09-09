@@ -2,7 +2,7 @@ import { COLUMN_FILTERS, type ColumnFilterId } from "./schema";
 
 export type DevHostKind = "live" | "localhost" | "other";
 
-export type DevTab = "changelog" | "notes" | "testing" | "inbox" | ColumnFilterId;
+export type DevTab = "changelog" | "notes" | "testing" | "inbox" | "spec" | ColumnFilterId;
 
 const COLUMN_IDS = new Set<string>(COLUMN_FILTERS.map((f) => f.id));
 
@@ -11,7 +11,13 @@ export function isBoardDevTab(tab: DevTab): tab is ColumnFilterId {
 }
 
 export function parseDevTab(raw: string | undefined): DevTab {
-  if (raw === "notes" || raw === "testing" || raw === "changelog" || raw === "inbox") {
+  if (
+    raw === "notes" ||
+    raw === "testing" ||
+    raw === "changelog" ||
+    raw === "inbox" ||
+    raw === "spec"
+  ) {
     return raw;
   }
   if (raw === "kanban") return "all";

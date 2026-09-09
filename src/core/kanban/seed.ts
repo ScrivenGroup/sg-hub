@@ -135,9 +135,9 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
     nodeId: "global",
     title: "Raise an Idea leaf tag",
     body: "Leaf tag should be a label until click, then the Site-network tree in a nested popup. Details box grows. Save/Cancel always visible. Same on Inbox edit.",
-    status: "open",
+    status: "archived",
     createdAt: "2026-09-07T02:00:00.000Z",
-    updatedAt: "2026-09-07T02:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
     copiedAt: null,
   },
   {
@@ -145,9 +145,9 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
     nodeId: "global",
     title: "Kanban Online tag colour",
     body: "i-kanban code is pink D45A78. Internal hub is 4A8FDC. Badge should be a blue tint of Internal, not pink.",
-    status: "open",
+    status: "archived",
     createdAt: "2026-09-07T02:10:00.000Z",
-    updatedAt: "2026-09-07T02:10:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
     copiedAt: null,
   },
   {
@@ -165,10 +165,20 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
     nodeId: "global",
     title: "Attachment verify note",
     body: "Verify screenshot + CSV attachments persist after reload.",
-    status: "open",
+    status: "archived",
     createdAt: "2026-09-07T06:47:41.655Z",
-    updatedAt: "2026-09-07T10:46:31.794Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
     copiedAt: "2026-09-07T06:49:32.526Z",
+  },
+  {
+    id: "IN-20260908-02",
+    nodeId: "global",
+    title: "Kanban as Development template",
+    body: "Kanban Online is the template for other leaves' Development tabs: Raise (leaf-tagged), Inbox, board, Changelog, Notes. Design spec (labels, width, Raise, colours) lives only on global /i/kanban. Relabel in chrome.ts so every copy follows. New leaves get this host when they leave sketched. Design Library apply-to-all is later.",
+    status: "archived",
+    createdAt: "2026-09-08T02:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+    copiedAt: null,
   },
 ];
 
@@ -206,6 +216,61 @@ const GLOBAL_DONE_TICKETS: KanbanTicket[] = [
     createdAt: "2026-09-07T06:10:00.000Z",
     updatedAt: "2026-09-07T06:20:00.000Z",
   },
+  {
+    id: "kt-kanban-dev-template",
+    nodeId: "global",
+    title: "Development tab = Kanban Online host",
+    body: "Leaves that have left sketched use KanbanOnlineHost: Inbox, board, Changelog, Notes, Raise tagged to the leaf. Sketched shells stay changelog-only. Design spec tab is global /i/kanban only.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-chrome-tokens",
+    nodeId: "global",
+    title: "Kanban chrome labels in one file",
+    body: "Copy and layout notes live in src/core/kanban/chrome.ts (KANBAN_CHROME). Relabel there; every host follows. Not the Design Library atlas.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-design-spec",
+    nodeId: "global",
+    title: "Design spec tab on /i/kanban only",
+    body: "Global Kanban Online shows a Design spec tab that documents chrome.ts. Leaf Development embeds do not show it.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-rollout-buylist",
+    nodeId: "p-mtg-buylist",
+    title: "Buylist Development uses the Kanban host",
+    body: "MTG Buylist Development is the shared host (Inbox, board, Changelog, Notes, Raise). Parser fixture check stays a Testing extra. Per-login notes still save via the buylist store.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
+  {
+    id: "kt-kanban-rollout-mrt",
+    nodeId: "w-sunwater-mrt",
+    title: "MRT Development uses the Kanban host",
+    body: "Sunwater MRT Development tab embeds KanbanOnlineHost. Notes still save on the plan store openNotes field. Staff-only; guests do not see Development.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-02",
+    createdAt: "2026-09-08T12:00:00.000Z",
+    updatedAt: "2026-09-08T12:00:00.000Z",
+  },
 ];
 
 const HUB_DECISIONS_TICKETS: KanbanTicket[] = [
@@ -228,13 +293,11 @@ Chat: persistence / hub-decisions pack (close that thread).`,
     id: "kt-db-phase0-neon",
     nodeId: "global",
     title: "You: confirm Neon / DATABASE_URL",
-    body: `Outside Cursor. Do not paste the connection string into chat.
+    body: `Done on the laptop: DATABASE_URL is in gitignored .env.local on the desks; localhost Kanban writes Neon. Do not paste the connection string into chat.
 
-Confirm the Postgres behind Azure App Setting DATABASE_URL on app-scrivengroup is the project you want. Optional: a Neon branch you can wipe. az login still required until GitHub Actions exists.
-
-Blocks confidence in kt-db-make-live, not the code itself.`,
+Make it live (kt-db-make-live) is still the Azure zip so App Service uses the same URL.`,
     lane: "data",
-    column: "open",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
@@ -295,11 +358,9 @@ Card: hub (app-scrivengroup) is owned by Cursor; do not zip-deploy the hub from 
     id: "kt-leaf-dev-notes",
     nodeId: "global",
     title: "Development tab + bulk notes on every leaf",
-    body: `dc-leaf-contract target, not done. MRT already has changelog + openNotes. Sketched leaves: changelog on the shell only.
-
-When a leaf leaves sketched: Development surface with changelog/plan and a bulk text notes area; shipping versions show number + datetime. Do not fake it on sketched shells. Handbook: docs/WEB_DEVELOPMENT.md.`,
+    body: `Done as the Kanban Online host: Inbox, board, Changelog, Notes, Raise. Notes persist (kanban_leaf_notes, or a leaf callback). Sketched shells stay changelog-only. Handbook: docs/WEB_DEVELOPMENT.md.`,
     lane: "experience",
-    column: "later",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
@@ -308,14 +369,45 @@ When a leaf leaves sketched: Development surface with changelog/plan and a bulk 
     id: "kt-commit-decisions-pack",
     nodeId: "global",
     title: "Commit hub-decisions pack and related canon docs",
-    body: `Git only when you say commit (now also pushes). Files from the persistence/decisions chat: docs/hub-decisions-pack.html, WEB_DEVELOPMENT.md, NEON_CUTOVER.md, GREAT_MERGING.md, TWO_AGENTS.md, GIT_AND_RELEASE.md, DEV_CHOICES.md, .cursor/rules/hub-web-dev.mdc, two-agents.mdc, seed dc-* rows.
-
-Not a reason to zip-deploy. Teaching mudmaps in docs/mudmap/ may be committed or left untracked — your call.`,
+    body: `Done on the WIP/main catch-up. Canon docs and dc-* rows are in git. Not a reason to zip-deploy.`,
     lane: "platform",
-    column: "open",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-git-three-lane",
+    nodeId: "global",
+    title: "Git race: live lane vs station vs wip desks",
+    body: `Yard sitting — not the Kanban template chat. Bill's picture: three lanes, live always last.
+
+Lanes (Bill's words)
+- main = live, always most behind, matches Azure.
+- main_dev = latest combination ready to go live, held for QA, second last.
+- wip/<leaf> = per-leaf desks (kanban, buylist, …), ahead of both.
+
+Today's names (locked dc-publish) — same jobs, different labels
+- Live / most behind = Azure app-scrivengroup (shop window). Not a git branch. Last zip only. Push/merge main does not restock it.
+- QA combination / second last = git main (station, orange cloud). Merge here when a room is happy.
+- Leaf desks = wip/<leaf> (purple/pink clouds). Commit+push stays on that branch.
+
+Why it felt broken (2026-09-09)
+- Localhost :3001 = this folder including dirty files (blue badge, Design spec, new Raise).
+- origin/main and origin/wip/kanban were the same commit; 20 uncommitted files ahead of both.
+- Live still pink / old Raise because make-it-live has not run since that zip.
+
+Bake-in later (pick one in the yard sitting; do not mix with Kanban WIP)
+1. Rename: git main = live; add main_dev (or develop) as station; port 3000 sits on main_dev; make-it-live fast-forwards main and zips.
+2. Keep git main as station; add a live git ref that only moves after a successful zip. Least disruption.
+Do not invent a third GitHub repo. Still: never zip from a wip desk; commit does not imply merge; merge does not imply live.
+
+Touch: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc. New sitting, new chat. Prompt is in that chat's first message (copy from the 9 Sep Kanban thread).`,
+    lane: "platform",
+    column: "open",
+    sourceIdeaId: null,
+    createdAt: "2026-09-09T00:00:00.000Z",
+    updatedAt: "2026-09-09T00:00:00.000Z",
   },
 ];
 
@@ -330,6 +422,69 @@ const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTic
     tickets: HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "w-sunwater-mrt"),
   },
 };
+
+const HYGIENE_IDEA_IDS = new Set([
+  "IN-20260907-02",
+  "IN-20260907-03",
+  "IN-20260907-05",
+  "IN-20260908-02",
+]);
+
+const HYGIENE_TICKET_IDS = new Set([
+  "kt-db-phase0-neon",
+  "kt-commit-decisions-pack",
+  "kt-leaf-dev-notes",
+  "kt-kanban-dev-template",
+  "kt-kanban-chrome-tokens",
+  "kt-kanban-design-spec",
+  "kt-kanban-rollout-buylist",
+  "kt-kanban-rollout-mrt",
+]);
+
+function allSeedIdeas(): KanbanInboxNote[] {
+  return Object.values(BOARD_SEEDS).flatMap((seed) => seed.ideas);
+}
+
+function allSeedTickets(): KanbanTicket[] {
+  return Object.values(BOARD_SEEDS).flatMap((seed) => seed.tickets);
+}
+
+/** Archive / Done patches for ids that already exist on Neon (seed merge does not overwrite). */
+export function applyKanbanHygiene(bundle: {
+  ideas: KanbanInboxNote[];
+  tickets: KanbanTicket[];
+}): boolean {
+  const ideaSeed = new Map(allSeedIdeas().map((row) => [row.id, row]));
+  const ticketSeed = new Map(allSeedTickets().map((row) => [row.id, row]));
+  let changed = false;
+  for (const idea of bundle.ideas) {
+    if (!HYGIENE_IDEA_IDS.has(idea.id)) continue;
+    const seed = ideaSeed.get(idea.id);
+    if (!seed) continue;
+    if (idea.status !== seed.status) {
+      idea.status = seed.status;
+      idea.updatedAt = seed.updatedAt;
+      changed = true;
+    }
+  }
+  for (const ticket of bundle.tickets) {
+    if (!HYGIENE_TICKET_IDS.has(ticket.id)) continue;
+    const seed = ticketSeed.get(ticket.id);
+    if (!seed) continue;
+    if (
+      ticket.column !== seed.column ||
+      ticket.title !== seed.title ||
+      ticket.body !== seed.body
+    ) {
+      ticket.column = seed.column;
+      ticket.title = seed.title;
+      ticket.body = seed.body;
+      ticket.updatedAt = seed.updatedAt;
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 /** Add missing seeded ids across the whole row set (retag must not re-seed). */
 export function missingKanbanSeed(existing: {

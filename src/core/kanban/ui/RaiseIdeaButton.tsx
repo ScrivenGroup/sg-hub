@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShellModal } from "@/core/shell/ShellModal";
+import { KANBAN_CHROME } from "../chrome";
 import { addInboxNoteAction } from "../actions";
 import { ATTACHMENT_MAX_PER_NOTE } from "../attachments";
 import type { KanbanLeafOption } from "../leaves";
@@ -66,7 +67,7 @@ export function RaiseIdeaButton({
   return (
     <>
       <button type="button" className={triggerClassName} onClick={openModal}>
-        Raise an idea
+        {KANBAN_CHROME.labels.raise}
       </button>
       {flash ? (
         <span className="text-xs text-[var(--muted)]">
@@ -132,7 +133,7 @@ export function RaiseIdeaButton({
         }
       >
         <h2 id="raise-idea-chrome" className="mb-2 shrink-0 font-medium">
-          Raise an idea
+          {KANBAN_CHROME.labels.raise}
         </h2>
         <p className="mb-3 shrink-0 text-sm text-[var(--muted)]">
           Raw observation. Not a ticket. Lands in Inbox until a session splits it into tickets.

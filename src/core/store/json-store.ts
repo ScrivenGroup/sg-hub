@@ -33,7 +33,7 @@ import {
   KANBAN_GLOBAL_NODE_ID,
 } from "@/core/kanban/schema";
 import { boardFromUnknown } from "@/core/kanban/pack";
-import { missingKanbanSeed } from "@/core/kanban/seed";
+import { applyKanbanHygiene, missingKanbanSeed } from "@/core/kanban/seed";
 import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_PER_NOTE,
@@ -83,6 +83,8 @@ import {
   pgInsertKanbanAttachment,
   pgDeleteKanbanAttachment,
   pgRetagKanbanAttachments,
+  pgGetKanbanLeafNote,
+  pgUpsertKanbanLeafNote,
 } from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
@@ -714,28 +716,31 @@ function applyKanbanSeedToBundle(bundle: KanbanRowBundle): boolean {
     ideaIds: new Set(bundle.ideas.map((row) => row.id)),
     ticketIds: new Set(bundle.tickets.map((row) => row.id)),
   });
-  if (missing.ideas.length === 0 && missing.tickets.length === 0) return false;
-  const now = new Date().toISOString();
-  bundle.ideas.push(...missing.ideas);
-  bundle.tickets.push(...missing.tickets);
-  const nodeIds = new Set<string>();
-  for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
-  for (const ticket of missing.tickets) nodeIds.add(ticket.nodeId);
-  for (const nodeId of nodeIds) {
-    const current =
-      bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
-    upsertMeta(bundle.meta, {
-      ...current,
-      revision: current.revision + 1,
-      updatedAt: now,
-      events: prependEvent(current.events, {
-        at: now,
-        kind: "inbox",
-        summary: `Seeded ${missing.ideas.filter((i) => i.nodeId === nodeId).length} inbox note(s) and ${missing.tickets.filter((t) => t.nodeId === nodeId).length} ticket(s) from the live zip.`,
-      }),
-    });
+  let changed = missing.ideas.length > 0 || missing.tickets.length > 0;
+  if (changed) {
+    const now = new Date().toISOString();
+    bundle.ideas.push(...missing.ideas);
+    bundle.tickets.push(...missing.tickets);
+    const nodeIds = new Set<string>();
+    for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
+    for (const ticket of missing.tickets) nodeIds.add(ticket.nodeId);
+    for (const nodeId of nodeIds) {
+      const current =
+        bundle.meta.find((row) => row.nodeId === nodeId) ?? emptyKanbanMeta(nodeId);
+      upsertMeta(bundle.meta, {
+        ...current,
+        revision: current.revision + 1,
+        updatedAt: now,
+        events: prependEvent(current.events, {
+          at: now,
+          kind: "inbox",
+          summary: `Seeded ${missing.ideas.filter((i) => i.nodeId === nodeId).length} inbox note(s) and ${missing.tickets.filter((t) => t.nodeId === nodeId).length} ticket(s) from the live zip.`,
+        }),
+      });
+    }
   }
-  return true;
+  if (applyKanbanHygiene(bundle)) changed = true;
+  return changed;
 }
 
 function assembleKanbanBoard(
@@ -844,6 +849,24 @@ export async function saveKanbanBoard(board: KanbanBoard): Promise<void> {
   for (const ticket of board.tickets) upsertRow(bundle.tickets, ticket);
   upsertMeta(bundle.meta, metaFromBoard(board));
   await persistKanbanBundle(bundle);
+}
+
+type LeafNotesFile = Record<string, { body: string; updatedAt: string }>;
+
+export async function getKanbanLeafNotes(nodeId: string): Promise<string> {
+  if (postgresEnabled()) return pgGetKanbanLeafNote(nodeId);
+  const all = await readJson("kanban/leaf-notes.json", {} as LeafNotesFile);
+  return all[nodeId]?.body ?? "";
+}
+
+export async function saveKanbanLeafNotes(nodeId: string, body: string): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  if (postgresEnabled()) await pgUpsertKanbanLeafNote(nodeId, body, updatedAt);
+  if (!postgresEnabled() || dualWriteJson()) {
+    const all = await readJson("kanban/leaf-notes.json", {} as LeafNotesFile);
+    all[nodeId] = { body, updatedAt };
+    await persistSimpleJson("kanban/leaf-notes.json", all);
+  }
 }
 
 export async function upsertKanbanIdea(idea: KanbanInboxNote): Promise<void> {

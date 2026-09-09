@@ -18,6 +18,7 @@ import {
   ideas,
   kanbanAttachments,
   kanbanIdeas,
+  kanbanLeafNotes,
   kanbanMeta,
   kanbanTickets,
   mrtDams,
@@ -57,6 +58,8 @@ export type MrtShareRow = {
 };
 
 type SimpleSchema = typeof schema;
+
+const DDL_VERSION = 2;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -161,12 +164,18 @@ const DDL = [
     bytes bytea NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS kanban_attachments_idea_id ON kanban_attachments (idea_id)`,
+  `CREATE TABLE IF NOT EXISTS kanban_leaf_notes (
+    node_id text PRIMARY KEY,
+    body text NOT NULL,
+    updated_at text NOT NULL
+  )`,
 ];
 
 type PgGlobal = {
   __sgPgSql?: Sql;
   __sgPgDb?: PostgresJsDatabase<SimpleSchema>;
   __sgPgReady?: Promise<void>;
+  __sgPgDdlVersion?: number;
 };
 
 function pgGlobal(): PgGlobal {
@@ -195,7 +204,8 @@ async function getDb(): Promise<PostgresJsDatabase<SimpleSchema>> {
     g.__sgPgSql = postgres(url, { max: 3, prepare: false });
     g.__sgPgDb = drizzle(g.__sgPgSql, { schema });
   }
-  if (!g.__sgPgReady) {
+  if (!g.__sgPgReady || g.__sgPgDdlVersion !== DDL_VERSION) {
+    g.__sgPgDdlVersion = DDL_VERSION;
     g.__sgPgReady = (async () => {
       for (const stmt of DDL) {
         await g.__sgPgSql!.unsafe(stmt);
@@ -679,5 +689,30 @@ export async function pgRetagKanbanAttachments(ideaId: string, nodeId: string): 
     .update(kanbanAttachments)
     .set({ nodeId })
     .where(eq(kanbanAttachments.ideaId, ideaId));
+}
+
+export async function pgGetKanbanLeafNote(nodeId: string): Promise<string> {
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(kanbanLeafNotes)
+    .where(eq(kanbanLeafNotes.nodeId, nodeId))
+    .limit(1);
+  return rows[0]?.body ?? "";
+}
+
+export async function pgUpsertKanbanLeafNote(
+  nodeId: string,
+  body: string,
+  updatedAt: string,
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(kanbanLeafNotes)
+    .values({ nodeId, body, updatedAt })
+    .onConflictDoUpdate({
+      target: kanbanLeafNotes.nodeId,
+      set: { body, updatedAt },
+    });
 }
 

@@ -1,11 +1,14 @@
 import { auth, isMrtGuest } from "@/auth";
+import { headers } from "next/headers";
 import { AppShell } from "@/core/shell/AppShell";
+import { hostKindFromHeaders } from "@/core/kanban/host";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
 import {
   getGuestMrtSandbox,
   getChangelogsForNode,
+  getKanbanBoard,
   getSunwaterMrtStore,
 } from "@/core/store/json-store";
 import {
@@ -28,6 +31,8 @@ export default async function SunwaterMrtPage() {
       ? await getGuestMrtSandbox(guestId)
       : await getSunwaterMrtStore();
   const changelogs = await getChangelogsForNode("w-sunwater-mrt");
+  const board = await getKanbanBoard("w-sunwater-mrt");
+  const { kind } = hostKindFromHeaders(await headers());
 
   if (!node) {
     return (
@@ -64,6 +69,8 @@ export default async function SunwaterMrtPage() {
         showDevelopment={!guest}
         readOnly={false}
         sandbox={guest}
+        board={board}
+        hostKind={kind}
       />
     </AppShell>
   );
