@@ -140,6 +140,11 @@ export function parseMatePayload(raw: unknown): {
   throw new Error("Mate JSON needs uuid_data (a set /data dump or a combined harvest).");
 }
 
+/** Cheap card count from raw harvest JSON (buy_price appears once per Mate card). */
+export function countMateHarvestCards(text: string): number {
+  return (text.match(/"buy_price"/g) || []).length;
+}
+
 /** Keep harvest rows whose set is on the ManaBox CSV — a full Mate dump is tens of thousands of cards. */
 export function filterMateOffersForCsv(offers: MateOffer[], csvSetCodes: string[]): MateOffer[] {
   const want = new Set(csvSetCodes.map((code) => code.trim().toLowerCase()).filter(Boolean));

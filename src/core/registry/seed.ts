@@ -519,15 +519,266 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
   {
     id: "cl-mtg-buylist-1.5.1",
     nodeId: "p-mtg-buylist",
-    kind: "plan",
+    kind: "release",
     version: "1.5.1",
+    createdAt: "2026-09-07T11:00:00.000Z",
+    title: "1.5.1 (dev) — Run uses the page width",
+    body: `## Publish to localhost (not live)
+
+- Run fills the window (not the 64rem hub column). Development stays the locked full-viewport board.
+- Playmantis, Mate, and Compare tables stretch to that width. Long card names wrap; the page does not scroll sideways.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.2",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "1.5.2",
     createdAt: "2026-09-08T12:00:00.000Z",
-    title: "1.5.1 — Development uses the Kanban template (localhost)",
+    title: "1.5.2 — Development uses the Kanban template (localhost)",
     body: `## Localhost
 
 - Development is the shared Kanban Online host: Inbox, board, Changelog, Notes, Raise tagged to Buylist.
 - Parser fixture check stays under Testing.
 - Per-login notes still save on the buylist store. Not live until make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.3",
+    createdAt: "2026-09-09T01:10:00.000Z",
+    title: "1.5.3 (dev) — Re-prepare ManaBox after pick",
+    body: `## Publish to localhost (not live)
+
+- Run step 5: upload Playmantis and/or Mate submission CSVs (ManaBox-shaped) after the shop floor.
+- Download a leftover ManaBox CSV = this run’s original file minus those copies. Overwrite ManaBox with that, not Compare Not-sold.
+- Unmatched submission lines are listed. Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.4",
+    createdAt: "2026-09-09T23:50:00.000Z",
+    title: "1.5.4 (dev) — Sticky sections, Mate row and harvest polish",
+    body: `## Publish to localhost (not live)
+
+- Section headings stay under the hub header so you can collapse a long table.
+- Mate **Wrong printing** is a compact ↻ icon; row height stays the default.
+- Recovered-% chips ( >100% / ≥80% / … ) filter Playmantis, Mate, and Compare. Click again to clear.
+- Mate bookmark harvest filename ends with local date_time.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.5",
+    createdAt: "2026-09-09T23:58:00.000Z",
+    title: "1.5.5 (dev) — Real store submissions for leftover ManaBox",
+    body: `## Publish to localhost (not live)
+
+- Step 5 Playmantis drop is the sort-order **.eml** (the only reliable receipt).
+- Step 5 Mate drop is a **saved order HTML** from mtgmate.com.au/buylist/orders/… (Accepted rows only; one row = one copy).
+- ManaBox-shaped CSVs still work. Leftover match uses Scryfall id, then name/set/finish, then a unique name+finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.6",
+    createdAt: "2026-09-10T00:50:00.000Z",
+    title: "1.5.6 (dev) — Step 5 outer join and leftover re-import",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tabulates ManaBox CSV, Playmantis, and Mate (Name, Set, Finish, Qty) with Scryfall hover previews.
+- Outer join lists every unique printing: CSV Qty, MM Qty, PM Qty, Remaining (CSV − MM − PM), Note.
+- Remaining &gt; 0 is the ManaBox re-import download. Store-only and Remaining ≤ 0 stay on the join.
+- Playmantis set names resolve to set codes from this CSV, then a unique Scryfall set-name lookup.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.7",
+    createdAt: "2026-09-10T00:55:00.000Z",
+    title: "1.5.7 (dev) — Step 5 tables collapse",
+    body: `## Publish to localhost (not live)
+
+- Step 5 CSV, Playmantis, Mate, outer join, and re-import tables each fold independently. Open/closed is remembered in this tab.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.8",
+    createdAt: "2026-09-10T01:05:00.000Z",
+    title: "1.5.8 (dev) — Step 5 Scryfall previews for every row",
+    body: `## Publish to localhost (not live)
+
+- Step 5 rows without a ManaBox Scryfall ID look up the card by name + set (collector # when Mate has it) so the hover preview can show.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.9",
+    createdAt: "2026-09-10T01:12:00.000Z",
+    title: "1.5.9 (dev) — Step 5 collector numbers and lookup warning",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tables (CSV, Playmantis, Mate, join, re-import) show collector # after Set.
+- A **!** mark means the hover face is a Scryfall name+set lookup, not a ManaBox Scryfall ID, so it may be the wrong printing.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.10",
+    createdAt: "2026-09-10T01:22:00.000Z",
+    title: "1.5.10 (dev) — Step 5 join notes and compact columns",
+    body: `## Publish to localhost (not live)
+
+- Outer join notes stay on one line so row height stays even.
+- Set, #, Finish, and qty column headers are centred; values keep a left offset; a light vertical rule separates those columns.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.11",
+    createdAt: "2026-09-10T01:28:00.000Z",
+    title: "1.5.11 (dev) — compact columns on every Run table",
+    body: `## Publish to localhost (not live)
+
+- Playmantis, Mate, Compare, and Step 5 tables use the same Set / # / Finish / qty spacing: centred headers, left-offset values, light vertical rules.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.12",
+    createdAt: "2026-09-10T01:34:00.000Z",
+    title: "1.5.12 (dev) — one-line card names, tighter columns",
+    body: `## Publish to localhost (not live)
+
+- Card names stay on one line. Compact columns use 13px type, shorter headers (Fin, Want, Left, CSV/MM/PM, List, Cr, Win), and tighter padding so Set / # / qty columns still fit.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.13",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.13",
+    createdAt: "2026-09-10T01:40:00.000Z",
+    title: "1.5.13 (dev) — richer card hover preview",
+    body: `## Publish to localhost (not live)
+
+- O / M / P / S hover shows the card face plus name, set, collector #, and finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.14",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.14",
+    createdAt: "2026-09-10T03:28:00.000Z",
+    title: "1.5.14 (dev) — Playmantis harvest vs site dump",
+    body: `## Publish to localhost (not live)
+
+- Playmantis stream has two paths side by side: Harvest, or bookmark the site’s Import Review and drop it there. Harvest vs site diffs save to playmantis_harvest_diff.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.15",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.15",
+    createdAt: "2026-09-10T04:00:00.000Z",
+    title: "1.5.15 (dev) — Import Review is the Playmantis table",
+    body: `## Publish to localhost (not live)
+
+- When a site dump sits next to a harvest, the Playmantis table uses Import Review. Harvest differs is a filter; expand shows harvest vs dump. Save PM deltas is a button, not an auto popup.
+- Import Review titles like “Sundering Growth (Source Material - Borderless)” join the CSV name.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.16",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.16",
+    createdAt: "2026-09-10T04:30:00.000Z",
+    title: "1.5.16 (dev) — Printing keys, Logs tab, clearer diffs",
+    body: `## Publish to localhost (not live)
+
+- Each run section has a key tooltip for how it identifies a printing. Card previews have a dark border. Harvest differs / expand diffs use the amber flag colour.
+- Logs is a primary tab; diffs is the first L2. Saved harvest diffs live there (confirmed clear). Inbox: past run summary logs.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.17",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.17",
+    createdAt: "2026-09-10T05:30:00.000Z",
+    title: "1.5.17 (dev) — Tighter copy, Logs review prompt",
+    body: `## Publish to localhost (not live)
+
+- Shorter step copy with bold keywords. Info icon on uniqueness. At limit filter. Compare Download CSV matches other streams. Step 5 sold-vendor tints. Logs can copy a harvest-diff review prompt and mark rows looked-at.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.18",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.18",
+    createdAt: "2026-09-10T05:40:00.000Z",
+    title: "1.5.18 (dev) — Bordered buttons, Mate upload phases",
+    body: `## Publish to localhost (not live)
+
+- Buylist action buttons use a border. Table|Show diffs matches other button size. Mate upload reports parse then image-join; the busy overlay no longer claims live counts.
+
+Live remains 1.5 until you say make it live.
 `,
   },
   {

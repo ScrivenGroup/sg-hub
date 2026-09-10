@@ -8,14 +8,19 @@ import {
   getMtgBuylistStore,
   saveMateHarvestToken,
   saveMtgBuylistStore,
+  savePlaymantisHarvestDiff,
+  listPlaymantisHarvestDiff,
+  clearPlaymantisHarvestDiff,
+  markPlaymantisHarvestDiffLookedAt,
 } from "@/core/store/json-store";
 import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/allocate";
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
 import { parseMateJson, filterMateOffersForCsv } from "./logic/parse-mate";
 import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
+import { harvestDiffRows, type ImportCompareRow } from "./logic/compare-import-review";
 import { buildMateImageLinks } from "./logic/mate-image-join";
-import { enrichRowsFromScryfall } from "./logic/scryfall";
+import { enrichRowsFromScryfall, lookupScryfallCardIds, lookupScryfallSetCodes, type CardHint, type CardLookup } from "./logic/scryfall";
 import { runParserSelfCheck } from "./logic/self-check";
 import {
   emptyMtgBuylistStore,
@@ -355,16 +360,19 @@ export async function uploadMateJsonAction(jsonText: string) {
       };
     }
     const keptSets = [...new Set(offers.map((o) => o.setCode).filter(Boolean))].sort();
-    const linked = await attachMateImageLinks({
-      ...loaded.store,
-      mate: {
-        harvestedAt: new Date().toISOString(),
-        source: "upload",
-        sets: keptSets.length ? keptSets : parsed.sets,
-        offers,
-      },
-    });
-    const store = await persist(loaded.staff.userKey, linked);
+    const store = await persist(
+      loaded.staff.userKey,
+      withAllocateResults({
+        ...loaded.store,
+        mate: {
+          harvestedAt: new Date().toISOString(),
+          source: "upload",
+          sets: keptSets.length ? keptSets : parsed.sets,
+          offers,
+        },
+        mateImageLinks: {},
+      }),
+    );
     return { ok: true as const, store, summary: summaryOf(store) };
   } catch (error) {
     return {
@@ -452,4 +460,91 @@ export async function parserSelfCheckAction() {
   const staff = await requireBuylistStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
   return runParserSelfCheck();
+}
+
+export async function savePlaymantisHarvestDiffAction(input: {
+  csvFilename: string;
+  reviewFilename: string;
+  harvestedAt: string;
+  rows: ImportCompareRow[];
+}) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  const deltas = harvestDiffRows({
+    rows: input.rows,
+    agree: 0,
+    disagree: input.rows.length,
+  });
+  if (!deltas.length) return { ok: true as const, saved: 0 };
+  const createdAt = new Date().toISOString();
+  const batchId = `phd-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
+  const records = deltas.map((row, i) => ({
+    id: `${batchId}-${i}`,
+    batchId,
+    createdAt,
+    userKey: staff.userKey,
+    csvFilename: input.csvFilename,
+    reviewFilename: input.reviewFilename,
+    harvestedAt: input.harvestedAt,
+    name: row.name,
+    setName: row.setName,
+    finish: row.finish,
+    scryfallId: row.scryfallId,
+    csvQty: row.csvQty,
+    reviewStatus: row.reviewStatus,
+    harvestStatus: row.harvestStatus,
+    reviewCreditCents: row.reviewCreditCents,
+    harvestCreditCents: row.harvestCreditCents,
+    harvestLimit: row.harvestLimit,
+    verdict: row.verdict,
+    note: row.note,
+    lookedAt: "",
+  }));
+  const saved = await savePlaymantisHarvestDiff(records);
+  return { ok: true as const, saved };
+}
+
+export async function listPlaymantisHarvestDiffAction() {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", rows: [] };
+  const rows = await listPlaymantisHarvestDiff();
+  return { ok: true as const, rows };
+}
+
+export async function clearPlaymantisHarvestDiffAction() {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", cleared: 0 };
+  const cleared = await clearPlaymantisHarvestDiff();
+  return { ok: true as const, cleared };
+}
+
+export async function markPlaymantisHarvestDiffLookedAtAction(ids: string[]) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", marked: 0 };
+  const marked = await markPlaymantisHarvestDiffLookedAt(ids);
+  return { ok: true as const, marked };
+}
+
+/** Set name → code for PM receipts that have no set code. Unique names only. */
+export async function lookupSetCodesAction(names: string[]) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", codes: {} as Record<string, string> };
+  try {
+    const codes = await lookupScryfallSetCodes(names);
+    return { ok: true as const, codes };
+  } catch {
+    return { ok: true as const, codes: {} as Record<string, string> };
+  }
+}
+
+/** Name + set → Scryfall id for Step 5 hover previews when the CSV has no id. */
+export async function lookupCardIdsAction(lookups: CardLookup[]) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", ids: {} as Record<string, CardHint> };
+  try {
+    const ids = await lookupScryfallCardIds(lookups);
+    return { ok: true as const, ids };
+  } catch {
+    return { ok: true as const, ids: {} as Record<string, CardHint> };
+  }
 }
