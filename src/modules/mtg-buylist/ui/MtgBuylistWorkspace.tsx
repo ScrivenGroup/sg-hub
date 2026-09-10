@@ -2271,21 +2271,17 @@ function StreamTable({
         ) : null}
         {mode === "pm" && harvestDiffCount > 0 ? (
           <div
-            className="inline-flex rounded-[10px] border border-[var(--border)] bg-[var(--surface-muted)] p-px"
+            className="inline-flex h-6 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-px"
             role="group"
             aria-label="Show harvest diffs"
           >
             <button
               type="button"
-              className={`rounded-[9px] px-2.5 font-semibold ${
+              className={`h-full rounded px-2 text-xs font-medium leading-none ${
                 !showHarvestDiffs
                   ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
                   : "text-[var(--muted)]"
               }`}
-              style={{
-                minHeight: "var(--sg-btn-height)",
-                fontSize: "var(--sg-btn-font)",
-              }}
               aria-pressed={!showHarvestDiffs}
               onClick={() => setShowHarvestDiffs(false)}
             >
@@ -2293,15 +2289,11 @@ function StreamTable({
             </button>
             <button
               type="button"
-              className={`rounded-[9px] px-2.5 font-semibold ${
+              className={`h-full rounded px-2 text-xs font-medium leading-none ${
                 showHarvestDiffs
                   ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
                   : "text-[var(--muted)]"
               }`}
-              style={{
-                minHeight: "var(--sg-btn-height)",
-                fontSize: "var(--sg-btn-font)",
-              }}
               aria-pressed={showHarvestDiffs}
               onClick={() => setShowHarvestDiffs(true)}
             >
