@@ -8,7 +8,7 @@ import { deltaVsBaseline, fingerprintIdea, livePresenceForId } from "../fingerpr
 import type { DevHostKind } from "../host";
 import { buildSessionPrompt } from "../prompt";
 import { COLUMN_ACCENT, type KanbanBoard, type KanbanInboxNote } from "../schema";
-import { clipText, copyText, HatInbox, PresenceChip, sortItems, type SortKey } from "./bits";
+import { clipText, copyText, HatInbox, KindChip, PresenceChip, sortItems, type SortKey } from "./bits";
 import type { KanbanLeafOption } from "../leaves";
 import { LeafTagBadge, LeafTagSelect } from "./LeafTagSelect";
 import { InboxAttachmentList, PaperclipCount, loadAttachmentPromptFiles } from "./InboxAttachments";
@@ -172,6 +172,7 @@ export function InboxPanel({
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold leading-snug">{idea.title}</h3>
                     <span className="flex shrink-0 flex-wrap items-center gap-1">
+                      <KindChip kind={idea.kind} />
                       <PaperclipCount count={idea.attachments?.length ?? 0} />
                       {showLeafTag ? (
                         <LeafTagBadge nodeId={idea.nodeId} options={leafOptions} />
@@ -281,6 +282,7 @@ export function InboxPanel({
               <h2 id="inbox-note" className="font-medium">
                 Inbox note
               </h2>
+              <KindChip kind={openIdea.kind} />
               <code className="text-xs text-[var(--muted)]">id {openIdea.id}</code>
               <HatInbox />
             </div>

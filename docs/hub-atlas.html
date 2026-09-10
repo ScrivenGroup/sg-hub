@@ -368,8 +368,18 @@
     const NODES = [
       { id: "hub-work", hubPrefix: "w", slug: "", title: "Work", code: "3FAE6A", kind: "hub", parentId: null, href: "/w", accessMode: "shared", status: "live", description: "Client-context products (org only).", order: 1, areas: 1 },
       { id: "hub-projects", hubPrefix: "p", slug: "", title: "Projects", code: "F2D04E", kind: "hub", parentId: null, href: "/p", accessMode: "shared", status: "live", description: "Personal products — spin-out capable.", order: 2, areas: 2 },
-      { id: "hub-internal", hubPrefix: "i", slug: "", title: "Internal", code: "4A8FDC", kind: "hub", parentId: null, href: "/i", accessMode: "shared", status: "live", description: "ScrivenGroup capture and tools.", order: 3, areas: 5 },
-      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition and Appearance of this site.", order: 4, areas: 2 },
+      { id: "hub-development", hubPrefix: "d", slug: "", title: "Development", code: "C45C26", kind: "hub", parentId: null, href: "/d", accessMode: "shared", status: "live",
+        description: "Inbox, board, changelog, notes, and design spec. Chrome Feedback lands in Inbox. Filter by leaf.",
+        order: 3, areas: 0, inUse: true,
+        contents: [
+          "The Development hub <code>/d</code> <strong>is</strong> the suite (not a landing of child cards): Inbox, Kanban filters, Changelog, Notes, Design spec.",
+          "Chrome Feedback (header / mobile FAB) is the only capture door — Raise-style popup with type, title, details, leaf tag, attachments. Leaf Development tabs do not show Raise.",
+          "Old URLs <code>/i/kanban</code>, <code>/i/feedback</code>, and <code>/i/ideas</code> redirect to Inbox; <code>/i/notes</code> to the Notes tab."
+        ],
+        state: "Live. Home card opens the suite. Internal keeps Testing and Development choices."
+      },
+      { id: "hub-internal", hubPrefix: "i", slug: "", title: "Internal", code: "4A8FDC", kind: "hub", parentId: null, href: "/i", accessMode: "shared", status: "live", description: "ScrivenGroup tools.", order: 4, areas: 2 },
+      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition and Appearance of this site.", order: 5, areas: 2 },
       {
         id: "w-sunwater-mrt", hubPrefix: "w", slug: "sunwater-mrt", title: "Sunwater - Milestone Resourcing Tracker",
         code: "4E8C6B", kind: "subhub", parentId: "hub-work", href: "/w/sunwater-mrt", accessMode: "shared", status: "live",
@@ -407,40 +417,6 @@
           "Development is a parked copy of an offline HTML design — museum, not the product skin."
         ],
         state: "Building. Skeleton + intent copy only. No live numbers, no statement CSVs, no seeded Table 1. The offline sibling HTML is a Development reference, not revA."
-      },
-      {
-        id: "i-ideas", hubPrefix: "i", slug: "ideas", title: "Ideas",
-        code: "7EB6E8", kind: "tool", parentId: "hub-internal", href: "/i/ideas", accessMode: "shared", status: "live",
-        description: "Domain-wide idea register.",
-        inUse: true,
-        contents: [
-          "A domain-wide idea register (title, body, status) stored in JSON.",
-          "This is a page register, not the global Feedback control."
-        ],
-        state: "Live stub. In the registry and on Internal. Seeded with a sample inbox idea. Thin UI — usable as capture, not a full product."
-      },
-      {
-        id: "i-notes", hubPrefix: "i", slug: "notes", title: "Notes",
-        code: "5BB8C9", kind: "tool", parentId: "hub-internal", href: "/i/notes", accessMode: "per_user", status: "live",
-        description: "Less formal capture.",
-        inUse: true,
-        contents: [
-          "Less formal notes (title, body, updatedAt) on a simple list.",
-          "Registry access is per_user; the current UI is a shared-looking list over the JSON store."
-        ],
-        state: "Live stub. Framed and reachable. Not a full notes product."
-      },
-      {
-        id: "i-feedback", hubPrefix: "i", slug: "feedback", title: "Feedback",
-        code: "6B7FD4", kind: "tool", parentId: "hub-internal", href: "/i/feedback", accessMode: "shared", status: "live",
-        description: "Site-wide feedback register for bugs, ideas, and housekeeping.",
-        inUse: true,
-        contents: [
-          "The housekeeping inbox: bugs, ideas, housekeeping, other.",
-          "Capture is global chrome (header on desktop, floating button on mobile).",
-          "The register page is Internal → Feedback. Agents also read <code>docs/feedback-inbox.md</code> and <code>data/feedback.json</code>."
-        ],
-        state: "Live and in use. This is the operational bug/housekeeping list for the hub."
       },
       {
         id: "i-testing", hubPrefix: "i", slug: "testing", title: "Testing",
@@ -737,12 +713,12 @@
             ${badge(hub)}
           </div>
           <p class="muted" style="margin:0;font-size:0.875rem">${esc(hub.description)}</p>
-          <p class="tiny" style="margin:1rem 0 0">${hub.areas} area${hub.areas === 1 ? "" : "s"}</p>
+          ${hub.areas > 0 ? `<p class="tiny" style="margin:1rem 0 0">${hub.areas} area${hub.areas === 1 ? "" : "s"}</p>` : ""}
         </a>`).join("");
       return chrome(`
         <header class="page-head">
           <h1>Home</h1>
-          <p class="lede">Choose a Hub. Work and Projects hold spin-out capable products; Internal captures ideas; System defines and maintains the site.</p>
+          <p class="lede">Choose a Hub. Work and Projects hold spin-out capable products; Development is the suite; Internal holds leftover tools; System defines and maintains the site.</p>
         </header>
         <div class="grid-2">${cards}</div>
       `, "/home");
@@ -761,7 +737,18 @@
                 <p class="muted" style="margin:0;font-size:0.875rem">${esc(child.description)}</p>
               </a>
             </li>`).join("")}</ul>`
-        : `<div class="sg-card"><p style="margin:0;font-weight:500">No sub-hubs yet</p>
+        : hub.contents
+          ? `<div class="dl">
+              <div class="sg-card">
+                <dt>What is defined here</dt>
+                <dd><ul class="plain">${hub.contents.map((c) => `<li>${c}</li>`).join("")}</ul></dd>
+              </div>
+              <div class="sg-card">
+                <dt>Development state</dt>
+                <dd>${hub.state}</dd>
+              </div>
+            </div>`
+          : `<div class="sg-card"><p style="margin:0;font-weight:500">No sub-hubs yet</p>
             <p class="muted" style="margin:0.25rem 0 0;font-size:0.875rem">Frame a product from chat and it will appear here.</p></div>`;
       return chrome(`
         ${pageNav(hub.href)}
@@ -820,16 +807,16 @@
           <p class="lede">The website that holds every idea together. Product interiors are rooms; this is the building.</p>
         </header>
         <div class="sg-card" style="margin-bottom:1rem">
-          <p style="margin:0 0 0.75rem"><strong>Call the wrapping website the hub.</strong> That is this Next.js app — one host, one chrome, four floors. Do not call it a second product, a portal, or a folder of apps.</p>
-          <p class="muted" style="margin:0;font-size:0.9rem">The four floors are also called Hubs. That collision is already in the live IA. When you need to be precise: <em>the hub</em> is the building; <em>a Hub</em> is a floor.</p>
+          <p style="margin:0 0 0.75rem"><strong>Call the wrapping website the hub.</strong> That is this Next.js app — one host, one chrome, five floors. Do not call it a second product, a portal, or a folder of apps.</p>
+          <p class="muted" style="margin:0;font-size:0.9rem">The five floors are also called Hubs. That collision is already in the live IA. When you need to be precise: <em>the hub</em> is the building; <em>a Hub</em> is a floor.</p>
         </div>
         <table class="inv">
           <thead><tr><th>Name</th><th>Layer</th><th>Stops at</th></tr></thead>
           <tbody>
             <tr><td><strong>The hub</strong></td><td>The wrapping website (this app)</td><td>The building</td></tr>
             <tr><td><strong>Chrome</strong></td><td>AppShell header: logo, Home, Site network, Feedback, Profile</td><td>Global actions</td></tr>
-            <tr><td><strong>Home</strong></td><td>Four Hub cards</td><td><code>/home</code></td></tr>
-            <tr><td><strong>Hubs</strong></td><td>Work, Projects, Internal, System</td><td><code>/w</code> <code>/p</code> <code>/i</code> <code>/s</code></td></tr>
+            <tr><td><strong>Home</strong></td><td>Five Hub cards</td><td><code>/home</code></td></tr>
+            <tr><td><strong>Hubs</strong></td><td>Work, Projects, Development, Internal, System</td><td><code>/w</code> <code>/p</code> <code>/d</code> <code>/i</code> <code>/s</code></td></tr>
             <tr><td><strong>Cards</strong></td><td>Registry nodes (sub-hubs and tools)</td><td><code>/w/{slug}</code> and friends</td></tr>
             <tr><td><strong>Site map</strong></td><td>The walkable top of those layers</td><td>The card — not product interiors</td></tr>
           </tbody>

@@ -363,6 +363,11 @@ export const kanbanIdeas = pgTable("kanban_ideas", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   copiedAt: text("copied_at"),
+  kind: text("kind").notNull().default("idea"),
+  source: text("source").notNull().default("raise"),
+  pageHref: text("page_href"),
+  pageTitle: text("page_title"),
+  submittedBy: text("submitted_by"),
 });
 
 export const kanbanTickets = pgTable("kanban_tickets", {

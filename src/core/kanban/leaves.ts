@@ -6,8 +6,8 @@ export type KanbanLeafOption = {
   title: string;
 };
 
-/** Chrome tools that are the capture surface, not a product leaf to tag. */
-const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "i-feedback"]);
+/** Capture lives in chrome Feedback, not on the suite tab strip. */
+const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "hub-development"]);
 
 function taggableLeaves(): KanbanLeafOption[] {
   const { childrenByHub } = siteNetworkTree();

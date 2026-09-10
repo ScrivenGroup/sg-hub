@@ -7,9 +7,12 @@ import type { DevHostKind } from "../host";
 import { leafOptionsWithRows, type KanbanLeafOption } from "../leaves";
 import {
   CATEGORY_LABELS,
+  INBOX_KIND_LABELS,
+  INBOX_KINDS,
   KANBAN_CATEGORIES,
   KANBAN_GLOBAL_NODE_ID,
   type ColumnFilterId,
+  type InboxKind,
   type KanbanBoard as KanbanBoardData,
   type KanbanCategory,
 } from "../schema";
@@ -95,10 +98,10 @@ export function KanbanOnlineHost({
   initialTab = "inbox",
   changelogs,
   showTabs = true,
-  hideRaise = false,
+  hideRaise = true,
   forcedTab,
   notes = "",
-  showDesignSpec = false,
+  showDesignSpec = true,
   onSaveNotes,
 }: {
   board: KanbanBoardData;
@@ -131,6 +134,9 @@ export function KanbanOnlineHost({
   const [categoryFilter, setCategoryFilter] = useState<KanbanCategory | "all">("all");
   const [boardMoreOpen, setBoardMoreOpen] = useState(false);
   const [inboxSort, setInboxSort] = useState<SortKey>("date-desc");
+  const [inboxKind, setInboxKind] = useState<"all" | InboxKind>(() =>
+    scope === "leaf" ? "idea" : "all",
+  );
   const [showArchived, setShowArchived] = useState(false);
   const [inboxMoreOpen, setInboxMoreOpen] = useState(false);
   const showChangelogTab = Array.isArray(changelogs);
@@ -144,6 +150,13 @@ export function KanbanOnlineHost({
     () => (scope === "all" ? filterBoard(board, leafFilter) : board),
     [board, leafFilter, scope],
   );
+  const inboxBoard = useMemo(() => {
+    if (inboxKind === "all") return filtered;
+    return {
+      ...filtered,
+      ideas: filtered.ideas.filter((row) => (row.kind ?? "idea") === inboxKind),
+    };
+  }, [filtered, inboxKind]);
   const taggedLeaves = useMemo(
     () =>
       leafOptionsWithRows(
@@ -161,8 +174,8 @@ export function KanbanOnlineHost({
         ? KANBAN_GLOBAL_NODE_ID
         : leafFilter;
   const showLeafTag = scope === "all" && leafFilter === "all";
-  const openInbox = filtered.ideas.filter((i) => i.status === "open").length;
-  const archivedCount = filtered.ideas.filter((i) => i.status === "archived").length;
+  const openInbox = inboxBoard.ideas.filter((i) => i.status === "open").length;
+  const archivedCount = inboxBoard.ideas.filter((i) => i.status === "archived").length;
 
   useEffect(() => {
     if (forcedTab) return;
@@ -295,6 +308,22 @@ export function KanbanOnlineHost({
         {inboxOn ? (
           <>
             <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+              {KANBAN_CHROME.labels.type}
+              <select
+                className={chromeSelect}
+                value={inboxKind}
+                aria-label="Inbox type"
+                onChange={(e) => setInboxKind(e.target.value as "all" | InboxKind)}
+              >
+                <option value="all">All</option>
+                {INBOX_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {INBOX_KIND_LABELS[kind]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
               {KANBAN_CHROME.labels.sort}
               <select
                 className={chromeSelect}
@@ -390,7 +419,7 @@ export function KanbanOnlineHost({
       {inboxOn ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <InboxPanel
-            board={filtered}
+            board={inboxBoard}
             nodeId={actionNodeId}
             leafTitle={leafTitle}
             leafHref={leafHref}

@@ -42,6 +42,8 @@ type IdeaRow = {
   title: string;
   body: string;
   status: string;
+  kind?: string;
+  source?: string;
   created_at: string;
   updated_at: string;
 };
@@ -156,7 +158,7 @@ function logFeedback(row: FeedbackRow, tag: string) {
 
 function logIdea(row: IdeaRow, tag: string) {
   console.log(
-    `idea ${tag} id=${row.id} node=${row.node_id} status=${row.status} at=${row.created_at} title=${JSON.stringify(firstLine(row.title))} body=${JSON.stringify(firstLine(row.body))}`,
+    `idea ${tag} id=${row.id} node=${row.node_id} kind=${row.kind || "idea"} source=${row.source || "raise"} status=${row.status} at=${row.created_at} title=${JSON.stringify(firstLine(row.title))} body=${JSON.stringify(firstLine(row.body))}`,
   );
 }
 
@@ -211,19 +213,19 @@ async function inspectSql(url: string, source: UrlSource): Promise<void> {
     `;
 
     const ideasDay = await sql<IdeaRow[]>`
-      select id, node_id, title, body, status, created_at, updated_at
+      select id, node_id, title, body, status, kind, source, created_at, updated_at
       from kanban_ideas
       where created_at like ${`${DAY}%`}
       order by created_at
     `;
     const ideasNode = await sql<IdeaRow[]>`
-      select id, node_id, title, body, status, created_at, updated_at
+      select id, node_id, title, body, status, kind, source, created_at, updated_at
       from kanban_ideas
       where node_id in ${sql(NODE_IDS)}
       order by created_at
     `;
     const ideasNeedle = await sql<IdeaRow[]>`
-      select id, node_id, title, body, status, created_at, updated_at
+      select id, node_id, title, body, status, kind, source, created_at, updated_at
       from kanban_ideas
       where title ilike ${"%load%"}
          or body ilike ${"%load%"}
@@ -235,6 +237,7 @@ async function inspectSql(url: string, source: UrlSource): Promise<void> {
          or body ilike ${"%mrt%"}
          or title ilike ${"%survive%"}
          or body ilike ${"%survive%"}
+         or kind in ('bug', 'housekeeping', 'other')
       order by created_at
     `;
 

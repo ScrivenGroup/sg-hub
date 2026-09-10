@@ -44,7 +44,7 @@ Uses Entra via `az` → `app-scrivengroup` / `rg-scrivengroup`. **SCM Basic Auth
 
 1. Open the azurewebsites URL  
 2. **Sign in with Microsoft** (work account)  
-3. Land on Home with four Hubs  
+3. Land on Home with five Hubs  
 
 If login fails: check redirect URI, App Settings names, and that `DEV_AUTH` is `false` (Microsoft button still shows when Entra env vars are set).
 

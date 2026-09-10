@@ -21,6 +21,19 @@ export const KANBAN_VISIBLE_COLUMNS = ["later", "open", "done"] as const;
 export const INBOX_STATUSES = ["open", "archived"] as const;
 export type KanbanInboxStatus = (typeof INBOX_STATUSES)[number];
 
+export const INBOX_KINDS = ["bug", "idea", "housekeeping", "other"] as const;
+export type InboxKind = (typeof INBOX_KINDS)[number];
+
+export const INBOX_SOURCES = ["feedback", "raise"] as const;
+export type InboxSource = (typeof INBOX_SOURCES)[number];
+
+export const INBOX_KIND_LABELS: Record<InboxKind, string> = {
+  bug: "Bug",
+  idea: "Idea",
+  housekeeping: "Housekeeping",
+  other: "Other",
+};
+
 export const CATEGORY_LABELS: Record<KanbanCategory, string> = {
   experience: "Experience",
   structure: "Structure",
@@ -83,8 +96,10 @@ export function migrateTicketColumn(raw: unknown): KanbanColumn {
 export const kanbanLaneSchema = z.enum(KANBAN_CATEGORIES);
 export const kanbanColumnSchema = z.preprocess(migrateTicketColumn, z.enum(KANBAN_COLUMNS));
 export const inboxStatusSchema = z.enum(INBOX_STATUSES);
+export const inboxKindSchema = z.enum(INBOX_KINDS);
+export const inboxSourceSchema = z.enum(INBOX_SOURCES);
 
-/** Leaf tag for Global (Internal) rows. Not a swimlane. */
+/** Leaf tag for Global (Development hub) rows. Not a swimlane. */
 export const KANBAN_GLOBAL_NODE_ID = "global";
 
 /** Metadata only — never bytes / base64. */
@@ -112,9 +127,33 @@ export const kanbanInboxNoteSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   copiedAt: z.string().nullable().optional().default(null),
+  kind: inboxKindSchema.optional(),
+  source: inboxSourceSchema.optional(),
+  pageHref: z.string().nullable().optional(),
+  pageTitle: z.string().nullable().optional(),
+  submittedBy: z.string().nullable().optional(),
   attachments: z.array(kanbanAttachmentMetaSchema).optional(),
 });
 export type KanbanInboxNote = z.infer<typeof kanbanInboxNoteSchema>;
+
+export function normalizeInboxNote(note: KanbanInboxNote): KanbanInboxNote {
+  return {
+    ...note,
+    kind: note.kind ?? "idea",
+    source: note.source ?? "raise",
+    pageHref: note.pageHref ?? null,
+    pageTitle: note.pageTitle ?? null,
+    submittedBy: note.submittedBy ?? null,
+    copiedAt: note.copiedAt ?? null,
+  };
+}
+
+/** Feedback chrome rows plus bug / housekeeping / other (Kanban Inbox type filter). */
+export function isFeedbackRegisterNote(note: KanbanInboxNote): boolean {
+  const kind = note.kind ?? "idea";
+  if (note.source === "feedback") return true;
+  return kind === "bug" || kind === "housekeeping" || kind === "other";
+}
 
 export const kanbanTicketSchema = z.object({
   id: z.string(),

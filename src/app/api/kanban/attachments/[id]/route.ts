@@ -48,6 +48,6 @@ export async function DELETE(
   if (!ok) {
     return NextResponse.json({ ok: false, error: "File not found" }, { status: 404 });
   }
-  revalidatePath("/i/kanban");
+  revalidatePath("/d");
   return NextResponse.json({ ok: true });
 }

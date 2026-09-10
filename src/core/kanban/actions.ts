@@ -20,8 +20,11 @@ import {
 } from "./pack";
 import { baselineFromBoard } from "./fingerprint";
 import {
+  INBOX_KINDS,
   nextInboxId,
   prependEvent,
+  type InboxKind,
+  type InboxSource,
   type KanbanBoard,
   type KanbanInboxNote,
 } from "./schema";
@@ -36,6 +39,7 @@ async function requireStaff(): Promise<{ label: string } | null> {
 
 function revalidateKanban(revalidateHref: string) {
   revalidatePath(revalidateHref);
+  revalidatePath("/d");
   revalidatePath("/i/kanban");
 }
 
@@ -53,7 +57,15 @@ async function persist(board: KanbanBoard, revalidateHref: string) {
 export async function addInboxNoteAction(
   nodeId: string,
   revalidateHref: string,
-  input: { title: string; body: string; tagNodeId?: string },
+  input: {
+    title: string;
+    body: string;
+    tagNodeId?: string;
+    kind?: InboxKind;
+    source?: InboxSource;
+    pageHref?: string | null;
+    pageTitle?: string | null;
+  },
 ) {
   const staff = await requireStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
@@ -61,17 +73,24 @@ export async function addInboxNoteAction(
   const body = input.body.trim();
   if (!title && !body) return { ok: false as const, error: "Title or body required" };
   const tagNodeId = safeTagNodeId(input.tagNodeId, nodeId);
+  const kind = input.kind && INBOX_KINDS.includes(input.kind) ? input.kind : "idea";
+  const source = input.source === "feedback" ? "feedback" : "raise";
   const now = new Date().toISOString();
   const allIdeas = await listKanbanIdeas();
   const note: KanbanInboxNote = {
     id: nextInboxId(allIdeas),
     nodeId: tagNodeId,
-    title: title || "Untitled idea",
+    title: title || body.split(/\r?\n/)[0]?.trim().slice(0, 120) || "Untitled",
     body,
     status: "open",
     createdAt: now,
     updatedAt: now,
     copiedAt: null,
+    kind,
+    source,
+    pageHref: input.pageHref ?? null,
+    pageTitle: input.pageTitle ?? null,
+    submittedBy: staff.label,
   };
   await upsertKanbanIdea(note);
   revalidateKanban(revalidateHref);

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       mimeType: mime,
       bytes,
     });
-    revalidatePath("/i/kanban");
+    revalidatePath("/d");
     return NextResponse.json({
       ok: true,
       attachment: {

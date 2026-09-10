@@ -41,6 +41,7 @@ import {
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
+  normalizeInboxNote,
   type KanbanAttachmentStoreRow,
 } from "@/core/kanban/schema";
 
@@ -59,7 +60,7 @@ export type MrtShareRow = {
 
 type SimpleSchema = typeof schema;
 
-const DDL_VERSION = 2;
+const DDL_VERSION = 3;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -129,9 +130,19 @@ const DDL = [
     status text NOT NULL,
     created_at text NOT NULL,
     updated_at text NOT NULL,
-    copied_at text
+    copied_at text,
+    kind text NOT NULL DEFAULT 'idea',
+    source text NOT NULL DEFAULT 'raise',
+    page_href text,
+    page_title text,
+    submitted_by text
   )`,
   `CREATE INDEX IF NOT EXISTS kanban_ideas_node_id ON kanban_ideas (node_id)`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'idea'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'raise'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_href text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_title text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS submitted_by text`,
   `CREATE TABLE IF NOT EXISTS kanban_tickets (
     id text PRIMARY KEY,
     node_id text NOT NULL,
@@ -462,16 +473,23 @@ export async function pgEnd(): Promise<void> {
 }
 
 function ideaFromRow(row: typeof kanbanIdeas.$inferSelect): KanbanInboxNote {
-  return kanbanInboxNoteSchema.parse({
-    id: row.id,
-    nodeId: row.nodeId,
-    title: row.title,
-    body: row.body,
-    status: row.status,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    copiedAt: row.copiedAt,
-  });
+  return normalizeInboxNote(
+    kanbanInboxNoteSchema.parse({
+      id: row.id,
+      nodeId: row.nodeId,
+      title: row.title,
+      body: row.body,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      copiedAt: row.copiedAt,
+      kind: row.kind,
+      source: row.source,
+      pageHref: row.pageHref,
+      pageTitle: row.pageTitle,
+      submittedBy: row.submittedBy,
+    }),
+  );
 }
 
 function ticketFromRow(row: typeof kanbanTickets.$inferSelect): KanbanTicket {
@@ -520,28 +538,39 @@ export async function pgGetKanbanMeta(): Promise<KanbanMeta[]> {
 
 export async function pgUpsertKanbanIdea(row: KanbanInboxNote): Promise<void> {
   const db = await getDb();
+  const note = normalizeInboxNote(row);
   await db
     .insert(kanbanIdeas)
     .values({
-      id: row.id,
-      nodeId: row.nodeId,
-      title: row.title,
-      body: row.body,
-      status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      copiedAt: row.copiedAt ?? null,
+      id: note.id,
+      nodeId: note.nodeId,
+      title: note.title,
+      body: note.body,
+      status: note.status,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      copiedAt: note.copiedAt ?? null,
+      kind: note.kind ?? "idea",
+      source: note.source ?? "raise",
+      pageHref: note.pageHref ?? null,
+      pageTitle: note.pageTitle ?? null,
+      submittedBy: note.submittedBy ?? null,
     })
     .onConflictDoUpdate({
       target: kanbanIdeas.id,
       set: {
-        nodeId: row.nodeId,
-        title: row.title,
-        body: row.body,
-        status: row.status,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        copiedAt: row.copiedAt ?? null,
+        nodeId: note.nodeId,
+        title: note.title,
+        body: note.body,
+        status: note.status,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        copiedAt: note.copiedAt ?? null,
+        kind: note.kind ?? "idea",
+        source: note.source ?? "raise",
+        pageHref: note.pageHref ?? null,
+        pageTitle: note.pageTitle ?? null,
+        submittedBy: note.submittedBy ?? null,
       },
     });
 }

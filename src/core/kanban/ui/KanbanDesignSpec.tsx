@@ -8,7 +8,7 @@ import {
   KANBAN_CATEGORIES,
 } from "../schema";
 
-/** Global /i/kanban only. The written contract for every Kanban Online embed. */
+/** Development template contract. Same host on `/d` and every leaf Development tab. */
 export function KanbanDesignSpec() {
   const c = KANBAN_CHROME;
   return (
@@ -20,11 +20,10 @@ export function KanbanDesignSpec() {
           </p>
           <h2 className="text-xl font-semibold tracking-tight">{c.labels.designSpec}</h2>
           <p className="text-[var(--muted)]">
-            This is the specification for the Development template. Internal Kanban at{" "}
-            <code className="font-mono text-xs">/i/kanban</code> is the reference
-            implementation. Every leaf that has left <code className="font-mono text-xs">sketched</code>{" "}
-            embeds the same host. This tab exists only on the global page so the contract has
-            one place to be read.
+            This is the specification for the Development template. The Development hub at{" "}
+            <code className="font-mono text-xs">/d</code> is the reference implementation.
+            Every leaf that has left <code className="font-mono text-xs">sketched</code>{" "}
+            embeds the same host, including this tab.
           </p>
           <p className="text-[var(--muted)]">
             Relabel in <code className="font-mono text-xs">src/core/kanban/chrome.ts</code>.
@@ -134,7 +133,7 @@ export function KanbanDesignSpec() {
             </li>
             <li>
               Leaf extra tools (Testing) may sit above the host as sibling chrome. They must
-              not replace Raise or invent a second Inbox.
+              not invent a second Inbox.
             </li>
           </ul>
         </SpecSection>
@@ -287,8 +286,8 @@ export function KanbanDesignSpec() {
 
         <SpecSection id="raise" title={`9. ${c.labels.raise}`}>
           <p>
-            Primary control, far right of the tab strip, on every template tab including
-            this one. Not in the filter row. Not a FAB (Feedback already owns the mobile FAB).
+            Capture is chrome <strong>Feedback</strong> (header on desktop, floating button on
+            mobile) — the Raise-style popup. It is not a button on the Development tab strip.
           </p>
           <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
             <li>
@@ -297,12 +296,12 @@ export function KanbanDesignSpec() {
               close. Footer Save to Inbox / Cancel always visible.
             </li>
             <li>
-              Body: title, growing details, leaf tag (label until click → nested Site
-              network), attachments dropzone. Details take leftover height.
+              Body: type (bug default), title, growing details, leaf tag, attachments
+              dropzone. Details take leftover height. Page breadcrumb is stored.
             </li>
             <li>
-              Default tag is the current leaf (or Global on Internal). Tag is ownership, not
-              a swimlane.
+              Default tag is the current leaf (or Global on <code className="font-mono text-xs">/d</code>
+              ). Tag is ownership, not a swimlane.
             </li>
           </ul>
         </SpecSection>
@@ -345,8 +344,8 @@ export function KanbanDesignSpec() {
         <SpecSection id="responsive" title="12. Responsive and motion">
           <p>
             Desktop is the primary desk (board needs width). On small viewports: tabs wrap,
-            Raise stays at the end of the tab cluster, board columns stack, modals use the
-            same viewport cap. Do not hide Inbox or Raise behind a hamburger — this template
+            board columns stack, capture stays the chrome Feedback FAB, modals use the
+            same viewport cap. Do not hide Inbox behind a hamburger — this template
             is the work, not chrome chrome.
           </p>
           <p className="mt-2 text-[var(--muted)]">
@@ -378,7 +377,7 @@ export function KanbanDesignSpec() {
               <thead>
                 <tr className="text-xs text-[var(--muted)]">
                   <th className="py-1 font-medium">Piece</th>
-                  <th className="py-1 font-medium">Global /i/kanban</th>
+                  <th className="py-1 font-medium">Global /d</th>
                   <th className="py-1 font-medium">Leaf Development</th>
                 </tr>
               </thead>
@@ -436,7 +435,7 @@ const TOC = [
 const JOBS = [
   {
     job: "Capture",
-    surface: "Raise → Inbox",
+    surface: "Chrome Feedback → Inbox",
     done: "A dated note exists, tagged to a leaf, optional files.",
   },
   {
@@ -480,7 +479,7 @@ const RECORDS = [
   {
     name: "Leaf notes",
     is: "Bulk scratchpad for people already on the leaf.",
-    not: "The inbox. If it should become work, Raise it.",
+    not: "The inbox. If it should become work, send Feedback.",
   },
 ];
 
@@ -516,12 +515,12 @@ const EMBED = [
   {
     piece: "Raise default tag",
     global: "Global.",
-    leaf: "This leaf.",
+    leaf: "This leaf (chrome Feedback).",
   },
   {
     piece: "Design spec tab",
     global: "Yes — this document.",
-    leaf: "No.",
+    leaf: "Yes — same contract.",
   },
   {
     piece: "Notes persistence",
@@ -530,7 +529,7 @@ const EMBED = [
   },
   {
     piece: "Changelog",
-    global: "node i-kanban.",
+    global: "hub-development (plus legacy i-kanban rows).",
     leaf: "That leaf’s changelog rows.",
   },
   {
