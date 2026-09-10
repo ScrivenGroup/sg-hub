@@ -1457,6 +1457,9 @@ function SourceNameCell({
     kind === "pm" ? (
       <CardNameCell
         name={row.name}
+        setCode={row.setCode}
+        collectorNumber={row.collectorNumber}
+        finish={row.finishLabel}
         playmantisImageUrl={row.imageUrl}
         showOwned={false}
         showMate={false}
@@ -1464,12 +1467,22 @@ function SourceNameCell({
     ) : kind === "mm" ? (
       <CardNameCell
         name={row.name}
+        setCode={row.setCode}
+        collectorNumber={row.collectorNumber}
+        finish={row.finishLabel}
         mateImageUrl={row.imageUrl}
         showOwned={false}
         showPlaymantis={false}
       />
     ) : (
-      <CardNameCell name={row.name} ownedImageUrl={row.imageUrl} showStore={false} />
+      <CardNameCell
+        name={row.name}
+        setCode={row.setCode}
+        collectorNumber={row.collectorNumber}
+        finish={row.finishLabel}
+        ownedImageUrl={row.imageUrl}
+        showStore={false}
+      />
     );
   if (!row.imageAmbiguous) return cell;
   return (
@@ -1605,6 +1618,9 @@ function JoinTable({ rows }: { rows: OuterJoinRow[] }) {
                   <span className="flex items-center gap-1.5 whitespace-nowrap">
                     <CardNameCell
                       name={row.name}
+                      setCode={row.setCode}
+                      collectorNumber={row.collectorNumber}
+                      finish={row.finishLabel}
                       ownedImageUrl={row.ownedImageUrl}
                       mateImageUrl={row.mmQty > 0 ? row.ownedImageUrl : undefined}
                       playmantisImageUrl={row.pmQty > 0 ? row.ownedImageUrl : undefined}
@@ -1828,6 +1844,9 @@ function StreamRowBlock({
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <CardNameCell
                 name={row.name}
+                setCode={row.setCode}
+                collectorNumber={row.collectorNumber}
+                finish={row.finish}
                 ownedImageUrl={row.ownedImageUrl}
                 showOwned
                 showStore={false}
@@ -1879,6 +1898,9 @@ function StreamRowBlock({
                   </label>
                   <CardNameCell
                     name={`${row.name} · ${v.label}`}
+                    setCode={row.setCode}
+                    collectorNumber={row.collectorNumber}
+                    finish={row.finish}
                     storeImageUrl={v.imageUrl}
                     showOwned={false}
                     showStore
@@ -1919,6 +1941,9 @@ function StreamRowBlock({
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <CardNameCell
             name={row.name}
+            setCode={row.setCode}
+            collectorNumber={row.collectorNumber}
+            finish={row.finish}
             ownedImageUrl={row.ownedImageUrl}
             storeImageUrl={row.storeImageUrl}
           />
@@ -2088,6 +2113,9 @@ function CompareTable({
               >
                 <CardNameCell
                   name={row.name}
+                  setCode={row.setCode}
+                  collectorNumber={row.collectorNumber}
+                  finish={row.finish}
                   ownedImageUrl={row.ownedImageUrl}
                   showOwned
                   showStore={false}
@@ -2176,6 +2204,9 @@ function CompareRowBlock({
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <CardNameCell
             name={row.name}
+            setCode={row.setCode}
+            collectorNumber={row.collectorNumber}
+            finish={row.finish}
             ownedImageUrl={row.ownedImageUrl}
             showOwned
             showStore={false}

@@ -740,6 +740,20 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.13",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.13",
+    createdAt: "2026-09-10T01:40:00.000Z",
+    title: "1.5.13 (dev) — richer card hover preview",
+    body: `## Publish to localhost (not live)
+
+- O / M / P / S hover shows the card face plus name, set, collector #, and finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
