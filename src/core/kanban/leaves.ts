@@ -6,12 +6,16 @@ export type KanbanLeafOption = {
   title: string;
 };
 
+/** Chrome tools that are the capture surface, not a product leaf to tag. */
+const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "i-feedback"]);
+
 function taggableLeaves(): KanbanLeafOption[] {
   const { childrenByHub } = siteNetworkTree();
   const leaves: KanbanLeafOption[] = [];
   for (const children of Object.values(childrenByHub)) {
     for (const node of children) {
       if (node.kind === "hub") continue;
+      if (UNTAGGABLE_TOOL_IDS.has(node.id)) continue;
       leaves.push({ id: node.id, title: node.title });
     }
   }
@@ -47,7 +51,12 @@ export function isKanbanLeafId(nodeId: string): boolean {
   return kanbanLeafOptions().some((row) => row.id === nodeId);
 }
 
-function isTaggableRegistryLeaf(node: { kind: string; parentId: string | null }): boolean {
+function isTaggableRegistryLeaf(node: {
+  id: string;
+  kind: string;
+  parentId: string | null;
+}): boolean {
+  if (UNTAGGABLE_TOOL_IDS.has(node.id)) return false;
   return node.kind !== "hub" && node.parentId != null;
 }
 

@@ -1285,6 +1285,21 @@ Out of this version
 - Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
 - Buylist product work on wip/buylist is not in this train.`,
   },
+  {
+    id: "cl-kanban-online-0.2.1",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.1",
+    createdAt: "2026-09-09T06:30:00.000Z",
+    title: "0.2.1 — Inbox sittings query Neon first (localhost)",
+    body: `Kanban Online 0.2.1. Localhost until the next hub train. Ticket kt-notes-survive-publish.
+
+- Feedback and Kanban rows on Neon survive zip (data/ is stripped). Seed only adds missing ids; empty MRT seed ideas is not an empty inbox.
+- Inbox sittings: scripts/inspect-neon-inbox.ts then /i/feedback then seed. Do not call getKanbanBoard for forensics.
+- Feedback Bug stays on /i/feedback; Idea copies to Kanban; Raise is Kanban only.
+- Leaf tag on /i/kanban and /i/feedback defaults to Global (not the Kanban Online tool id).
+- Live proof of zip + restage remains kt-db-make-live.`,
+  },
 ];
 
 export const seedDependencies: DependencyRecord[] = [
