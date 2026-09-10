@@ -27,6 +27,15 @@ export function buildMateBookmarklet(input: {
   return `javascript:${encodeURIComponent(buildMateHarvestScript(input))}`;
 }
 
+/** Bookmarklet body: click on Playmantis after Import Review finishes. Downloads just the popup. */
+export function buildPlaymantisImportReviewScript(): string {
+  return `(function(){if(!/playmantis\\.com\\.au$/i.test(location.hostname)){alert("Run this on playmantis.com.au after Import Review finishes.");return}var body=document.getElementById("import-review-body");if(!body){alert("Import Review is not on this page.");return}if(body.querySelector(".import-loading")){alert("Wait until Import Review finishes matching, then run this again.");return}var html=body.outerHTML;var blob=new Blob([html],{type:"text/html;charset=utf-8"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);var z=new Date(),p=function(n){return String(n).padStart(2,"0")};a.download="playmantis-import-review_"+z.getFullYear()+p(z.getMonth()+1)+p(z.getDate())+"_"+p(z.getHours())+p(z.getMinutes())+p(z.getSeconds())+".html";a.click();alert("MTG Buylist: Import Review downloaded.\\n\\nDrop that HTML on the Playmantis stream.")})();`;
+}
+
+export function buildPlaymantisImportReviewBookmarklet(): string {
+  return `javascript:${encodeURIComponent(`void ${buildPlaymantisImportReviewScript()}`)}`;
+}
+
 export function mateCorsHeaders(origin: string | null): HeadersInit {
   const allowed =
     origin && MATE_ALLOWED_ORIGINS.includes(origin) ? origin : MATE_ALLOWED_ORIGINS[0];

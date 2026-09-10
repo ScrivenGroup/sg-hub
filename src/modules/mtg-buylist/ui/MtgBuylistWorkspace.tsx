@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   clearBuylistRunAction,
@@ -13,9 +14,18 @@ import {
   lookupSetCodesAction,
   refreshMateImageLinksAction,
   rejectMateVariantAction,
+  savePlaymantisHarvestDiffAction,
   uploadCsvAction,
 } from "../actions";
 import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency, manaBoxRowsToCsv } from "../logic/parse-csv";
+import { countMateHarvestCards } from "../logic/parse-mate";
+import { buildPlaymantisImportReviewBookmarklet } from "../logic/bookmarklet";
+import {
+  compareImportReview,
+  harvestDiffRows,
+  offersFromImportReview,
+} from "../logic/compare-import-review";
+import { parsePlaymantisImportReview, type ImportReviewRow } from "../logic/parse-import-review";
 import { normalizeSetCode } from "../logic/names";
 import {
   buildOuterJoin,
@@ -47,6 +57,7 @@ import {
   type StreamTone,
 } from "../logic/tables";
 import {
+  MTG_BUYLIST_HREF,
   PRICE_SOURCE_LABELS,
   PRICE_SOURCES,
   type ManaBoxRow,
@@ -64,16 +75,54 @@ function readFileText(file: File): Promise<string> {
   return file.text();
 }
 
+const HARVEST_DIFF_CELL =
+  "bg-[color-mix(in_srgb,var(--rag-amber)_38%,transparent)]";
+
+function UniquenessKey({ label }: { label: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      className="relative ml-auto shrink-0"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        aria-label="How this section identifies a printing"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[color-mix(in_srgb,var(--ink)_10%,var(--surface))] text-[var(--ink)]"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+        </svg>
+      </button>
+      {open ? (
+        <span
+          role="tooltip"
+          className="absolute right-0 top-full z-40 mt-1 w-72 rounded-md border border-[#1a1a19] bg-[var(--surface)] p-2 text-left text-xs font-normal leading-5 shadow-lg"
+        >
+          {label}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function CollapsibleSection({
   id,
   title,
   hint,
+  uniqueness,
   defaultOpen,
   children,
 }: {
   id: string;
   title: string;
   hint?: string;
+  uniqueness?: ReactNode;
   defaultOpen: boolean;
   children: ReactNode;
 }) {
@@ -102,7 +151,7 @@ function CollapsibleSection({
         <span className="text-[var(--muted)]" aria-hidden>
           {open ? "▾" : "▸"}
         </span>
-        {title}
+        <span className="min-w-0">{title}</span>
         {hint ? (
           <span
             onClick={(e) => e.stopPropagation()}
@@ -111,6 +160,7 @@ function CollapsibleSection({
             <InfoTip label={hint} />
           </span>
         ) : null}
+        {uniqueness ? <UniquenessKey label={uniqueness} /> : null}
       </button>
       {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
     </section>
@@ -240,7 +290,7 @@ function LoadingBanner({ status, pending }: { status: string; pending: boolean }
   if (!pending && !status) return null;
   return (
     <div
-      className="sticky top-14 z-30 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm shadow-md"
+      className="sticky top-[6.5rem] z-10 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm shadow-md"
       role="status"
       aria-live="polite"
     >
@@ -257,8 +307,13 @@ function LoadingBanner({ status, pending }: { status: string; pending: boolean }
 
 function BusyOverlay({ status }: { status: string }) {
   const [mounted, setMounted] = useState(false);
+  const [secs, setSecs] = useState(0);
   useEffect(() => {
     setMounted(true);
+  }, []);
+  useEffect(() => {
+    const timer = window.setInterval(() => setSecs((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
   }, []);
   if (!mounted) return null;
   return createPortal(
@@ -277,9 +332,7 @@ function BusyOverlay({ status }: { status: string }) {
           />
           <p className="font-medium">{status || "Working…"}</p>
         </div>
-        <p className="text-sm text-[var(--muted)]">
-          Leave this page alone until this finishes. Counts update here as each batch lands.
-        </p>
+        <p className="text-sm text-[var(--muted)]">Leave this page open. {secs}s elapsed.</p>
       </div>
     </div>,
     document.body,
@@ -385,7 +438,7 @@ function toneClass(tone: StreamTone): string {
   return "bg-[color-mix(in_srgb,var(--rag-amber)_10%,transparent)]";
 }
 
-type StreamFilter = "all" | "sell" | "capped" | "skip";
+type StreamFilter = "all" | "sell" | "capped" | "skip" | "harvest_diff";
 type CompareFilter =
   | "all"
   | "sellable"
@@ -398,7 +451,7 @@ type CompareFilter =
 const COMPARE_FILTERS: { id: CompareFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "sellable", label: "Sellable" },
-  { id: "capped", label: "Want full" },
+  { id: "capped", label: "At limit" },
   { id: "notfound", label: "Not found" },
   { id: "mate", label: "Mate picklist" },
   { id: "playmantis", label: "Playmantis picklist" },
@@ -450,6 +503,7 @@ function filterStreamRows(rows: StreamRow[], filter: StreamFilter): StreamRow[] 
     );
   }
   if (filter === "skip") return rows.filter((r) => r.tone === "skip");
+  if (filter === "harvest_diff") return rows.filter((r) => Boolean(r.harvestDiff));
   return rows;
 }
 
@@ -499,6 +553,14 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   } | null>(null);
   const [setCodeHints, setSetCodeHints] = useState<Record<string, string>>({});
   const [cardIdHints, setCardIdHints] = useState<Record<string, string | CardHint>>({});
+  const [importReview, setImportReview] = useState<{
+    filename: string;
+    review: ImportReviewRow[];
+  } | null>(null);
+  const savedHarvestDiffKey = useRef("");
+  const [deltaSave, setDeltaSave] = useState<{ saved: number } | null>(null);
+  const [savingDeltas, setSavingDeltas] = useState(false);
+  const importReviewBookmarklet = useMemo(() => buildPlaymantisImportReviewBookmarklet(), []);
 
   useEffect(() => {
     setStore(initialStore);
@@ -525,7 +587,41 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     setMateSubmission(null);
     setSetCodeHints({});
     setCardIdHints({});
+    setImportReview(null);
+    setDeltaSave(null);
+    savedHarvestDiffKey.current = "";
   }, [store.csv?.uploadedAt, store.csv?.filename]);
+
+  const dumpOffers = useMemo(() => {
+    if (!importReview || !store.csv) return [];
+    return offersFromImportReview(
+      store.csv.rows,
+      importReview.review,
+      store.playmantis?.fetchedAt || importReview.filename,
+    );
+  }, [importReview, store.csv, store.playmantis?.fetchedAt]);
+
+  const pmOffers = dumpOffers.length > 0 ? dumpOffers : store.playmantis?.offers ?? [];
+
+  const importReviewLog = useMemo(() => {
+    if (!importReview || !store.csv) return null;
+    return compareImportReview({
+      csv: store.csv.rows,
+      harvest: store.playmantis?.offers || [],
+      review: importReview.review,
+    });
+  }, [importReview, store.csv, store.playmantis?.fetchedAt, store.playmantis?.offers]);
+
+  const harvestDeltas = useMemo(
+    () => (importReviewLog ? harvestDiffRows(importReviewLog) : []),
+    [importReviewLog],
+  );
+
+  useEffect(() => {
+    if (busy || pending || !status) return;
+    const timer = window.setTimeout(() => setStatus(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [status, busy, pending]);
 
   useEffect(() => {
     if (!join) return;
@@ -574,13 +670,34 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       ).size
     : 0;
 
-  const pmRows = useMemo(
-    () =>
-      store.csv && store.playmantis
-        ? buildPmStreamRows(store.csv.rows, store.playmantis.offers)
-        : [],
-    [store.csv, store.playmantis],
-  );
+  const pmRows = useMemo(() => {
+    if (!store.csv || !pmOffers.length) return [];
+    const built = buildPmStreamRows(store.csv.rows, pmOffers);
+    if (!importReviewLog || !store.playmantis) return built;
+    return built.map((row, i) => {
+      const log = importReviewLog.rows[i];
+      if (!log || log.verdict === "agree") return row;
+      return {
+        ...row,
+        harvestDiff: {
+          verdict: log.verdict,
+          note: log.note,
+          reviewStatus: log.reviewStatus,
+          harvestStatus: log.harvestStatus,
+          reviewCreditCents: log.reviewCreditCents,
+          harvestCreditCents: log.harvestCreditCents,
+          harvestLimit: log.harvestLimit,
+        },
+      };
+    });
+  }, [store.csv, pmOffers, importReviewLog, store.playmantis]);
+
+  useEffect(() => {
+    if (pmFilter === "harvest_diff" && !pmRows.some((row) => row.harvestDiff)) {
+      setPmFilter("all");
+    }
+  }, [pmFilter, pmRows]);
+
   const mateResolveOpts = useMemo(
     () => ({
       confirmations: store.mateConfirmations || {},
@@ -598,15 +715,15 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   );
   const compareRows = useMemo(
     () =>
-      store.csv && (store.playmantis || store.mate)
+      store.csv && (store.playmantis || store.mate || dumpOffers.length)
         ? buildCompareRows(
             store.csv.rows,
             store.mate?.offers || [],
-            store.playmantis?.offers || [],
+            pmOffers,
             mateResolveOpts,
           )
         : [],
-    [store.csv, store.mate, store.playmantis, mateResolveOpts],
+    [store.csv, store.mate, store.playmantis, dumpOffers.length, pmOffers, mateResolveOpts],
   );
 
   function confirmMateVariant(rowKey: string, mateUuid: string, currentlyConfirmed: boolean) {
@@ -653,6 +770,32 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         return;
       }
       if (result.store) setStore(result.store);
+    });
+  }
+
+  function savePmDeltas() {
+    if (!importReview || !importReviewLog || !store.csv || !store.playmantis) return;
+    const key = `${store.playmantis.fetchedAt}|${importReview.filename}|${harvestDeltas.length}`;
+    if (savedHarvestDiffKey.current === key) return;
+    if (!harvestDeltas.length) {
+      setDeltaSave({ saved: 0 });
+      return;
+    }
+    setSavingDeltas(true);
+    setError("");
+    void savePlaymantisHarvestDiffAction({
+      csvFilename: store.csv.filename,
+      reviewFilename: importReview.filename,
+      harvestedAt: store.playmantis.fetchedAt,
+      rows: importReviewLog.rows,
+    }).then((result) => {
+      setSavingDeltas(false);
+      if (!result.ok) {
+        setError(result.error || "Could not save Playmantis deltas");
+        return;
+      }
+      savedHarvestDiffKey.current = key;
+      setDeltaSave({ saved: result.saved });
     });
   }
 
@@ -719,8 +862,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       setStore(result.store);
       setStatus(
         opts.missingOnly
-          ? `${opts.label} · ${result.remaining} left — leave this page alone`
-          : `${opts.label} ${result.done} / ${result.total} — leave this page alone`,
+          ? `${opts.label} · ${result.remaining} left`
+          : `${opts.label} ${result.done} / ${result.total}`,
       );
       if (result.remaining <= 0) break;
       await new Promise((resolve) => setTimeout(resolve, opts.gapMs));
@@ -772,6 +915,22 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     });
   }
 
+  function acceptImportReview(file: File) {
+    void readFileText(file).then((text) => {
+      const parsed = parsePlaymantisImportReview(text);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      if (!store.csv) {
+        setError("Upload the ManaBox CSV first so the review can be compared to this run");
+        return;
+      }
+      setError("");
+      setImportReview({ filename: file.name, review: parsed.rows });
+    });
+  }
+
   function confirmCsvUpload() {
     if (!pendingCsv) return;
     const currency = priceCurrency.trim().toUpperCase();
@@ -796,21 +955,50 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       return;
     }
     setError("");
-    setStatus(
-      megabytes >= 4
-        ? `Uploading ${megabytes.toFixed(1)} MB Mate JSON… leave this page alone`
-        : "Uploading Mate JSON… leave this page alone",
-    );
+    setStatus(`Uploading 0 / ${megabytes.toFixed(1)} MB`);
     setBusy(true);
     void (async () => {
       try {
-        const form = new FormData();
-        form.append("file", file);
-        const res = await fetch("/api/mtg-buylist/mate-upload", {
-          method: "POST",
-          body: form,
+        let harvestedCards = 0;
+        void file.text().then((text) => {
+          harvestedCards = countMateHarvestCards(text);
+          if (harvestedCards) {
+            setStatus((prev) =>
+              prev.startsWith("Uploading")
+                ? `${prev} · ${harvestedCards} cards`
+                : prev,
+            );
+          }
         });
-        const raw = await res.text();
+        const { status: httpStatus, text: raw } = await new Promise<{
+          status: number;
+          text: string;
+        }>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/mtg-buylist/mate-upload");
+          xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable) return;
+            const loaded = (event.loaded / (1024 * 1024)).toFixed(1);
+            const total = (event.total / (1024 * 1024)).toFixed(1);
+            setStatus(
+              `Uploading ${loaded} / ${total} MB${
+                harvestedCards ? ` · ${harvestedCards} cards` : ""
+              }`,
+            );
+          };
+          xhr.upload.onload = () => {
+            setStatus(
+              harvestedCards
+                ? `Parsing ${harvestedCards} cards…`
+                : "Parsing harvest…",
+            );
+          };
+          xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText });
+          xhr.onerror = () => reject(new Error("Mate upload failed"));
+          const form = new FormData();
+          form.append("file", file);
+          xhr.send(form);
+        });
         let data: {
           ok: boolean;
           error?: string;
@@ -826,26 +1014,34 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           data = JSON.parse(raw) as typeof data;
         } catch {
           setError(
-            res.status === 413
+            httpStatus === 413
               ? `Mate JSON is too large (${megabytes.toFixed(1)} MB) for this server.`
-              : `Mate upload failed (${res.status}).`,
+              : `Mate upload failed (${httpStatus}).`,
           );
           setStatus("");
           return;
         }
         if (!data.ok) {
-          setError(data.error || `Mate upload failed (${res.status})`);
+          setError(data.error || `Mate upload failed (${httpStatus})`);
           setStatus("");
           return;
         }
         if (data.store) setStore(data.store);
+        const kept = data.summary?.offers ?? 0;
+        const source = data.summary?.harvestedOffers || harvestedCards || kept;
         setStatus(
-          data.summary
-            ? data.summary.harvestedOffers &&
-              data.summary.harvestedOffers > data.summary.offers
-              ? `Mate snapshot: ${data.summary.offers} offers across ${data.summary.sets} CSV sets (kept from ${data.summary.harvestedOffers} in the harvest).`
-              : `Mate snapshot: ${data.summary.offers} offers across ${data.summary.sets} sets (image joins applied).`
-            : "Mate JSON uploaded.",
+          `Parsed ${kept} / ${source} cards · joining images…`,
+        );
+        const joined = await refreshMateImageLinksAction();
+        if (!joined.ok) {
+          setError(joined.error || "Harvest saved; image joins failed");
+          setStatus(`Mate ${kept} / ${source} cards · image joins failed`);
+          router.refresh();
+          return;
+        }
+        if (joined.store) setStore(joined.store);
+        setStatus(
+          `Mate ${kept} / ${source} cards · ${joined.linkedCount} image joins`,
         );
         router.refresh();
       } catch (err) {
@@ -890,7 +1086,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             This run
           </button>
         </div>
-        <InfoTip label="This run is the only slot today. Parallel runs (several independent CSV/harvest sessions) are a future idea — logged in this leaf’s Inbox." />
+        <InfoTip label="One run slot. Parallel runs are an Inbox idea." />
       </div>
       {busy ? <BusyOverlay status={status} /> : null}
       {error ? (
@@ -903,7 +1099,20 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="csv"
         title="1. ManaBox CSV"
-        hint="Shared input for every store. Purchase price comes from the CSV; ManaBox source (CK / TCGPlayer / Scryfall) is asked once per upload."
+        hint="Shared input. Price source is asked once per upload."
+        uniqueness={
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>
+              <strong>Scryfall ID</strong> first
+            </li>
+            <li>
+              Else <strong>set + # + finish</strong>
+            </li>
+            <li>
+              <strong>Name</strong> is a label only
+            </li>
+          </ul>
+        }
         defaultOpen
       >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -920,15 +1129,15 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         <FileDropZone
           accept=".csv,text/csv"
           disabled={pending || busy}
-          label="Choose ManaBox CSV or drop it here"
-          hint="Click this box — .csv up to ~1000 cards"
+          label="ManaBox CSV"
+          hint="Drop or click · up to ~1000 cards"
           onFile={acceptCsvFile}
         />
         {pendingCsv ? (
           <div className="mt-3 space-y-3 rounded border border-[var(--border)] p-3">
             <p className="text-sm">
               <CsvFilenameLink filename={pendingCsv.filename} csvText={pendingCsv.text} /> ready.
-              Where does ManaBox draw these listed prices from?
+              Price source?
             </p>
             <label className="block text-sm">
               Price source
@@ -962,7 +1171,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             </p>
             <button
               type="button"
-              className="sg-btn-primary disabled:opacity-50"
+              className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
               disabled={pending || busy}
               onClick={() => confirmCsvUpload()}
             >
@@ -1005,87 +1214,246 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="pm"
         title="2. Playmantis stream"
-        hint="Scryfall ID tag first. Empty tag page uses their on-site title search (`title:*word*`) and binds the same name (prefers your set). Want = 4 minus listed stock. Harvest then retries not-found IDs slower (keeps cards already found). Leave the page alone while it runs."
+        hint="Either path fills the table. Dump wins when both exist."
+        uniqueness={
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>
+              Harvest: <strong>Scryfall ID + finish</strong>
+            </li>
+            <li>
+              Dump: stripped <strong>name + set name + finish</strong> onto this CSV printing
+            </li>
+            <li>
+              Both present: <strong>Import Review</strong> is the table
+            </li>
+          </ul>
+        }
         defaultOpen={Boolean(store.csv)}
       >
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="sg-btn-primary disabled:opacity-50"
-            disabled={pending || busy || !store.csv}
-            onClick={() => {
-              void (async () => {
-                setError("");
-                setBusy(true);
-                setStatus("Harvesting Playmantis… leave this page alone");
-                try {
-                  const after = await harvestPlaymantisLoop({
-                    missingOnly: false,
-                    label: "Harvesting Playmantis",
-                    gapMs: 400,
-                  });
-                  if (!after) return;
-                  const stillMissing = missingIdCount(after);
-                  if (stillMissing > 0) {
-                    setStatus(
-                      `Retrying ${stillMissing} unfound — slower pass, leave this page alone`,
-                    );
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
-                    const retried = await harvestPlaymantisLoop({
-                      missingOnly: true,
-                      label: "Retrying unfound",
-                      gapMs: 1200,
-                    });
-                    if (!retried) return;
-                  }
-                  setStatus("Playmantis harvest finished.");
-                  router.refresh();
-                } finally {
-                  setBusy(false);
-                }
-              })();
-            }}
-          >
-            Harvest Playmantis
-          </button>
-          <button
-            type="button"
-            className="sg-btn-secondary disabled:opacity-50"
-            disabled={pending || busy || !store.csv || pmMissing === 0}
-            onClick={() => {
-              void (async () => {
-                setError("");
-                setBusy(true);
-                setStatus(
-                  `Retrying ${pmMissing} unfound — leave this page alone`,
-                );
-                try {
-                  const retried = await harvestPlaymantisLoop({
-                    missingOnly: true,
-                    label: "Retrying unfound",
-                    gapMs: 1200,
-                  });
-                  if (!retried) return;
-                  setStatus("Unfound retry finished.");
-                  router.refresh();
-                } finally {
-                  setBusy(false);
-                }
-              })();
-            }}
-          >
-            Retry not found
-          </button>
+        <div className="grid items-stretch gap-3 md:grid-cols-[minmax(13rem,0.85fr)_auto_minmax(18rem,1.2fr)]">
+          <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] p-3">
+            <h3 className="text-sm font-medium">Path 1 · Harvest</h3>
+            <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
+              <li>
+                Look up this <strong>CSV</strong>
+              </li>
+              <li>Leave the page open</li>
+            </ul>
+            <div className="flex flex-1 flex-col justify-center gap-2">
+              <button
+                type="button"
+                className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+                disabled={pending || busy || !store.csv}
+                onClick={() => {
+                  void (async () => {
+                    setError("");
+                    setBusy(true);
+                    setStatus("Harvesting Playmantis…");
+                    try {
+                      const after = await harvestPlaymantisLoop({
+                        missingOnly: false,
+                        label: "Harvesting Playmantis",
+                        gapMs: 400,
+                      });
+                      if (!after) return;
+                      const stillMissing = missingIdCount(after);
+                      if (stillMissing > 0) {
+                        setStatus(`Retrying ${stillMissing} unfound…`);
+                        await new Promise((resolve) => setTimeout(resolve, 1500));
+                        const retried = await harvestPlaymantisLoop({
+                          missingOnly: true,
+                          label: "Retrying unfound",
+                          gapMs: 1200,
+                        });
+                        if (!retried) return;
+                      }
+                      setStatus("Playmantis harvest finished.");
+                      router.refresh();
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                }}
+              >
+                Harvest Playmantis
+              </button>
+              <button
+                type="button"
+                className="sg-btn-secondary disabled:opacity-50"
+                disabled={pending || busy || !store.csv || pmMissing === 0}
+                onClick={() => {
+                  void (async () => {
+                    setError("");
+                    setBusy(true);
+                    setStatus(`Retrying ${pmMissing} unfound…`);
+                    try {
+                      const retried = await harvestPlaymantisLoop({
+                        missingOnly: true,
+                        label: "Retrying unfound",
+                        gapMs: 1200,
+                      });
+                      if (!retried) return;
+                      setStatus("Unfound retry finished.");
+                      router.refresh();
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                }}
+              >
+                Retry not found
+              </button>
+            </div>
+          </div>
+          <p className="hidden self-center text-center text-xs font-medium uppercase tracking-wide text-[var(--muted)] md:block">
+            or
+          </p>
+          <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+            <h3 className="text-sm font-medium">Path 2 · Site dump</h3>
+            <ul className="list-disc space-y-0.5 pl-4 text-sm text-[var(--muted)]">
+              <li>
+                Import CSV on{" "}
+                <a
+                  className="underline"
+                  href="https://playmantis.com.au/collections/buylist"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Playmantis
+                </a>
+              </li>
+              <li>
+                Click the <strong>bookmark</strong>
+              </li>
+              <li>
+                <strong>Drop</strong> the HTML
+              </li>
+            </ul>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                className="sg-btn-secondary"
+                href={importReviewBookmarklet}
+                draggable
+                onClick={(e) => e.preventDefault()}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/uri-list", importReviewBookmarklet);
+                  e.dataTransfer.setData("text/plain", importReviewBookmarklet);
+                }}
+              >
+                Drag to bookmarks bar
+              </a>
+              <button
+                type="button"
+                className="sg-btn-secondary text-sm"
+                onClick={() => copyText("pm-review-bm", importReviewBookmarklet)}
+              >
+                {copied === "pm-review-bm" ? "Copied" : "Copy bookmark URL"}
+              </button>
+            </div>
+            <textarea
+              className="sg-input min-h-12 font-mono text-[10px] leading-4"
+              readOnly
+              aria-label="Playmantis Import Review bookmark URL"
+              value={importReviewBookmarklet}
+            />
+            <FileDropZone
+              accept=".html,.htm,text/html"
+              disabled={pending || busy || !store.csv}
+              label="Import Review HTML"
+              hint="File the bookmark downloads"
+              onFile={acceptImportReview}
+            />
+            {importReview ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                {importReview.filename} · {importReview.review.length} rows
+                <button
+                  type="button"
+                  className="sg-btn-secondary"
+                  onClick={() => {
+                    setImportReview(null);
+                    setDeltaSave(null);
+                    savedHarvestDiffKey.current = "";
+                  }}
+                >
+                  Clear
+                </button>
+              </p>
+            ) : null}
+          </div>
         </div>
-        <p className="mt-3 text-sm text-[var(--muted)]">
-          Looked up {pmDone} / {pmTotal} Scryfall IDs
-          {store.playmantis
-            ? ` · ${pmWanted} finish-offers with credit · ${pmMissing} not found`
-            : ""}
-          {store.playmantis?.fetchedAt
-            ? ` · ${new Date(store.playmantis.fetchedAt).toLocaleString()}`
-            : ""}
-          .
+        {importReview && store.playmantis && importReviewLog ? (
+          <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+            <h3 className="text-sm font-medium">Harvest vs Import Review</h3>
+            <ul className="list-disc space-y-0.5 pl-4 text-sm text-[var(--muted)]">
+              <li>
+                Table truth: <strong>Import Review</strong>
+              </li>
+              <li>
+                Harvest is <strong>compared</strong> only
+              </li>
+              <li>
+                Save <strong>differs</strong> → Logs
+              </li>
+            </ul>
+            <p className="text-sm">
+              {importReviewLog.agree} agree · {importReviewLog.disagree} differ ·{" "}
+              {harvestDeltas.length} to save
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+                disabled={
+                  pending ||
+                  busy ||
+                  savingDeltas ||
+                  harvestDeltas.length === 0 ||
+                  Boolean(deltaSave)
+                }
+                onClick={savePmDeltas}
+              >
+                {savingDeltas ? "Saving…" : "Save PM deltas"}
+              </button>
+              {deltaSave ? (
+                <p className="text-sm text-[var(--muted)]">
+                  {deltaSave.saved ? (
+                    <>
+                      Saved {deltaSave.saved} deltas. See{" "}
+                      <Link className="underline" href={`${MTG_BUYLIST_HREF}/logs`}>
+                        Logs → diffs
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    "Nothing to save."
+                  )}
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--muted)]">
+                  Unsaved. Log:{" "}
+                  <Link className="underline" href={`${MTG_BUYLIST_HREF}/logs`}>
+                    Logs → diffs
+                  </Link>
+                  .
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+        <p className="text-sm text-[var(--muted)]" suppressHydrationWarning>
+          {importReview
+            ? `Table from Import Review · ${importReview.review.length} rows${
+                store.playmantis
+                  ? ` · harvest compared (${pmDone} / ${pmTotal} looked up)`
+                  : ""
+              }.`
+            : store.playmantis
+              ? `Looked up ${pmDone} / ${pmTotal} Scryfall IDs · ${pmWanted} finish-offers with credit · ${pmMissing} not found${
+                  store.playmantis.fetchedAt
+                    ? ` · ${store.playmantis.fetchedAt.slice(0, 16).replace("T", " ")} UTC`
+                    : ""
+                }.`
+              : "Choose a path above."}
         </p>
         {pmRows.length ? (
           <StreamTable
@@ -1093,7 +1461,11 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             rows={pmRows}
             filter={pmFilter}
             onFilter={setPmFilter}
-            creditTotal={store.resultPm?.totals.playmantisCreditCents ?? 0}
+            creditTotal={
+              dumpOffers.length
+                ? pmRows.reduce((n, r) => n + r.sell * r.creditCents, 0)
+                : (store.resultPm?.totals.playmantisCreditCents ?? 0)
+            }
             priceSource={store.csv?.priceSource}
             priceCurrency={store.csv?.priceCurrency}
             onDownload={() =>
@@ -1105,7 +1477,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           />
         ) : (
           <p className="mt-4 text-sm text-[var(--muted)]">
-            Run PM harvest to see what Playmantis will buy.
+            Harvest or drop a dump to fill this table.
           </p>
         )}
       </CollapsibleSection>
@@ -1113,13 +1485,26 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="mate"
         title="3. MTGMate stream"
-        hint="Harvest Mate alone (console script + JSON upload). Large files use the upload API. Ambiguous printings are joined by exact image match to Scryfall when possible."
+        hint="Console script + JSON. Confirm ambiguous printings."
+        uniqueness={
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>
+              <strong>Set + name + finish</strong>
+            </li>
+            <li>
+              <strong>#</strong> when the Mate title has one
+            </li>
+            <li>
+              Same name/finish, different art: <strong>Confirm</strong>
+            </li>
+          </ul>
+        }
         defaultOpen={Boolean(store.csv)}
       >
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="sg-btn-primary disabled:opacity-50"
+            className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
             disabled={pending || busy || !store.csv}
             onClick={() => {
               setError("");
@@ -1149,10 +1534,12 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         </div>
         {harvestScript ? (
           <div className="mt-4 space-y-3">
-            <ol className="list-decimal space-y-1 pl-5 text-sm">
-              <li>Copy the harvest script.</li>
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
               <li>
-                Open{" "}
+                Copy the <strong>harvest script</strong>
+              </li>
+              <li>
+                Sign in on{" "}
                 <a
                   className="underline"
                   href="https://www.mtgmate.com.au/"
@@ -1160,11 +1547,14 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                   rel="noreferrer"
                 >
                   mtgmate.com.au
-                </a>{" "}
-                and sign in.
+                </a>
               </li>
-              <li>F12 → Console → paste → Enter (download + optional POST).</li>
-              <li>Upload the JSON below if needed.</li>
+              <li>
+                F12 → Console → <strong>paste</strong> → Enter
+              </li>
+              <li>
+                <strong>Drop</strong> the JSON if the POST misses
+              </li>
             </ol>
             <p className="text-sm">
               Sets: {setCodes.join(", ") || "none"}. Token expires{" "}
@@ -1187,41 +1577,55 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             </label>
             <button
               type="button"
-              className="sg-btn-ghost text-sm"
+              className="sg-btn-secondary text-sm"
               onClick={() => copyText("bookmark", bookmarklet)}
             >
-              {copied === "bookmark" ? "Copied" : "Copy javascript: bookmark URL"}
+              {copied === "bookmark" ? "Copied" : "Copy bookmark URL"}
             </button>
           </div>
         ) : null}
         <FileDropZone
           accept=".json,.customization,application/json"
           disabled={pending || busy || !store.csv}
-          label="Choose Mate harvest JSON or drop it here"
-          hint="Click this box — full Mate harvest JSON is OK (tens of MB; leave the tab open)"
+          label="Mate harvest JSON"
+          hint="Drop or click · large files OK"
           onFile={uploadMateFile}
         />
         {store.mate ? (
           <div className="flex flex-wrap items-start justify-between gap-3">
             <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
-              Mate snapshot · {store.mate.offers.length} rows
+              Mate snapshot · {store.mate.offers.length} rows ·{" "}
+              {Object.keys(store.mateImageLinks || {}).length} image joins
               <InfoTip
-                label={`Sets ${store.mate.sets.join(", ") || "—"} (${store.mate.source}). ${new Date(store.mate.harvestedAt).toLocaleString()}. Image joins: ${Object.keys(store.mateImageLinks || {}).length} Mate printings linked to Scryfall.`}
+                label={`Sets ${store.mate.sets.join(", ") || "—"} (${store.mate.source}). ${new Date(store.mate.harvestedAt).toLocaleString()}.`}
               />
             </p>
             <button
               type="button"
               className="sg-btn-secondary shrink-0 text-sm"
               disabled={pending || busy}
-              onClick={() =>
-                run(() => refreshMateImageLinksAction(), "Matching Mate images to Scryfall…")
-              }
+              onClick={() => {
+                setError("");
+                setStatus("Joining images to Scryfall…");
+                setBusy(true);
+                void refreshMateImageLinksAction().then((result) => {
+                  setBusy(false);
+                  if (!result.ok) {
+                    setError(result.error || "Could not join images");
+                    setStatus("");
+                    return;
+                  }
+                  if (result.store) setStore(result.store);
+                  setStatus(`Linked ${result.linkedCount} printings`);
+                  router.refresh();
+                });
+              }}
             >
               Refresh Mate image joins
             </button>
           </div>
         ) : (
-          <p className="text-sm text-[var(--muted)]">No Mate snapshot in this run yet.</p>
+          <p className="text-sm text-[var(--muted)]">No Mate snapshot yet.</p>
         )}
         {mateRows.length ? (
           <StreamTable
@@ -1244,17 +1648,35 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           />
         ) : (
           <p className="mt-4 text-sm text-[var(--muted)]">
-            Upload a Mate harvest to see what Mate will buy.
+            Drop a Mate harvest to fill this table.
           </p>
         )}
       </CollapsibleSection>
 
       <CollapsibleSection
         id="compare"
-        title="4. Compare stores"
-        hint="Works with one store or both. Who wins, how many to pull (Sell), and winner Gain %. Confirm Mate printings in the Mate stream first. Filter tabs each export as compare CSV or a ManaBox template of that filter."
-        defaultOpen={Boolean(store.playmantis || store.mate)}
+        title="4. Compare stores · Mate vs Playmantis"
+        hint="Who wins. Harvest vs Import Review is on Playmantis."
+        uniqueness={
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>
+              One <strong>CSV printing</strong> per row
+            </li>
+            <li>
+              Prices already resolved on each <strong>stream</strong>
+            </li>
+          </ul>
+        }
+        defaultOpen={Boolean(store.playmantis || store.mate || dumpOffers.length)}
       >
+        <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
+          <li>
+            Store picklists. Import Review diffs:{" "}
+            <a className="underline" href="#pm">
+              2. Playmantis
+            </a>
+          </li>
+        </ul>
         {compareRows.length ? (
           <CompareTable
             rows={compareRows}
@@ -1262,7 +1684,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             onFilter={setCompareFilter}
             mateCredit={store.resultCompare?.totals.mateCreditCents ?? 0}
             mateCash={store.resultCompare?.totals.mateCashCents ?? 0}
-            pmCredit={store.resultCompare?.totals.playmantisCreditCents ?? 0}
+            pmCredit={
+              store.resultCompare?.totals.playmantisCreditCents ??
+              compareRows.reduce((n, r) => n + r.playmantisSell * r.playmantisCreditCents, 0)
+            }
             priceSource={store.csv?.priceSource}
             priceCurrency={store.csv?.priceCurrency}
             csvFilename={store.csv?.filename || "manabox.csv"}
@@ -1287,7 +1712,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           />
         ) : (
           <p className="text-sm text-[var(--muted)]">
-            Harvest Playmantis or upload Mate to use filters and exports here.
+            Harvest Playmantis or Mate first.
           </p>
         )}
       </CollapsibleSection>
@@ -1295,12 +1720,25 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="reprepare"
         title="5. Re-prepare ManaBox after pick"
-        hint="Drop the Playmantis sort-order .eml and/or a saved Mate order page. Each list is Name / Set / Finish / Qty. The outer join adds CSV Qty, MM Qty, PM Qty, Remaining, and Note. Remaining > 0 is the ManaBox re-import — overwrite ManaBox with that, not Compare Not-sold."
+        hint="Subtract sold copies. Remaining > 0 overwrites ManaBox."
+        uniqueness={
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>
+              <strong>Scryfall ID + finish</strong> first
+            </li>
+            <li>
+              Then <strong>set + # + finish</strong>
+            </li>
+            <li>
+              Then <strong>name + set + finish</strong>
+            </li>
+          </ul>
+        }
         defaultOpen={Boolean(store.csv)}
       >
         {!store.csv || !join ? (
           <p className="text-sm text-[var(--muted)]">
-            Upload a ManaBox CSV in step 1 first. This step uses that file, not Compare Sell qty.
+            Upload a ManaBox CSV in step 1 first.
           </p>
         ) : (
           <div className="space-y-5">
@@ -1310,7 +1748,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                   accept=".eml,.html,.htm,.csv,message/rfc822,text/html,text/csv"
                   disabled={pending || busy}
                   label="Playmantis submission"
-                  hint="The sort-order .eml from buylist@playmantis.com.au"
+                  hint="Sort-order .eml from Playmantis"
                   onFile={(file) => acceptSubmission(file, "playmantis")}
                 />
                 {pmSubmission ? (
@@ -1318,7 +1756,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                     {pmSubmission.filename} · {join.pm.length} printings
                     <button
                       type="button"
-                      className="sg-btn-ghost"
+                      className="sg-btn-secondary"
                       onClick={() => setPmSubmission(null)}
                     >
                       Clear
@@ -1331,7 +1769,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                   accept=".html,.htm,.csv,text/html,text/csv"
                   disabled={pending || busy}
                   label="MTGMate submission"
-                  hint="Save the order page from mtgmate.com.au/buylist/orders/…"
+                  hint="Saved Mate order page"
                   onFile={(file) => acceptSubmission(file, "mate")}
                 />
                 {mateSubmission ? (
@@ -1339,7 +1777,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                     {mateSubmission.filename} · {join.mm.length} printings
                     <button
                       type="button"
-                      className="sg-btn-ghost"
+                      className="sg-btn-secondary"
                       onClick={() => setMateSubmission(null)}
                     >
                       Clear
@@ -1396,7 +1834,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                   id="reprepare-reimport"
                   title="ManaBox re-import (Remaining > 0)"
                   count={printingCount(join.reimport.length)}
-                  hint="Qty is Remaining. Store-only and Remaining ≤ 0 stay on the join only. Overwrite ManaBox with the download."
+                  hint="Qty = Remaining. Overwrite ManaBox with the download."
                   defaultOpen
                 >
                   <div className="space-y-2">
@@ -1404,13 +1842,12 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                       <SourceListTable kind="csv" rows={join.reimport} />
                     ) : (
                       <p className="text-sm text-[var(--muted)]">
-                        Nothing left to re-import — every CSV copy was sold, or the join is
-                        store-only.
+                        Nothing left — sold or store-only.
                       </p>
                     )}
                     <button
                       type="button"
-                      className="sg-btn-primary"
+                      className="sg-btn-primary border border-[var(--ink)]"
                       onClick={() => {
                         const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
                         downloadText(`${stem}-leftover-manabox.csv`, join.leftoverCsv);
@@ -1423,7 +1860,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
               </div>
             ) : (
               <p className="text-sm text-[var(--muted)]">
-                Drop at least one submission to build the outer join and leftover file.
+                Drop a submission to build the join.
               </p>
             )}
           </div>
@@ -1585,9 +2022,18 @@ function SourceListTable({
 }
 
 function joinRowTone(row: OuterJoinRow): string {
-  if (row.remaining > 0) return "bg-[color-mix(in_srgb,var(--rag-green)_14%,transparent)]";
   if (row.remaining < 0) return "bg-[color-mix(in_srgb,var(--rag-amber)_16%,transparent)]";
+  if (row.remaining > 0) return "bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]";
   return "";
+}
+
+function soldVendorCell(qty: number, allToThis: boolean, store: "mm" | "pm"): string {
+  if (qty <= 0) return metaCellClass;
+  const tint =
+    store === "mm"
+      ? "bg-[color-mix(in_srgb,#3d6d8c_18%,transparent)]"
+      : "bg-[color-mix(in_srgb,#8c5a3d_18%,transparent)]";
+  return metaCell(`${tint}${allToThis ? " font-semibold" : ""}`);
 }
 
 function JoinTable({ rows }: { rows: OuterJoinRow[] }) {
@@ -1635,8 +2081,36 @@ function JoinTable({ rows }: { rows: OuterJoinRow[] }) {
                 <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
                 <FinishCell finish={row.finishLabel} />
                 <td className={metaCellClass}>{row.csvQty}</td>
-                <td className={metaCellClass}>{row.mmQty}</td>
-                <td className={metaCellClass}>{row.pmQty}</td>
+                <td
+                  className={soldVendorCell(
+                    row.mmQty,
+                    row.csvQty > 0 && row.mmQty === row.csvQty && row.pmQty === 0,
+                    "mm",
+                  )}
+                  title={row.mmQty > 0 ? "Mate qty sold" : undefined}
+                >
+                  {row.mmQty}
+                  {row.mmQty > 0 && row.remaining === 0 ? (
+                    <span className="ml-1 text-[10px] font-semibold">sold</span>
+                  ) : row.mmQty > 0 ? (
+                    <span className="ml-1 text-[10px]">sold</span>
+                  ) : null}
+                </td>
+                <td
+                  className={soldVendorCell(
+                    row.pmQty,
+                    row.csvQty > 0 && row.pmQty === row.csvQty && row.mmQty === 0,
+                    "pm",
+                  )}
+                  title={row.pmQty > 0 ? "Playmantis qty sold" : undefined}
+                >
+                  {row.pmQty}
+                  {row.pmQty > 0 && row.remaining === 0 ? (
+                    <span className="ml-1 text-[10px] font-semibold">sold</span>
+                  ) : row.pmQty > 0 ? (
+                    <span className="ml-1 text-[10px]">sold</span>
+                  ) : null}
+                </td>
                 <td className={metaCellClass}>{row.remaining}</td>
                 <td className="whitespace-nowrap py-1 pl-2 text-[var(--muted)]">{row.note}</td>
               </tr>
@@ -1652,11 +2126,26 @@ function FilterChip({
   active,
   label,
   onClick,
+  tone,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
+  tone?: "default" | "amber";
 }) {
+  if (tone === "amber") {
+    return (
+      <button
+        type="button"
+        role="tab"
+        aria-selected={active}
+        className={`sg-tab${active ? " !border-[var(--rag-amber)]" : ""}`}
+        onClick={onClick}
+      >
+        {label}
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -1718,6 +2207,8 @@ function StreamTable({
   onDownload: () => void;
 }) {
   const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
+  const [showHarvestDiffs, setShowHarvestDiffs] = useState(false);
+  const harvestDiffCount = rows.filter((row) => row.harvestDiff).length;
   const visible = filterStreamRows(rows, filter).filter((row) =>
     streamRowMatchesBand(row, bandFilter),
   );
@@ -1729,8 +2220,10 @@ function StreamTable({
       : filter === "sell"
         ? "Sellable"
         : filter === "capped"
-          ? "Want full"
-          : "Not found";
+          ? "At limit"
+          : filter === "harvest_diff"
+            ? "Harvest differs"
+            : "Not found";
   return (
     <div className="mt-4 min-w-0 border-t border-[var(--border)] pt-4">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
@@ -1742,9 +2235,7 @@ function StreamTable({
               </dt>
               <dd className="text-lg font-semibold">{money(creditTotal)}</dd>
               {mode === "mate" ? (
-                <p className="text-xs text-[var(--muted)]">
-                  cash {money(cashTotal || 0)} (informational, not compared)
-                </p>
+                <p className="text-xs text-[var(--muted)]">Cash {money(cashTotal || 0)}</p>
               ) : null}
             </div>
             <div>
@@ -1762,7 +2253,7 @@ function StreamTable({
         <FilterChip active={filter === "sell"} label="Sellable" onClick={() => onFilter("sell")} />
         <FilterChip
           active={filter === "capped"}
-          label="Want full"
+          label="At limit"
           onClick={() => onFilter("capped")}
         />
         <FilterChip
@@ -1770,16 +2261,64 @@ function StreamTable({
           label="Not found"
           onClick={() => onFilter("skip")}
         />
+        {mode === "pm" && harvestDiffCount > 0 ? (
+          <FilterChip
+            active={filter === "harvest_diff"}
+            label={`Harvest differs (${harvestDiffCount})`}
+            tone="amber"
+            onClick={() => onFilter("harvest_diff")}
+          />
+        ) : null}
+        {mode === "pm" && harvestDiffCount > 0 ? (
+          <div
+            className="inline-flex rounded-[10px] border border-[var(--border)] bg-[var(--surface-muted)] p-px"
+            role="group"
+            aria-label="Show harvest diffs"
+          >
+            <button
+              type="button"
+              className={`rounded-[9px] px-2.5 font-semibold ${
+                !showHarvestDiffs
+                  ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                  : "text-[var(--muted)]"
+              }`}
+              style={{
+                minHeight: "var(--sg-btn-height)",
+                fontSize: "var(--sg-btn-font)",
+              }}
+              aria-pressed={!showHarvestDiffs}
+              onClick={() => setShowHarvestDiffs(false)}
+            >
+              Table
+            </button>
+            <button
+              type="button"
+              className={`rounded-[9px] px-2.5 font-semibold ${
+                showHarvestDiffs
+                  ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                  : "text-[var(--muted)]"
+              }`}
+              style={{
+                minHeight: "var(--sg-btn-height)",
+                fontSize: "var(--sg-btn-font)",
+              }}
+              aria-pressed={showHarvestDiffs}
+              onClick={() => setShowHarvestDiffs(true)}
+            >
+              Show diffs
+            </button>
+          </div>
+        ) : null}
       </div>
       <p className="sticky top-12 z-10 mb-2 flex flex-wrap items-center gap-1.5 rounded bg-[var(--surface)] py-1 text-xs font-medium text-[var(--muted)]">
         Showing {filterLabel}
         {bandFilter.size > 0 ? " · recovered % filter" : ""} · {visible.length} of {rows.length}
         <InfoTip
-          label={`Green = sellable · grey = want full · amber = not found${
+          label={`Green = sellable · grey = at limit · amber = not found${
             mode === "mate"
-              ? " · amber+ = ambiguous Mate — Confirm the printing you own · Wrong printing reopens variants"
+              ? " · amber+ = Confirm the Mate printing · ↻ reopens variants"
               : ""
-          }. Hover O = owned, S = store match.`}
+          }. O = owned, S = store.`}
         />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
@@ -1811,6 +2350,7 @@ function StreamTable({
                 mode={mode}
                 row={row}
                 colCount={colCount}
+                showHarvestDiff={showHarvestDiffs}
                 onConfirmMate={onConfirmMate}
                 onRejectMate={onRejectMate}
               />
@@ -1826,12 +2366,14 @@ function StreamRowBlock({
   mode,
   row,
   colCount,
+  showHarvestDiff,
   onConfirmMate,
   onRejectMate,
 }: {
   mode: "pm" | "mate";
   row: StreamRow;
   colCount: number;
+  showHarvestDiff?: boolean;
   onConfirmMate?: (rowKey: string, mateUuid: string, currentlyConfirmed: boolean) => void;
   onRejectMate?: (rowKey: string) => void;
 }) {
@@ -1935,8 +2477,22 @@ function StreamRowBlock({
     );
   }
 
+  const diff = row.harvestDiff;
+  const harvestSell =
+    diff && diff.harvestCreditCents > 0 && diff.harvestLimit > 0
+      ? Math.min(row.have, diff.harvestLimit)
+      : 0;
+  const harvestPct = diff
+    ? recoveredPercent(diff.harvestCreditCents, row.listedCents)
+    : null;
+  const tablePct = recoveredPercent(row.creditCents, row.listedCents);
   return (
-    <tr className={`border-t border-[var(--border)] ${toneClass(row.tone)}`}>
+    <>
+    <tr
+      className={`border-t border-[var(--border)] ${toneClass(row.tone)}${
+        diff ? " shadow-[inset_3px_0_0_var(--rag-amber)]" : ""
+      }`}
+    >
       <td className={nameCellClass}>
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <CardNameCell
@@ -1947,10 +2503,15 @@ function StreamRowBlock({
             ownedImageUrl={row.ownedImageUrl}
             storeImageUrl={row.storeImageUrl}
           />
+          {diff ? (
+            <span className="rounded bg-[color-mix(in_srgb,var(--rag-amber)_28%,transparent)] px-1.5 py-0.5 text-[10px] font-semibold">
+              harvest differs
+            </span>
+          ) : null}
           {mode === "mate" && row.canReject && onRejectMate ? (
             <button
               type="button"
-              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--ink)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
               title="Wrong printing — show all variants again"
               aria-label="Wrong printing"
               onClick={() => onRejectMate(row.rowKey)}
@@ -1987,6 +2548,66 @@ function StreamRowBlock({
         </td>
       ) : null}
     </tr>
+    {showHarvestDiff && diff ? (
+      harvestIsBlank(diff) ? (
+        <tr className="bg-[color-mix(in_srgb,var(--rag-amber)_10%,transparent)]">
+          <td className={`${nameCellClass} text-xs text-[var(--muted)]`} colSpan={colCount}>
+            harvest is blank
+          </td>
+        </tr>
+      ) : (
+        <tr className="bg-[color-mix(in_srgb,var(--rag-amber)_10%,transparent)]">
+          <td className={`${nameCellClass} text-xs text-[var(--muted)]`}>Harvest</td>
+          <td className={metaCellClass}>{row.setCode}</td>
+          <td className={metaCellClass}>{row.collectorNumber}</td>
+          <FinishCell finish={row.finish} />
+          <td className={metaCellClass}>{row.have}</td>
+          <td
+            className={metaCell(
+              diff.harvestLimit !== row.wanted ? HARVEST_DIFF_CELL : undefined,
+            )}
+          >
+            {diff.harvestLimit}
+          </td>
+          <td
+            className={metaCell(
+              harvestSell !== row.sell
+                ? `${HARVEST_DIFF_CELL} font-semibold`
+                : "font-semibold",
+            )}
+          >
+            {harvestSell}
+          </td>
+          <td className={metaCellClass}>{money(row.listedCents)}</td>
+          <td
+            className={metaCell(
+              diff.harvestCreditCents !== row.creditCents ? HARVEST_DIFF_CELL : undefined,
+            )}
+          >
+            {money(diff.harvestCreditCents)}
+          </td>
+          <td
+            className={metaCell(
+              harvestPct !== tablePct
+                ? HARVEST_DIFF_CELL
+                : recoveryBandClass(recoveryBand(diff.harvestCreditCents, row.listedCents)),
+            )}
+          >
+            {formatRecovered(harvestPct)}
+          </td>
+        </tr>
+      )
+    ) : null}
+    </>
+  );
+}
+
+function harvestIsBlank(diff: NonNullable<StreamRow["harvestDiff"]>): boolean {
+  return (
+    !diff.harvestStatus ||
+    (diff.harvestStatus === "not_found" &&
+      diff.harvestCreditCents === 0 &&
+      diff.harvestLimit === 0)
   );
 }
 
@@ -2028,19 +2649,22 @@ function CompareTable({
 
   return (
     <div className="min-w-0">
-      <dl className="mb-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs text-[var(--muted)]">Mate credit</dt>
-          <dd className="text-lg font-semibold">{money(mateCredit)}</dd>
-          <p className="text-xs text-[var(--muted)]">
-            cash {money(mateCash)} (informational, not compared)
-          </p>
-        </div>
-        <div>
-          <dt className="text-xs text-[var(--muted)]">Playmantis credit</dt>
-          <dd className="text-lg font-semibold">{money(pmCredit)}</dd>
-        </div>
-      </dl>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-[var(--muted)]">Mate credit</dt>
+            <dd className="text-lg font-semibold">{money(mateCredit)}</dd>
+            <p className="text-xs text-[var(--muted)]">Cash {money(mateCash)}</p>
+          </div>
+          <div>
+            <dt className="text-xs text-[var(--muted)]">Playmantis credit</dt>
+            <dd className="text-lg font-semibold">{money(pmCredit)}</dd>
+          </div>
+        </dl>
+        <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
+          Download CSV
+        </button>
+      </div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap" role="tablist" aria-label="Compare filter">
           {COMPARE_FILTERS.map((f) => (
@@ -2053,18 +2677,15 @@ function CompareTable({
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
-            Export CSV
-          </button>
           <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
             ManaBox template
           </button>
-          <InfoTip label="Exports use the selected filter. CSV is this compare table. ManaBox keeps the original columns: Have for All / Want full / Not found; Sell qty for Sellable; Mate or Playmantis Sell for those picklists; leftover Have for Not sold." />
+          <InfoTip label="Downloads use the selected filter. CSV = this table. ManaBox keeps original columns; qty is Sell (or leftover Have for Not sold)." />
         </div>
       </div>
       <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
         {csvFilename}
-        <InfoTip label="Who wins, how many to pull (Sell), and whether Sell < Have. Confirm Mate printings in the Mate stream. Hover O = owned. ManaBox exports keep original columns; quantity is this table’s Sell (or leftover Have for not sold — re-import into ManaBox)." />
+        <InfoTip label="Who wins and Sell qty. Confirm Mate printings on the Mate stream. O = owned." />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RecoveryLegend
@@ -2103,7 +2724,7 @@ function CompareTable({
         <div className="mt-6 border-t border-[var(--border)] pt-4">
           <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium">
             Put aside
-            <InfoTip label="Money cards (either store credit ≥ $2) that are not sellable right now — want full, not found, or Mate printing still needs confirm in the Mate stream." />
+            <InfoTip label="Credit ≥ $2 but not sellable now — at limit, not found, or Mate needs Confirm." />
           </h3>
           <ul className="space-y-1 text-sm">
             {putAside.map((row, i) => (

@@ -135,7 +135,7 @@ function PreviewIcon({
             <div
               id={panelId}
               role="tooltip"
-              className="pointer-events-none overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+              className="pointer-events-none overflow-hidden rounded-md border border-[#1a1a19] bg-[var(--surface)] shadow-2xl"
               style={{
                 position: "fixed",
                 left: `${anchor.left}px`,

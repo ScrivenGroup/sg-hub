@@ -51,6 +51,16 @@ export type StreamRow = {
   /** Resolved from a multi-print pool — offer Wrong printing failsafe. */
   canReject: boolean;
   resolveSource: "confirm" | "image" | "treatment" | "unique" | "none";
+  /** Present when an Import Review dump disagrees with harvest. */
+  harvestDiff?: {
+    verdict: string;
+    note: string;
+    reviewStatus: string;
+    harvestStatus: string;
+    reviewCreditCents: number;
+    harvestCreditCents: number;
+    harvestLimit: number;
+  };
 };
 
 export type CompareWinner = "mate" | "playmantis" | "split" | "none";

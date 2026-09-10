@@ -102,6 +102,16 @@ const MTG_BUYLIST_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-05T06:33:00.000Z",
     copiedAt: null,
   },
+  {
+    id: "IN-20260910-01",
+    nodeId: "p-mtg-buylist",
+    title: "Past run summary logs",
+    body: "Logs → diffs is harvest vs Import Review only. Consider a backend table of past run summaries (CSV name, when, store credit totals, sell counts) so Logs can grow another L2 tab without relying on the current Run store.",
+    status: "open",
+    createdAt: "2026-09-10T04:40:00.000Z",
+    updatedAt: "2026-09-10T04:40:00.000Z",
+    copiedAt: null,
+  },
 ];
 
 const MTG_BUYLIST_TICKETS: KanbanTicket[] = [

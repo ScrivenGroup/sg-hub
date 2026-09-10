@@ -52,6 +52,7 @@ import {
   emptyMtgBuylistStore,
   mtgBuylistStoreSchema,
   type MtgBuylistStore,
+  type PlaymantisHarvestDiffRow,
 } from "@/modules/mtg-buylist/schema";
 import {
   dualWriteJson,
@@ -85,6 +86,10 @@ import {
   pgRetagKanbanAttachments,
   pgGetKanbanLeafNote,
   pgUpsertKanbanLeafNote,
+  pgInsertPlaymantisHarvestDiff,
+  pgListPlaymantisHarvestDiff,
+  pgClearPlaymantisHarvestDiff,
+  pgMarkPlaymantisHarvestDiffLookedAt,
 } from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
@@ -516,6 +521,54 @@ export async function saveMtgBuylistStore(
     updatedAt: new Date().toISOString(),
   });
   await writeJson(mtgBuylistFile(userKey), parsed);
+}
+
+const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");
+
+export async function savePlaymantisHarvestDiff(
+  rows: PlaymantisHarvestDiffRow[],
+): Promise<number> {
+  if (!rows.length) return 0;
+  if (postgresEnabled()) await pgInsertPlaymantisHarvestDiff(rows);
+  const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+  existing.push(...rows);
+  await persistSimpleJson(HARVEST_DIFF_FILE, existing);
+  return rows.length;
+}
+
+export async function listPlaymantisHarvestDiff(): Promise<PlaymantisHarvestDiffRow[]> {
+  const raw = postgresEnabled()
+    ? await pgListPlaymantisHarvestDiff()
+    : [...(await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []))].reverse().slice(0, 200);
+  return raw.map((row) => ({ ...row, lookedAt: row.lookedAt || "" }));
+}
+
+export async function clearPlaymantisHarvestDiff(): Promise<number> {
+  let cleared = 0;
+  if (postgresEnabled()) {
+    cleared = await pgClearPlaymantisHarvestDiff();
+  } else {
+    const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+    cleared = existing.length;
+  }
+  await persistSimpleJson(HARVEST_DIFF_FILE, []);
+  return cleared;
+}
+
+export async function markPlaymantisHarvestDiffLookedAt(ids: string[]): Promise<number> {
+  const want = new Set(ids.filter(Boolean));
+  if (!want.size) return 0;
+  const now = new Date().toISOString();
+  if (postgresEnabled()) await pgMarkPlaymantisHarvestDiffLookedAt([...want]);
+  const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+  let marked = 0;
+  const next = existing.map((row) => {
+    if (!want.has(row.id) || row.lookedAt) return row;
+    marked += 1;
+    return { ...row, lookedAt: now };
+  });
+  await persistSimpleJson(HARVEST_DIFF_FILE, next);
+  return postgresEnabled() ? want.size : marked;
 }
 
 function ideaRowForDisk(idea: KanbanInboxNote): KanbanInboxNote {

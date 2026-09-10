@@ -132,6 +132,14 @@ export function normalizeCardName(raw: string): NormalisedName {
   };
 }
 
+/**
+ * Playmantis Import Review / search titles keep the treatment in parentheses
+ * (“Sundering Growth (Source Material - Borderless)”). CSV names do not.
+ */
+export function playmantisCardName(raw: string): string {
+  return normalizeCardName(raw).name.replace(/\s*\([^)]*\)\s*$/g, "").trim();
+}
+
 export function mateJoinKey(
   setCode: string,
   name: string,

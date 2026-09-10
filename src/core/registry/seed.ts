@@ -754,6 +754,78 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.14",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.14",
+    createdAt: "2026-09-10T03:28:00.000Z",
+    title: "1.5.14 (dev) — Playmantis harvest vs site dump",
+    body: `## Publish to localhost (not live)
+
+- Playmantis stream has two paths side by side: Harvest, or bookmark the site’s Import Review and drop it there. Harvest vs site diffs save to playmantis_harvest_diff.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.15",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.15",
+    createdAt: "2026-09-10T04:00:00.000Z",
+    title: "1.5.15 (dev) — Import Review is the Playmantis table",
+    body: `## Publish to localhost (not live)
+
+- When a site dump sits next to a harvest, the Playmantis table uses Import Review. Harvest differs is a filter; expand shows harvest vs dump. Save PM deltas is a button, not an auto popup.
+- Import Review titles like “Sundering Growth (Source Material - Borderless)” join the CSV name.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.16",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.16",
+    createdAt: "2026-09-10T04:30:00.000Z",
+    title: "1.5.16 (dev) — Printing keys, Logs tab, clearer diffs",
+    body: `## Publish to localhost (not live)
+
+- Each run section has a key tooltip for how it identifies a printing. Card previews have a dark border. Harvest differs / expand diffs use the amber flag colour.
+- Logs is a primary tab; diffs is the first L2. Saved harvest diffs live there (confirmed clear). Inbox: past run summary logs.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.17",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.17",
+    createdAt: "2026-09-10T05:30:00.000Z",
+    title: "1.5.17 (dev) — Tighter copy, Logs review prompt",
+    body: `## Publish to localhost (not live)
+
+- Shorter step copy with bold keywords. Info icon on uniqueness. At limit filter. Compare Download CSV matches other streams. Step 5 sold-vendor tints. Logs can copy a harvest-diff review prompt and mark rows looked-at.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.18",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.18",
+    createdAt: "2026-09-10T05:40:00.000Z",
+    title: "1.5.18 (dev) — Bordered buttons, Mate upload phases",
+    body: `## Publish to localhost (not live)
+
+- Buylist action buttons use a border. Table|Show diffs matches other button size. Mate upload reports parse then image-join; the busy overlay no longer claims live counts.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

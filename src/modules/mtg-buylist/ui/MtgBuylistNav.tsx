@@ -9,6 +9,7 @@ import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
 
 const LINKS = [
   { href: MTG_BUYLIST_HREF, label: "Run" },
+  { href: `${MTG_BUYLIST_HREF}/logs`, label: "Logs" },
   { href: `${MTG_BUYLIST_HREF}/development`, label: "Development" },
 ] as const;
 
