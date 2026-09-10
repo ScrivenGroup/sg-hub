@@ -145,7 +145,7 @@ export function CardNameCell({
 }: Props) {
   const compareMode = mateImageUrl !== undefined || playmantisImageUrl !== undefined;
   return (
-    <span className="flex min-w-0 max-w-full items-start gap-1.5">
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
       {showOwned ? (
         <PreviewIcon label="Owned (CSV / Scryfall)" url={ownedImageUrl} letter="O" />
       ) : null}
@@ -161,7 +161,7 @@ export function CardNameCell({
       ) : showStore && storeImageUrl ? (
         <PreviewIcon label="Store match" url={storeImageUrl} letter="S" />
       ) : null}
-      <span className="min-w-0 break-words font-medium">{name}</span>
+      <span className="whitespace-nowrap font-medium">{name}</span>
     </span>
   );
 }

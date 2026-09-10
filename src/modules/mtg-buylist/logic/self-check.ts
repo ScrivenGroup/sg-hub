@@ -17,7 +17,9 @@ import {
   recoveredPercent,
   recoveryBand,
 } from "./tables";
-import { parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import { buildOuterJoin, parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import { cardLookupKey } from "./scryfall";
+import { parseMateOrderHtml, parsePlaymantisSubmission } from "./parse-submissions";
 import {
   findMate,
   indexMateOffers,
@@ -946,6 +948,133 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   });
   if (!harvestScript.includes("mtgmate-buylist-harvest_")) {
     messages.push("Mate harvest download should use a dated filename");
+  }
+
+  const pmEmail = [
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    "<h4>Duel Decks: Ajani vs. Nicol Bolas</h4>",
+    "<ul><li><strong>1x</strong> Searing Meditation - Nonfoil</li>",
+    "<li><strong>2x</strong> Forest - Nonfoil</li></ul>",
+  ].join("\n");
+  const pmFromEmail = parsePlaymantisSubmission(pmEmail);
+  if (
+    pmFromEmail.length !== 2 ||
+    pmFromEmail[0]?.name !== "Searing Meditation" ||
+    pmFromEmail[1]?.quantity !== 2
+  ) {
+    messages.push("Playmantis .eml HTML should parse qty, name, finish, and set heading");
+  }
+  const pmLeftover = subtractSoldFromManaBox(csv, [pmFromEmail]);
+  if (pmLeftover.leftover.some((r) => r.name === "Searing Meditation")) {
+    messages.push("Playmantis email line should subtract Searing Meditation by name/set");
+  }
+
+  const mateHtml = `
+    <table><tbody class="buylist-card-table">
+      <tr class="buylist-card">
+        <td><i class="set-code ss ss-ddh" value="ddh"></i></td>
+        <td class="magic-card-name">
+          <a data-title="Ageless Entity" href="/cards/Ageless_Entity/DDH/18:lightly-played">Ageless Entity</a>
+          <span class="finish">Nonfoil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Accepted"></span></td>
+      </tr>
+      <tr class="buylist-card">
+        <td><i class="set-code" value="ddh"></i></td>
+        <td class="magic-card-name">
+          <a href="/cards/Ghost/DDH/1:lightly-played">Ghost</a>
+          <span class="finish">Nonfoil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Rejected"></span></td>
+      </tr>
+    </tbody></table>
+  `;
+  const mateFromHtml = parseMateOrderHtml(mateHtml);
+  if (mateFromHtml.length !== 1 || mateFromHtml[0]?.setCode !== "ddh" || mateFromHtml[0]?.collectorNumber !== "18") {
+    messages.push("Mate saved order HTML should keep Accepted rows only and read set/collector from the card URL");
+  }
+  const mateViaDetect = parseSubmissionCsv(mateHtml);
+  if (mateViaDetect.length !== 1) {
+    messages.push("Submission detect should treat a saved Mate order page as Mate HTML");
+  }
+
+  const pmWithOnly = parsePlaymantisSubmission(
+    [
+      "Content-Type: text/html; charset=utf-8",
+      "",
+      "<h4>Duel Decks: Ajani vs. Nicol Bolas</h4>",
+      "<ul><li><strong>1x</strong> Searing Meditation - Nonfoil</li>",
+      "<li><strong>2x</strong> Forest - Nonfoil</li></ul>",
+      "<h4>Aetherdrift</h4>",
+      "<ul><li><strong>1x</strong> Demonic Junker - Nonfoil</li></ul>",
+    ].join("\n"),
+  );
+  const join = buildOuterJoin(csv, pmWithOnly, mateFromHtml);
+  const searingJoin = join.join.find((r) => r.name === "Searing Meditation");
+  const forestJoin = join.join.find((r) => r.name === "Forest");
+  const agelessJoin = join.join.find((r) => r.name === "Ageless Entity");
+  const ghostJoin = join.join.find((r) => r.name === "Unknown Card");
+  const junkerJoin = join.join.find((r) => r.name === "Demonic Junker");
+  const pmForest = join.pm.find((r) => r.name === "Forest");
+  if (pmForest?.setCode !== "DDH") {
+    messages.push("PM source table should resolve set name to CSV set code DDH");
+  }
+  if (join.csv.find((r) => r.name === "Searing Meditation")?.collectorNumber !== "27") {
+    messages.push("CSV source table should show collector number");
+  }
+  if (join.mm.find((r) => r.name === "Ageless Entity")?.collectorNumber !== "18") {
+    messages.push("Mate source table should show collector number from the card URL");
+  }
+  if (pmForest?.collectorNumber !== "38") {
+    messages.push("PM matched line should inherit collector number from the CSV");
+  }
+  if (!searingJoin || searingJoin.csvQty !== 1 || searingJoin.pmQty !== 1 || searingJoin.remaining !== 0) {
+    messages.push("Join should subtract PM Searing Meditation from the CSV");
+  }
+  if (!forestJoin || forestJoin.csvQty !== 1 || forestJoin.pmQty !== 2 || forestJoin.remaining !== -1) {
+    messages.push("Join should keep oversold Forest on one row (CSV 1 − PM 2)");
+  }
+  if (!agelessJoin || agelessJoin.mmQty !== 1 || agelessJoin.remaining !== 0) {
+    messages.push("Join should subtract Mate Ageless Entity from the CSV");
+  }
+  if (!ghostJoin || ghostJoin.remaining !== 1 || ghostJoin.mmQty !== 0 || ghostJoin.pmQty !== 0) {
+    messages.push("Join should keep CSV-only Unknown Card with Remaining 1");
+  }
+  if (!junkerJoin || junkerJoin.csvQty !== 0 || junkerJoin.pmQty !== 1 || junkerJoin.remaining !== -1) {
+    messages.push("Join should list PM-only Demonic Junker as store-only");
+  }
+  if (join.reimport.some((r) => r.name === "Searing Meditation" || r.name === "Ageless Entity")) {
+    messages.push("Re-import must omit fully sold printings");
+  }
+  if (join.reimport.some((r) => r.name === "Forest" || r.name === "Demonic Junker")) {
+    messages.push("Re-import must omit Remaining ≤ 0");
+  }
+  if (!join.reimport.some((r) => r.name === "Unknown Card" && r.quantity === 1)) {
+    messages.push("Re-import should keep CSV-only cards with Remaining > 0");
+  }
+  const junkerId = "11111111-2222-3333-4444-555555555555";
+  const hinted = buildOuterJoin(
+    csv,
+    pmWithOnly,
+    mateFromHtml,
+    { aetherdrift: "dft" },
+    {
+      [cardLookupKey({ name: "Demonic Junker", setCode: "dft" })]: junkerId,
+    },
+  );
+  const junkerHinted = hinted.join.find((r) => r.name === "Demonic Junker");
+  if (!junkerHinted?.ownedImageUrl.includes(junkerId)) {
+    messages.push("Store-only join row should use a looked-up Scryfall image");
+  }
+  if (!hinted.pm.find((r) => r.name === "Demonic Junker")?.imageUrl.includes(junkerId)) {
+    messages.push("PM source table should show the looked-up Scryfall image");
+  }
+  if (!junkerHinted?.imageAmbiguous) {
+    messages.push("Looked-up store-only preview should be marked ambiguous");
+  }
+  if (hinted.join.find((r) => r.name === "Searing Meditation")?.imageAmbiguous) {
+    messages.push("CSV Scryfall ID preview must not be marked ambiguous");
   }
 
   return { ok: messages.length === 0, messages };

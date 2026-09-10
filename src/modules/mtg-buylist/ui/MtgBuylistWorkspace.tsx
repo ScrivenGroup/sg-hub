@@ -9,16 +9,25 @@ import {
   createMateHarvestAction,
   enrichCsvTreatmentsAction,
   harvestPlaymantisAction,
+  lookupCardIdsAction,
+  lookupSetCodesAction,
   refreshMateImageLinksAction,
   rejectMateVariantAction,
   uploadCsvAction,
 } from "../actions";
 import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency, manaBoxRowsToCsv } from "../logic/parse-csv";
+import { normalizeSetCode } from "../logic/names";
 import {
+  buildOuterJoin,
+  normalizeSetName,
   parseSubmissionCsv,
-  subtractSoldFromManaBox,
-  type ReprepareResult,
+  rowsNeedingScryfallImages,
+  setCodeMapFromCsv,
+  type OuterJoinResult,
+  type OuterJoinRow,
+  type SourceListRow,
 } from "../logic/reprepare";
+import { cardLookupKey, type CardHint } from "../logic/scryfall";
 import {
   buildCompareRows,
   buildMateStreamRows,
@@ -105,6 +114,69 @@ function CollapsibleSection({
       </button>
       {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
     </section>
+  );
+}
+
+function printingCount(n: number): string {
+  return `${n} printing${n === 1 ? "" : "s"}`;
+}
+
+/** Nested table disclosure inside a Run step. Remembers open/closed in this tab. */
+function CollapsibleTableSection({
+  id,
+  title,
+  count,
+  hint,
+  defaultOpen,
+  children,
+}: {
+  id: string;
+  title: string;
+  count?: string;
+  hint?: string;
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
+  const storageKey = `mtg-buylist-section-${id}`;
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return defaultOpen;
+    const saved = sessionStorage.getItem(storageKey);
+    if (saved === "1") return true;
+    if (saved === "0") return false;
+    return defaultOpen;
+  });
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    sessionStorage.setItem(storageKey, next ? "1" : "0");
+  }
+
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        className="sticky top-[6.5rem] z-10 flex w-full cursor-pointer items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] py-2 text-left text-sm font-medium"
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <span className="text-[var(--muted)]" aria-hidden>
+          {open ? "▾" : "▸"}
+        </span>
+        {title}
+        {count ? (
+          <span className="font-normal text-[var(--muted)]">· {count}</span>
+        ) : null}
+        {hint ? (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <InfoTip label={hint} />
+          </span>
+        ) : null}
+      </button>
+      {open ? <div className="pt-2">{children}</div> : null}
+    </div>
   );
 }
 
@@ -425,6 +497,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     filename: string;
     rows: ManaBoxRow[];
   } | null>(null);
+  const [setCodeHints, setSetCodeHints] = useState<Record<string, string>>({});
+  const [cardIdHints, setCardIdHints] = useState<Record<string, string | CardHint>>({});
 
   useEffect(() => {
     setStore(initialStore);
@@ -434,19 +508,51 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     () => (store.csv ? uniqueSetCodes(store.csv.rows) : []),
     [store.csv],
   );
-  const leftover: ReprepareResult | null = useMemo(() => {
+  const join: OuterJoinResult | null = useMemo(() => {
     if (!store.csv) return null;
-    const lists = [pmSubmission?.rows, mateSubmission?.rows].filter(
-      (rows): rows is ManaBoxRow[] => Boolean(rows?.length),
+    return buildOuterJoin(
+      store.csv.rows,
+      pmSubmission?.rows || [],
+      mateSubmission?.rows || [],
+      setCodeHints,
+      cardIdHints,
     );
-    if (!lists.length) return null;
-    return subtractSoldFromManaBox(store.csv.rows, lists);
-  }, [store.csv, pmSubmission, mateSubmission]);
+  }, [store.csv, pmSubmission, mateSubmission, setCodeHints, cardIdHints]);
+  const showJoin = Boolean(pmSubmission?.rows.length || mateSubmission?.rows.length);
 
   useEffect(() => {
     setPmSubmission(null);
     setMateSubmission(null);
+    setSetCodeHints({});
+    setCardIdHints({});
   }, [store.csv?.uploadedAt, store.csv?.filename]);
+
+  useEffect(() => {
+    if (!join) return;
+    const need = rowsNeedingScryfallImages(join).filter((lookup) => {
+      const keys = [
+        cardLookupKey(lookup),
+        cardLookupKey({ name: lookup.name, setCode: lookup.setCode }),
+      ];
+      return keys.every((key) => !(key in cardIdHints));
+    });
+    if (!need.length) return;
+    let cancelled = false;
+    void lookupCardIdsAction(need).then((result) => {
+      if (cancelled || !result.ok) return;
+      setCardIdHints((prev) => {
+        const next = { ...prev };
+        for (const lookup of need) {
+          const key = cardLookupKey(lookup);
+          if (!(key in next)) next[key] = "";
+        }
+        return { ...next, ...result.ids };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [join, cardIdHints]);
   const pmTotal = store.csv
     ? new Set(store.csv.rows.map((r) => r.scryfallId.trim().toLowerCase()).filter(Boolean)).size
     : 0;
@@ -635,13 +741,32 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         }
         setError("");
         const next = { filename: file.name, rows };
-        if (storeName === "playmantis") setPmSubmission(next);
-        else setMateSubmission(next);
+        if (storeName === "playmantis") {
+          setPmSubmission(next);
+          const catalog = store.csv ? setCodeMapFromCsv(store.csv.rows) : {};
+          const need = [
+            ...new Set(
+              rows
+                .filter((row) => !normalizeSetCode(row.setCode) && row.setName)
+                .map((row) => row.setName || "")
+                .filter((name) => name && !catalog[normalizeSetName(name)]),
+            ),
+          ];
+          if (need.length) {
+            void lookupSetCodesAction(need).then((result) => {
+              if (result.ok && Object.keys(result.codes).length) {
+                setSetCodeHints((prev) => ({ ...prev, ...result.codes }));
+              }
+            });
+          }
+        } else {
+          setMateSubmission(next);
+        }
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : "Need a ManaBox-shaped CSV (Name, Set code, Quantity)",
+            : "Need a Playmantis .eml, a saved Mate order HTML, or a ManaBox-shaped CSV",
         );
       }
     });
@@ -1170,27 +1295,27 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="reprepare"
         title="5. Re-prepare ManaBox after pick"
-        hint="After the shop floor, 1–2 cards may not have been picked. Upload the Playmantis and/or Mate submission CSVs (ManaBox-shaped — the templates this app exported, or the files you actually sent). Leftover = this run’s original CSV minus those copies. Overwrite ManaBox with the download — not the Compare Not-sold export."
+        hint="Drop the Playmantis sort-order .eml and/or a saved Mate order page. Each list is Name / Set / Finish / Qty. The outer join adds CSV Qty, MM Qty, PM Qty, Remaining, and Note. Remaining > 0 is the ManaBox re-import — overwrite ManaBox with that, not Compare Not-sold."
         defaultOpen={Boolean(store.csv)}
       >
-        {!store.csv ? (
+        {!store.csv || !join ? (
           <p className="text-sm text-[var(--muted)]">
             Upload a ManaBox CSV in step 1 first. This step uses that file, not Compare Sell qty.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <FileDropZone
-                  accept=".csv,text/csv"
+                  accept=".eml,.html,.htm,.csv,message/rfc822,text/html,text/csv"
                   disabled={pending || busy}
                   label="Playmantis submission"
-                  hint="ManaBox-shaped CSV of what you sent / they took"
+                  hint="The sort-order .eml from buylist@playmantis.com.au"
                   onFile={(file) => acceptSubmission(file, "playmantis")}
                 />
                 {pmSubmission ? (
                   <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
-                    {pmSubmission.filename} · {pmSubmission.rows.length} printings
+                    {pmSubmission.filename} · {join.pm.length} printings
                     <button
                       type="button"
                       className="sg-btn-ghost"
@@ -1203,15 +1328,15 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
               </div>
               <div className="space-y-2">
                 <FileDropZone
-                  accept=".csv,text/csv"
+                  accept=".html,.htm,.csv,text/html,text/csv"
                   disabled={pending || busy}
                   label="MTGMate submission"
-                  hint="ManaBox-shaped CSV of what you sent / they took"
+                  hint="Save the order page from mtgmate.com.au/buylist/orders/…"
                   onFile={(file) => acceptSubmission(file, "mate")}
                 />
                 {mateSubmission ? (
                   <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
-                    {mateSubmission.filename} · {mateSubmission.rows.length} printings
+                    {mateSubmission.filename} · {join.mm.length} printings
                     <button
                       type="button"
                       className="sg-btn-ghost"
@@ -1223,47 +1348,286 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                 ) : null}
               </div>
             </div>
-            {leftover ? (
-              <div className="space-y-2">
+
+            <CollapsibleTableSection
+              id="reprepare-csv"
+              title="ManaBox CSV (this run)"
+              count={printingCount(join.csv.length)}
+              defaultOpen={!showJoin}
+            >
+              <SourceListTable kind="csv" rows={join.csv} />
+            </CollapsibleTableSection>
+            {pmSubmission ? (
+              <CollapsibleTableSection
+                id="reprepare-pm"
+                title="Playmantis buylist"
+                count={printingCount(join.pm.length)}
+                defaultOpen
+              >
+                <SourceListTable kind="pm" rows={join.pm} />
+              </CollapsibleTableSection>
+            ) : null}
+            {mateSubmission ? (
+              <CollapsibleTableSection
+                id="reprepare-mm"
+                title="MTGMate buylist"
+                count={printingCount(join.mm.length)}
+                defaultOpen
+              >
+                <SourceListTable kind="mm" rows={join.mm} />
+              </CollapsibleTableSection>
+            ) : null}
+
+            {showJoin ? (
+              <div className="space-y-4">
                 <p className="text-sm">
-                  Removed {leftover.removedCopies} copies · leftover {leftover.leftoverCopies} copies
-                  ({leftover.leftover.length} printings)
+                  {join.join.length} unique printings · removed {join.removedCopies} copies ·
+                  re-import {join.leftoverCopies} copies ({join.reimport.length} printings)
                 </p>
-                <button
-                  type="button"
-                  className="sg-btn-primary"
-                  onClick={() => {
-                    const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
-                    downloadText(`${stem}-leftover-manabox.csv`, leftover.leftoverCsv);
-                  }}
+                <CollapsibleTableSection
+                  id="reprepare-join"
+                  title="Outer join"
+                  count={printingCount(join.join.length)}
+                  defaultOpen
                 >
-                  Download leftover ManaBox CSV
-                </button>
-                {leftover.unmatched.length ? (
-                  <div className="sg-card border-[var(--rag-amber)] text-sm">
-                    <p className="font-medium">
-                      {leftover.unmatched.length} submission line
-                      {leftover.unmatched.length === 1 ? "" : "s"} did not match the original CSV
-                    </p>
-                    <ul className="mt-1 list-disc pl-5">
-                      {leftover.unmatched.slice(0, 8).map((line, i) => (
-                        <li key={`${line.name}-${line.setCode}-${i}`}>
-                          {line.name} ({line.setCode || "no set"}) · {line.remaining} left unmatched
-                          — {line.reason}
-                        </li>
-                      ))}
-                    </ul>
+                  <JoinTable rows={join.join} />
+                </CollapsibleTableSection>
+                <CollapsibleTableSection
+                  id="reprepare-reimport"
+                  title="ManaBox re-import (Remaining > 0)"
+                  count={printingCount(join.reimport.length)}
+                  hint="Qty is Remaining. Store-only and Remaining ≤ 0 stay on the join only. Overwrite ManaBox with the download."
+                  defaultOpen
+                >
+                  <div className="space-y-2">
+                    {join.reimport.length ? (
+                      <SourceListTable kind="csv" rows={join.reimport} />
+                    ) : (
+                      <p className="text-sm text-[var(--muted)]">
+                        Nothing left to re-import — every CSV copy was sold, or the join is
+                        store-only.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="sg-btn-primary"
+                      onClick={() => {
+                        const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
+                        downloadText(`${stem}-leftover-manabox.csv`, join.leftoverCsv);
+                      }}
+                    >
+                      Download leftover ManaBox CSV
+                    </button>
                   </div>
-                ) : null}
+                </CollapsibleTableSection>
               </div>
             ) : (
               <p className="text-sm text-[var(--muted)]">
-                Drop at least one submission to build the leftover file.
+                Drop at least one submission to build the outer join and leftover file.
               </p>
             )}
           </div>
         )}
       </CollapsibleSection>
+    </div>
+  );
+}
+
+function AmbiguousPreviewMark() {
+  return (
+    <span
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--rag-amber)] text-[10px] font-semibold leading-none text-[var(--rag-amber)]"
+      title="Preview is a Scryfall name+set lookup — may be the wrong printing"
+      aria-label="Preview may be the wrong printing"
+      role="img"
+    >
+      !
+    </span>
+  );
+}
+
+function SourceNameCell({
+  kind,
+  row,
+}: {
+  kind: "csv" | "pm" | "mm";
+  row: SourceListRow;
+}) {
+  const cell =
+    kind === "pm" ? (
+      <CardNameCell
+        name={row.name}
+        playmantisImageUrl={row.imageUrl}
+        showOwned={false}
+        showMate={false}
+      />
+    ) : kind === "mm" ? (
+      <CardNameCell
+        name={row.name}
+        mateImageUrl={row.imageUrl}
+        showOwned={false}
+        showPlaymantis={false}
+      />
+    ) : (
+      <CardNameCell name={row.name} ownedImageUrl={row.imageUrl} showStore={false} />
+    );
+  if (!row.imageAmbiguous) return cell;
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
+      {cell}
+      <AmbiguousPreviewMark />
+    </span>
+  );
+}
+
+const runTableClass = "w-max min-w-full text-left text-[13px] leading-5";
+const nameHeadClass = "whitespace-nowrap py-1 pr-2 font-medium";
+const nameCellClass = "whitespace-nowrap py-1 pr-2";
+const metaHeadClass =
+  "whitespace-nowrap border-l border-[color-mix(in_srgb,var(--border)_55%,transparent)] px-1.5 py-1 text-center font-medium";
+const metaCellClass =
+  "whitespace-nowrap border-l border-[color-mix(in_srgb,var(--border)_55%,transparent)] py-1 pl-2.5 pr-1.5 tabular-nums";
+
+function metaCell(extra?: string) {
+  return extra ? `${metaCellClass} ${extra}` : metaCellClass;
+}
+
+function MetaHead({
+  children,
+  title,
+}: {
+  children: string;
+  title?: string;
+}) {
+  return (
+    <th className={metaHeadClass} title={title ?? children}>
+      {children}
+    </th>
+  );
+}
+
+function compactFinish(finish: string): { short: string; title: string } {
+  const title = finish.trim() || "—";
+  const key = title.toLowerCase();
+  if (key === "nonfoil" || key === "non-foil" || key === "normal") {
+    return { short: "NF", title };
+  }
+  if (key === "foil") return { short: "F", title };
+  if (key === "etched") return { short: "Et", title };
+  return { short: title, title };
+}
+
+function FinishCell({ finish }: { finish: string }) {
+  const { short, title } = compactFinish(finish);
+  return (
+    <td className={metaCellClass} title={title}>
+      {short}
+    </td>
+  );
+}
+
+function SourceListTable({
+  title,
+  kind,
+  rows,
+}: {
+  title?: string;
+  kind: "csv" | "pm" | "mm";
+  rows: SourceListRow[];
+}) {
+  return (
+    <div className="min-w-0 space-y-2">
+      {title ? <h3 className="text-sm font-medium">{title}</h3> : null}
+      <div className="min-w-0 overflow-x-auto">
+        <table className={runTableClass}>
+          <thead className="bg-[var(--surface)]">
+            <tr className="text-[var(--muted)]">
+              <th className={nameHeadClass}>Name</th>
+              <MetaHead>Set</MetaHead>
+              <MetaHead>#</MetaHead>
+              <MetaHead title="Finish">Fin</MetaHead>
+              <MetaHead>Qty</MetaHead>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={`${kind}-${row.name}-${row.setCode}-${row.collectorNumber}-${row.finishLabel}-${i}`}
+                className="border-t border-[var(--border)]"
+              >
+                <td className={nameCellClass}>
+                  <SourceNameCell kind={kind} row={row} />
+                </td>
+                <td className={metaCellClass}>{row.setCode || "—"}</td>
+                <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
+                <FinishCell finish={row.finishLabel} />
+                <td className={metaCellClass}>{row.quantity}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function joinRowTone(row: OuterJoinRow): string {
+  if (row.remaining > 0) return "bg-[color-mix(in_srgb,var(--rag-green)_14%,transparent)]";
+  if (row.remaining < 0) return "bg-[color-mix(in_srgb,var(--rag-amber)_16%,transparent)]";
+  return "";
+}
+
+function JoinTable({ rows }: { rows: OuterJoinRow[] }) {
+  return (
+    <div className="min-w-0 space-y-2">
+      <div className="min-w-0 overflow-x-auto">
+        <table className={runTableClass}>
+          <thead className="bg-[var(--surface)]">
+            <tr className="text-[var(--muted)]">
+              <th className={nameHeadClass}>Name</th>
+              <MetaHead>Set</MetaHead>
+              <MetaHead>#</MetaHead>
+              <MetaHead title="Finish">Fin</MetaHead>
+              <MetaHead title="CSV Qty">CSV</MetaHead>
+              <MetaHead title="Mate Qty">MM</MetaHead>
+              <MetaHead title="Playmantis Qty">PM</MetaHead>
+              <MetaHead title="Remaining">Left</MetaHead>
+              <th className="whitespace-nowrap py-1 pl-2 font-medium">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={`join-${row.name}-${row.setCode}-${row.collectorNumber}-${row.finishLabel}-${i}`}
+                className={`border-t border-[var(--border)] ${joinRowTone(row)}`}
+              >
+                <td className={nameCellClass}>
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <CardNameCell
+                      name={row.name}
+                      ownedImageUrl={row.ownedImageUrl}
+                      mateImageUrl={row.mmQty > 0 ? row.ownedImageUrl : undefined}
+                      playmantisImageUrl={row.pmQty > 0 ? row.ownedImageUrl : undefined}
+                      showOwned={row.csvQty > 0}
+                      showMate={row.mmQty > 0}
+                      showPlaymantis={row.pmQty > 0}
+                    />
+                    {row.imageAmbiguous ? <AmbiguousPreviewMark /> : null}
+                  </span>
+                </td>
+                <td className={metaCellClass}>{row.setCode || "—"}</td>
+                <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
+                <FinishCell finish={row.finishLabel} />
+                <td className={metaCellClass}>{row.csvQty}</td>
+                <td className={metaCellClass}>{row.mmQty}</td>
+                <td className={metaCellClass}>{row.pmQty}</td>
+                <td className={metaCellClass}>{row.remaining}</td>
+                <td className="whitespace-nowrap py-1 pl-2 text-[var(--muted)]">{row.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1408,22 +1772,20 @@ function StreamTable({
         onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
       />
       <div className="min-w-0 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className={runTableClass}>
           <thead className="bg-[var(--surface)]">
             <tr className="text-[var(--muted)]">
-              <th className="min-w-0 py-1 font-medium">Name</th>
-              <th className="whitespace-nowrap py-1 font-medium">Set</th>
-              <th className="whitespace-nowrap py-1 font-medium">#</th>
-              <th className="whitespace-nowrap py-1 font-medium">Finish</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Have</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Wanted</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Sell</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Listed</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Credit</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Gain</th>
-              {mode === "mate" ? (
-                <th className="whitespace-nowrap py-1 font-medium tabular-nums">Cash</th>
-              ) : null}
+              <th className={nameHeadClass}>Name</th>
+              <MetaHead>Set</MetaHead>
+              <MetaHead>#</MetaHead>
+              <MetaHead title="Finish">Fin</MetaHead>
+              <MetaHead>Have</MetaHead>
+              <MetaHead title="Wanted">Want</MetaHead>
+              <MetaHead>Sell</MetaHead>
+              <MetaHead title="Listed">List</MetaHead>
+              <MetaHead title="Credit">Cr</MetaHead>
+              <MetaHead>Gain</MetaHead>
+              {mode === "mate" ? <MetaHead>Cash</MetaHead> : null}
             </tr>
           </thead>
           <tbody>
@@ -1523,21 +1885,23 @@ function StreamRowBlock({
                   />
                 </div>
               </td>
-              <td className="whitespace-nowrap py-1.5">{row.setCode}</td>
-              <td className="whitespace-nowrap py-1.5">{row.collectorNumber}</td>
-              <td className="whitespace-nowrap py-1.5">{row.finish}</td>
-              <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
-              <td className="whitespace-nowrap py-1.5 tabular-nums">{v.wanted}</td>
-              <td className="whitespace-nowrap py-1.5 tabular-nums font-semibold">{v.sell}</td>
-              <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
-              <td className="whitespace-nowrap py-1.5 tabular-nums">{money(v.creditCents)}</td>
+              <td className={metaCellClass}>{row.setCode}</td>
+              <td className={metaCellClass}>{row.collectorNumber}</td>
+              <FinishCell finish={row.finish} />
+              <td className={metaCellClass}>{row.have}</td>
+              <td className={metaCellClass}>{v.wanted}</td>
+              <td className={metaCell("font-semibold")}>{v.sell}</td>
+              <td className={metaCellClass}>{money(row.listedCents)}</td>
+              <td className={metaCellClass}>{money(v.creditCents)}</td>
               <td
-                className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(v.creditCents, row.listedCents))}`}
+                className={metaCell(
+                  recoveryBandClass(recoveryBand(v.creditCents, row.listedCents)),
+                )}
               >
                 {formatRecovered(recoveredPercent(v.creditCents, row.listedCents))}
               </td>
               <td
-                className="whitespace-nowrap py-1.5 tabular-nums"
+                className={metaCellClass}
                 title={`Cash recovered ${formatRecovered(recoveredPercent(v.cashCents, row.listedCents))} of listed`}
               >
                 {money(v.cashCents)}
@@ -1551,8 +1915,8 @@ function StreamRowBlock({
 
   return (
     <tr className={`border-t border-[var(--border)] ${toneClass(row.tone)}`}>
-      <td className="min-w-0 py-1.5">
-        <div className="flex min-w-0 items-center gap-1.5">
+      <td className={nameCellClass}>
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
           <CardNameCell
             name={row.name}
             ownedImageUrl={row.ownedImageUrl}
@@ -1576,22 +1940,22 @@ function StreamRowBlock({
           ) : null}
         </div>
       </td>
-      <td className="whitespace-nowrap py-1.5">{row.setCode}</td>
-      <td className="whitespace-nowrap py-1.5">{row.collectorNumber}</td>
-      <td className="whitespace-nowrap py-1.5">{row.finish}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.wanted}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums font-semibold">{row.sell}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.creditCents)}</td>
+      <td className={metaCellClass}>{row.setCode}</td>
+      <td className={metaCellClass}>{row.collectorNumber}</td>
+      <FinishCell finish={row.finish} />
+      <td className={metaCellClass}>{row.have}</td>
+      <td className={metaCellClass}>{row.wanted}</td>
+      <td className={metaCell("font-semibold")}>{row.sell}</td>
+      <td className={metaCellClass}>{money(row.listedCents)}</td>
+      <td className={metaCellClass}>{money(row.creditCents)}</td>
       <td
-        className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(recoveryBand(row.creditCents, row.listedCents))}`}
+        className={metaCell(recoveryBandClass(recoveryBand(row.creditCents, row.listedCents)))}
       >
         {formatRecovered(recoveredPercent(row.creditCents, row.listedCents))}
       </td>
       {mode === "mate" ? (
         <td
-          className="whitespace-nowrap py-1.5 tabular-nums"
+          className={metaCellClass}
           title={`Cash recovered ${formatRecovered(recoveredPercent(row.cashCents, row.listedCents))} of listed`}
         >
           {money(row.cashCents)}
@@ -1683,17 +2047,17 @@ function CompareTable({
         onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
       />
       <div className="min-w-0 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className={runTableClass}>
           <thead className="bg-[var(--surface)]">
             <tr className="text-[var(--muted)]">
-              <th className="min-w-0 py-1 font-medium">Card</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Have</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Listed</th>
-              <th className="whitespace-nowrap py-1 font-medium">Mate</th>
-              <th className="whitespace-nowrap py-1 font-medium">Playmantis</th>
-              <th className="whitespace-nowrap py-1 font-medium">Winner</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Sell</th>
-              <th className="whitespace-nowrap py-1 font-medium tabular-nums">Gain</th>
+              <th className={nameHeadClass}>Card</th>
+              <MetaHead>Have</MetaHead>
+              <MetaHead title="Listed">List</MetaHead>
+              <MetaHead>Mate</MetaHead>
+              <MetaHead title="Playmantis">PM</MetaHead>
+              <MetaHead title="Winner">Win</MetaHead>
+              <MetaHead>Sell</MetaHead>
+              <MetaHead>Gain</MetaHead>
             </tr>
           </thead>
           <tbody>
@@ -1803,8 +2167,13 @@ function CompareRowBlock({
 
   return (
     <tr className={`border-t border-[var(--border)] ${rowTone}`}>
-      <td className="min-w-0 py-1.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <td
+        className={nameCellClass}
+        title={`${row.setCode}${row.collectorNumber ? ` #${row.collectorNumber}` : ""}${
+          row.finish ? ` · ${row.finish}` : ""
+        }`}
+      >
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
           <CardNameCell
             name={row.name}
             ownedImageUrl={row.ownedImageUrl}
@@ -1813,10 +2182,6 @@ function CompareRowBlock({
             showMate={false}
             showPlaymantis={false}
           />
-          <span className="text-xs text-[var(--muted)]">
-            {row.setCode}
-            {row.collectorNumber ? ` #${row.collectorNumber}` : ""} · {row.finish}
-          </span>
           {row.showVariants ? (
             <span className="rounded bg-[color-mix(in_srgb,var(--rag-amber)_35%,transparent)] px-1.5 py-0.5 text-xs font-semibold">
               Confirm in Mate stream
@@ -1824,9 +2189,9 @@ function CompareRowBlock({
           ) : null}
         </div>
       </td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{row.have}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">{money(row.listedCents)}</td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">
+      <td className={metaCellClass}>{row.have}</td>
+      <td className={metaCellClass}>{money(row.listedCents)}</td>
+      <td className={metaCellClass}>
         <span
           className={storeCellClass(
             row.winner === "mate" || row.winner === "split",
@@ -1847,7 +2212,7 @@ function CompareRowBlock({
               : "—"}
         </span>
       </td>
-      <td className="whitespace-nowrap py-1.5 tabular-nums">
+      <td className={metaCellClass}>
         <span
           className={storeCellClass(
             row.winner === "playmantis" || row.winner === "split",
@@ -1860,11 +2225,9 @@ function CompareRowBlock({
             : "—"}
         </span>
       </td>
-      <td className="whitespace-nowrap py-1.5">{winnerLabel}</td>
+      <td className={metaCellClass}>{winnerLabel}</td>
       <td
-        className={`whitespace-nowrap py-1.5 tabular-nums font-semibold ${
-          shortSell ? "text-[var(--rag-amber)]" : ""
-        }`}
+        className={metaCell(`font-semibold${shortSell ? " text-[var(--rag-amber)]" : ""}`)}
         title={shortSell ? `Sell ${sell} of ${row.have} owned` : undefined}
       >
         {sell}
@@ -1874,7 +2237,7 @@ function CompareRowBlock({
           </span>
         ) : null}
       </td>
-      <td className={`whitespace-nowrap py-1.5 tabular-nums ${recoveryBandClass(gainBand)}`}>
+      <td className={metaCell(recoveryBandClass(gainBand))}>
         {row.sellable ? formatRecovered(recoveredPercent(winnerCredit, row.listedCents)) : "—"}
       </td>
     </tr>

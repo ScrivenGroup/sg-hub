@@ -621,6 +621,125 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.5",
+    createdAt: "2026-09-09T23:58:00.000Z",
+    title: "1.5.5 (dev) — Real store submissions for leftover ManaBox",
+    body: `## Publish to localhost (not live)
+
+- Step 5 Playmantis drop is the sort-order **.eml** (the only reliable receipt).
+- Step 5 Mate drop is a **saved order HTML** from mtgmate.com.au/buylist/orders/… (Accepted rows only; one row = one copy).
+- ManaBox-shaped CSVs still work. Leftover match uses Scryfall id, then name/set/finish, then a unique name+finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.6",
+    createdAt: "2026-09-10T00:50:00.000Z",
+    title: "1.5.6 (dev) — Step 5 outer join and leftover re-import",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tabulates ManaBox CSV, Playmantis, and Mate (Name, Set, Finish, Qty) with Scryfall hover previews.
+- Outer join lists every unique printing: CSV Qty, MM Qty, PM Qty, Remaining (CSV − MM − PM), Note.
+- Remaining &gt; 0 is the ManaBox re-import download. Store-only and Remaining ≤ 0 stay on the join.
+- Playmantis set names resolve to set codes from this CSV, then a unique Scryfall set-name lookup.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.7",
+    createdAt: "2026-09-10T00:55:00.000Z",
+    title: "1.5.7 (dev) — Step 5 tables collapse",
+    body: `## Publish to localhost (not live)
+
+- Step 5 CSV, Playmantis, Mate, outer join, and re-import tables each fold independently. Open/closed is remembered in this tab.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.8",
+    createdAt: "2026-09-10T01:05:00.000Z",
+    title: "1.5.8 (dev) — Step 5 Scryfall previews for every row",
+    body: `## Publish to localhost (not live)
+
+- Step 5 rows without a ManaBox Scryfall ID look up the card by name + set (collector # when Mate has it) so the hover preview can show.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.9",
+    createdAt: "2026-09-10T01:12:00.000Z",
+    title: "1.5.9 (dev) — Step 5 collector numbers and lookup warning",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tables (CSV, Playmantis, Mate, join, re-import) show collector # after Set.
+- A **!** mark means the hover face is a Scryfall name+set lookup, not a ManaBox Scryfall ID, so it may be the wrong printing.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.10",
+    createdAt: "2026-09-10T01:22:00.000Z",
+    title: "1.5.10 (dev) — Step 5 join notes and compact columns",
+    body: `## Publish to localhost (not live)
+
+- Outer join notes stay on one line so row height stays even.
+- Set, #, Finish, and qty column headers are centred; values keep a left offset; a light vertical rule separates those columns.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.11",
+    createdAt: "2026-09-10T01:28:00.000Z",
+    title: "1.5.11 (dev) — compact columns on every Run table",
+    body: `## Publish to localhost (not live)
+
+- Playmantis, Mate, Compare, and Step 5 tables use the same Set / # / Finish / qty spacing: centred headers, left-offset values, light vertical rules.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.12",
+    createdAt: "2026-09-10T01:34:00.000Z",
+    title: "1.5.12 (dev) — one-line card names, tighter columns",
+    body: `## Publish to localhost (not live)
+
+- Card names stay on one line. Compact columns use 13px type, shorter headers (Fin, Want, Left, CSV/MM/PM, List, Cr, Win), and tighter padding so Set / # / qty columns still fit.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

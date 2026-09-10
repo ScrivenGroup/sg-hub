@@ -15,7 +15,7 @@ import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/pars
 import { parseMateJson, filterMateOffersForCsv } from "./logic/parse-mate";
 import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
 import { buildMateImageLinks } from "./logic/mate-image-join";
-import { enrichRowsFromScryfall } from "./logic/scryfall";
+import { enrichRowsFromScryfall, lookupScryfallCardIds, lookupScryfallSetCodes, type CardHint, type CardLookup } from "./logic/scryfall";
 import { runParserSelfCheck } from "./logic/self-check";
 import {
   emptyMtgBuylistStore,
@@ -452,4 +452,28 @@ export async function parserSelfCheckAction() {
   const staff = await requireBuylistStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required" };
   return runParserSelfCheck();
+}
+
+/** Set name → code for PM receipts that have no set code. Unique names only. */
+export async function lookupSetCodesAction(names: string[]) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", codes: {} as Record<string, string> };
+  try {
+    const codes = await lookupScryfallSetCodes(names);
+    return { ok: true as const, codes };
+  } catch {
+    return { ok: true as const, codes: {} as Record<string, string> };
+  }
+}
+
+/** Name + set → Scryfall id for Step 5 hover previews when the CSV has no id. */
+export async function lookupCardIdsAction(lookups: CardLookup[]) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", ids: {} as Record<string, CardHint> };
+  try {
+    const ids = await lookupScryfallCardIds(lookups);
+    return { ok: true as const, ids };
+  } catch {
+    return { ok: true as const, ids: {} as Record<string, CardHint> };
+  }
 }
