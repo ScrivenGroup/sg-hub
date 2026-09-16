@@ -20,6 +20,7 @@ import {
   type GanttXScale,
 } from "../logic/gantt-x-scale";
 import { GanttTimescale, ganttTimescaleHeight, monthGridEdge, weekGridLine } from "./GanttTimescale";
+import { MrtInlineLoading } from "./MrtLoadingPane";
 
 const DEFAULT_ROW_H = 28;
 const TITLE_H = 28;
@@ -52,6 +53,7 @@ export function ResourceLoadPane({
   onPanPointerDown,
   panning = false,
   onGoToPerson,
+  loading = false,
 }: {
   rows: PersonMonthLoad[];
   months: number;
@@ -74,6 +76,7 @@ export function ResourceLoadPane({
   onPanPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   panning?: boolean;
   onGoToPerson?: (personId: string) => void;
+  loading?: boolean;
 }) {
   const nameRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -301,6 +304,14 @@ export function ResourceLoadPane({
           ))}
         </div>
       </div>
+      {loading ? (
+        <div
+          className="mrt-alloc-loading"
+          style={{ gridColumn: "1 / -1", gridRow: "2 / -1" }}
+        >
+          <MrtInlineLoading label="hours" />
+        </div>
+      ) : null}
       {pop ? (
         <div
           data-mrt-alloc-pop

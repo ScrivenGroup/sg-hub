@@ -1143,6 +1143,37 @@
   background: var(--surface);
 }
 
+.mrt-alloc-loading {
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
+.mrt-inline-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.mrt-inline-loading-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: mrt-inline-spin 0.7s linear infinite;
+}
+
+@keyframes mrt-inline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .mrt-alloc-split {
   flex-shrink: 0;
   height: 6px;

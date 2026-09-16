@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EffortDemo, ScheduleStore } from "../schema";
 import {
   leadMonthsFromTailWeeks,
@@ -34,6 +34,7 @@ import {
 import { planStatusKind, planStatusLabel } from "../logic/status";
 import { EffortGantt } from "./EffortGantt";
 import { EffortPopupShell } from "./EffortPopupShell";
+import { MrtInlineLoading } from "./MrtLoadingPane";
 
 function dueYmd(
   dueIdx: number,
@@ -113,41 +114,64 @@ export function OccurrenceModal({
   const procDay = defaultDueDayForIdx(marker.procDueIdx, winStart);
   const due = dueYmd(dueIdx, dueDay, winStart);
 
-  const baselineDemo = useMemo(() => {
-    const clone = JSON.parse(JSON.stringify(store)) as ScheduleStore;
-    delete clone.scheduledDetails[key];
-    const baseWeeks = occurrenceWeekWindow(
-      clone,
-      dam.id,
-      lane.code,
-      marker.procDueIdx,
-    );
-    const baseDueIdx = effectiveDueIdx(clone, dam, lane, marker.procDueIdx);
-    const baseDueDay = effectiveDueDay(clone, dam, lane, marker.procDueIdx, winStart);
-    const baseDue = dueYmd(baseDueIdx, baseDueDay, winStart);
-    const seeded = seedPlanFromDefaults(
-      clone,
-      lane.code,
-      baseWeeks.length,
-      dam.id,
-    );
-    return demoFromPlan(clone, dam.id, lane.code, seeded, baseDue, baseWeeks);
+  const [demo, setDemo] = useState<EffortDemo | null>(null);
+  const [baselineDemo, setBaselineDemo] = useState<EffortDemo | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = window.requestAnimationFrame(() => {
+      const clone = JSON.parse(JSON.stringify(store)) as ScheduleStore;
+      delete clone.scheduledDetails[key];
+      const baseWeeks = occurrenceWeekWindow(
+        clone,
+        dam.id,
+        lane.code,
+        marker.procDueIdx,
+      );
+      const baseDueIdx = effectiveDueIdx(clone, dam, lane, marker.procDueIdx);
+      const baseDueDay = effectiveDueDay(
+        clone,
+        dam,
+        lane,
+        marker.procDueIdx,
+        winStart,
+      );
+      const baseDue = dueYmd(baseDueIdx, baseDueDay, winStart);
+      const seeded = seedPlanFromDefaults(
+        clone,
+        lane.code,
+        baseWeeks.length,
+        dam.id,
+      );
+      const nextBaseline = demoFromPlan(
+        clone,
+        dam.id,
+        lane.code,
+        seeded,
+        baseDue,
+        baseWeeks,
+      );
+      const nextDemo = demoFromPlan(
+        store,
+        dam.id,
+        lane.code,
+        sd.plan,
+        due,
+        weeks,
+        sd.tailWeeks,
+        sd,
+      );
+      if (cancelled) return;
+      setBaselineDemo(nextBaseline);
+      setDemo(nextDemo);
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(id);
+    };
     // Snapshot once per occurrence open — not as the user edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dam.id, lane.code, marker.procDueIdx]);
-
-  const [demo, setDemo] = useState<EffortDemo>(() =>
-    demoFromPlan(
-      store,
-      dam.id,
-      lane.code,
-      sd.plan,
-      due,
-      weeks,
-      sd.tailWeeks,
-      sd,
-    ),
-  );
 
   function patchDetail(
     partial: Partial<ScheduleStore["scheduledDetails"][string]>,
@@ -164,7 +188,7 @@ export function OccurrenceModal({
   }
 
   function savePlan() {
-    if (readOnly) return;
+    if (readOnly || !demo || !baselineDemo) return;
     const ms = demo.milestone;
     const base = baselineDemo.milestone;
     const dueIdx = monthIndex(ms.due.y, ms.due.m, winStart);
@@ -294,7 +318,7 @@ export function OccurrenceModal({
             <button
               type="button"
               className="mrt-btn-primary"
-              disabled={readOnly}
+              disabled={readOnly || !demo}
               onClick={savePlan}
             >
               Save assignment
@@ -302,7 +326,7 @@ export function OccurrenceModal({
             <button
               type="button"
               className="mrt-btn-primary"
-              disabled={readOnly}
+              disabled={readOnly || !demo}
               onClick={() => {
                 savePlan();
                 onClose();
@@ -314,17 +338,23 @@ export function OccurrenceModal({
         </div>
       }
     >
-      <EffortGantt
-        store={store}
-        onChange={onChange}
-        demo={demo}
-        onDemoChange={setDemo}
-        lockedPlace="milestone"
-        readOnly={readOnly}
-        toolbarNote={null}
-        baselineDemo={baselineDemo}
-        redHover
-      />
+      {demo && baselineDemo ? (
+        <EffortGantt
+          store={store}
+          onChange={onChange}
+          demo={demo}
+          onDemoChange={setDemo}
+          lockedPlace="milestone"
+          readOnly={readOnly}
+          toolbarNote={null}
+          baselineDemo={baselineDemo}
+          redHover
+        />
+      ) : (
+        <div className="flex min-h-[12rem] flex-1 items-center justify-center py-10">
+          <MrtInlineLoading label="hours" />
+        </div>
+      )}
     </EffortPopupShell>
   );
 }

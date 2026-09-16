@@ -1137,6 +1137,17 @@ Out of this version
 - Hub-wide indicators for every page are kt-hub-page-loading (Later), not this leaf.`,
   },
   {
+    id: "cl-sunwater-mrt-1.5.3",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.3",
+    createdAt: "2026-09-16T05:30:00.000Z",
+    title: "Gantt dots first, hours on demand",
+    body: `- Gantt paints due dots and lead tails for the full 25-year horizon first. Pan and zoom stay on that layer.
+- Grey hour bars fill in idle slices, view window first. Split and the occurrence popup show Loading hours… until in-view effort is ready.
+- Heatmap no longer runs while Split is closed. Localhost PATCH until the next hub train.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",

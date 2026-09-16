@@ -1,3 +1,17 @@
+export function MrtInlineLoading({ label }: { label: string }) {
+  return (
+    <div
+      className="mrt-inline-loading"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <span className="mrt-inline-loading-spin" aria-hidden />
+      <span>Loading {label}…</span>
+    </div>
+  );
+}
+
 const GUEST_TABS = [
   "Gantt",
   "Obligations",

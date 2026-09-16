@@ -49,7 +49,6 @@ import {
   type NextDueChip,
 } from "../logic/scheduling";
 import { nextDueChipClass, planStatusKind, planStatusLabel } from "../logic/status";
-import { occurrenceTailStartContinuous } from "../logic/assignment";
 import {
   chartXToContinuous,
   continuousToChartX,
@@ -58,10 +57,19 @@ import {
   todayChartX,
 } from "../logic/gantt-x-scale";
 import {
+  computeHourBar,
+  hourBarKey,
+  HOUR_BAR_IDLE_CHUNK,
+  markerOverlapsWindow,
+  prioritizeHourBarQueue,
+  scheduleIdle,
+  type HourBarSpan,
+} from "../logic/gantt-stage";
+import {
   aggregateResourceLoad,
-  occurrenceAllSpanContinuous,
   type LoadContribution,
   type LoadGrain,
+  type PersonMonthLoad,
 } from "../logic/resource-load";
 import {
   loadOccurrenceEffortDemo,
@@ -277,23 +285,84 @@ export function GanttTab({
     [store, damFilter, laneFilter, onlyOngoing, scheduleFilter],
   );
 
-  const hourBars = useMemo(() => {
-    const map = new Map<string, { startC: number; endC: number }>();
-    for (const m of markers) {
-      const span = occurrenceAllSpanContinuous(
-        store,
-        m.damId,
-        m.laneCode,
-        m.procDueIdx,
-        win.start,
-      );
-      if (span) map.set(`${m.damId}-${m.laneCode}-${m.procDueIdx}`, span);
-    }
-    return map;
-  }, [store, markers, win.start]);
-
+  const [hourBars, setHourBars] = useState<Map<string, HourBarSpan>>(
+    () => new Map(),
+  );
+  const hourBarsRef = useRef(hourBars);
+  hourBarsRef.current = hourBars;
+  const hourDoneRef = useRef(new Set<string>());
   const viewStartC = (minimap.leftPct / 100) * months;
   const viewEndC = ((minimap.leftPct + minimap.widthPct) / 100) * months;
+  const viewStartCRef = useRef(viewStartC);
+  const viewEndCRef = useRef(viewEndC);
+  viewStartCRef.current = viewStartC;
+  viewEndCRef.current = viewEndC;
+
+  useEffect(() => {
+    hourDoneRef.current = new Set();
+    hourBarsRef.current = new Map();
+    setHourBars(new Map());
+    let cancelled = false;
+    let stopIdle = () => {};
+
+    function flush() {
+      if (cancelled) return;
+      setHourBars(new Map(hourBarsRef.current));
+    }
+
+    function step() {
+      if (cancelled) return;
+      const a = viewStartCRef.current - 0.5;
+      const b = viewEndCRef.current + 0.5;
+      const queue = prioritizeHourBarQueue(
+        markers,
+        hourDoneRef.current,
+        viewStartCRef.current,
+        viewEndCRef.current,
+        win.start,
+      );
+      if (queue.length === 0) {
+        flush();
+        return;
+      }
+      const fillingView = markerOverlapsWindow(queue[0], a, b, win.start);
+      const slice = fillingView
+        ? queue
+            .filter((m) => markerOverlapsWindow(m, a, b, win.start))
+            .slice(0, 400)
+        : queue.slice(0, HOUR_BAR_IDLE_CHUNK);
+      const next = new Map(hourBarsRef.current);
+      for (const m of slice) {
+        const key = hourBarKey(m);
+        hourDoneRef.current.add(key);
+        const span = computeHourBar(store, m, win.start);
+        if (span) next.set(key, span);
+      }
+      hourBarsRef.current = next;
+      if (fillingView) flush();
+      if (queue.length > slice.length) stopIdle = scheduleIdle(step);
+      else flush();
+    }
+
+    stopIdle = scheduleIdle(step);
+    return () => {
+      cancelled = true;
+      stopIdle();
+    };
+  }, [store, markers, win.start.y, win.start.m]);
+
+  useEffect(() => {
+    const a = viewStartC - 0.5;
+    const b = viewEndC + 0.5;
+    for (const m of markers) {
+      if (!markerOverlapsWindow(m, a, b, win.start)) continue;
+      const key = hourBarKey(m);
+      if (hourBarsRef.current.has(key) && !hourBars.has(key)) {
+        setHourBars(new Map(hourBarsRef.current));
+        return;
+      }
+    }
+  }, [viewStartC, viewEndC, markers, win.start.y, win.start.m, hourBars]);
 
   const pairs = useMemo(() => {
     if (!hideEmptyOnScreen) return basePairs;
@@ -304,16 +373,13 @@ export function GanttTab({
       markers.some((m) => {
         if (m.damId !== p.dam.id || m.laneCode !== p.lane.code) return false;
         if (m.kind === "completed" || m.kind === "notRequired") return false;
-        const span = hourBars.get(
-          `${m.damId}-${m.laneCode}-${m.procDueIdx}`,
-        );
-        if (span) return span.endC > a && span.startC < b;
-        const c = idxDayToContinuous(
-          m.displayDueIdx,
-          m.dueDay ?? 15,
+        return markerOverlapsWindow(
+          m,
+          a,
+          b,
           win.start,
+          hourBars.get(hourBarKey(m)),
         );
-        return c >= a && c < b;
       }),
     );
   }, [
@@ -329,37 +395,78 @@ export function GanttTab({
   const headerH = ganttTimescaleHeight(grain, "full");
   const weekSlots = grain === "week" ? scale.slots : [];
 
-  const loadRows = useMemo(() => {
-    const pairSet = new Set(pairs.map((p) => `${p.dam.id}|${p.lane.code}`));
-    const visible = markers.filter((m) => {
-      if (m.kind === "completed" || m.kind === "notRequired") return false;
-      if (!pairSet.has(`${m.damId}|${m.laneCode}`)) return false;
-      if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) return false;
-      return true;
-    });
-    const rows = aggregateResourceLoad(
-      store,
-      visible,
-      win.start,
-      months,
+  const [loadRows, setLoadRows] = useState<PersonMonthLoad[]>([]);
+  const [allocLoading, setAllocLoading] = useState(false);
+  const allocSliceRef = useRef("");
+
+  useEffect(() => {
+    allocSliceRef.current = "";
+  }, [store]);
+
+  useEffect(() => {
+    if (!showAlloc) {
+      setAllocLoading(false);
+      return;
+    }
+    const sliceKey = [
+      Math.floor(viewStartC * 2),
+      Math.floor(viewEndC * 2),
       grain,
-    );
-    if (!hideEmptyOnScreen) return rows;
-    const a = viewStartC;
-    const b = viewEndC;
-    return rows.filter((row) =>
-      row.cells.some(
-        (cell) =>
-          cell.hours > 0 && cell.endC > a && cell.startC < b,
-      ),
-    );
+      dueBeforeIdx ?? "",
+      hideEmptyOnScreen ? "1" : "0",
+      pairs.length,
+      months,
+    ].join("|");
+    if (allocSliceRef.current === sliceKey) return;
+
+    setAllocLoading(true);
+    const t = window.setTimeout(() => {
+      const pad = 0.2;
+      const a = viewStartC - pad;
+      const b = viewEndC + pad;
+      const pairSet = new Set(pairs.map((p) => `${p.dam.id}|${p.lane.code}`));
+      const inView = markers.filter((m) => {
+        if (m.kind === "completed" || m.kind === "notRequired") return false;
+        if (!pairSet.has(`${m.damId}|${m.laneCode}`)) return false;
+        if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) {
+          return false;
+        }
+        return markerOverlapsWindow(
+          m,
+          a,
+          b,
+          win.start,
+          hourBarsRef.current.get(hourBarKey(m)),
+        );
+      });
+      let rows = aggregateResourceLoad(
+        store,
+        inView,
+        win.start,
+        months,
+        grain,
+      );
+      if (hideEmptyOnScreen) {
+        rows = rows.filter((row) =>
+          row.cells.some(
+            (cell) => cell.hours > 0 && cell.endC > a && cell.startC < b,
+          ),
+        );
+      }
+      allocSliceRef.current = sliceKey;
+      setLoadRows(rows);
+      setAllocLoading(false);
+    }, 70);
+    return () => window.clearTimeout(t);
   }, [
+    showAlloc,
     store,
     markers,
     pairs,
     dueBeforeIdx,
     months,
-    win.start,
+    win.start.y,
+    win.start.m,
     grain,
     hideEmptyOnScreen,
     viewStartC,
@@ -512,12 +619,12 @@ export function GanttTab({
         m.laneCode === focusOccurrence.laneCode &&
         m.procDueIdx === focusOccurrence.procDueIdx,
     );
-    const span = occurrenceAllSpanContinuous(
-      store,
-      focusOccurrence.damId,
-      focusOccurrence.laneCode,
-      focusOccurrence.procDueIdx,
-      win.start,
+    const span = hourBars.get(
+      hourBarKey({
+        damId: focusOccurrence.damId,
+        laneCode: focusOccurrence.laneCode,
+        procDueIdx: focusOccurrence.procDueIdx,
+      }),
     );
     let cx = 0;
     if (span) {
@@ -866,12 +973,12 @@ export function GanttTab({
       top += it.h;
     }
     const sc = scaleRef.current;
-    const span = occurrenceAllSpanContinuous(
-      store,
-      first.damId,
-      first.laneCode,
-      first.procDueIdx,
-      win.start,
+    const span = hourBars.get(
+      hourBarKey({
+        damId: first.damId,
+        laneCode: first.laneCode,
+        procDueIdx: first.procDueIdx,
+      }),
     );
     let cx = 0;
     if (span) {
@@ -1077,17 +1184,7 @@ export function GanttTab({
   function renderGanttMarker(m: GanttMarker) {
     const dueC = idxDayToContinuous(m.displayDueIdx, m.dueDay, win.start);
     const dueX = continuousToChartX(scale, dueC);
-    const tailC = occurrenceTailStartContinuous(
-      store,
-      m.damId,
-      m.laneCode,
-      m.procDueIdx,
-      win.start,
-    );
-    const left =
-      tailC !== null
-        ? Math.max(0, continuousToChartX(scale, tailC))
-        : Math.max(0, continuousToChartX(scale, m.leadStart));
+    const left = Math.max(0, continuousToChartX(scale, m.leadStart));
     const tailW = Math.max(4, dueX - left);
     const done = m.kind === "completed";
     const notReq = m.kind === "notRequired";
@@ -1097,7 +1194,7 @@ export function GanttTab({
       : notReq
         ? "var(--muted)"
         : m.color;
-    const key = `${m.damId}-${m.laneCode}-${m.procDueIdx}`;
+    const key = hourBarKey(m);
     const preview = dragPreview?.key === key ? dragPreview.pxShift : 0;
     const full = fullDateLabel(m.displayDueIdx, m.dueDay, win.start);
     const allBar = hourBars.get(key);
@@ -1290,6 +1387,8 @@ export function GanttTab({
       return;
     }
     if (showGantt && !showAlloc) {
+      setAllocLoading(true);
+      allocSliceRef.current = "";
       setShowAlloc(true);
       return;
     }
@@ -2030,6 +2129,7 @@ export function GanttTab({
               onPanPointerDown={(e) => startPan(e, "x")}
               panning={panning}
               onGoToPerson={onGoToPerson}
+              loading={allocLoading}
             />
           </div>
         ) : null}
