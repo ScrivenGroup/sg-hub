@@ -7,6 +7,21 @@ export type HourBarSpan = { startC: number; endC: number };
 
 export const HOUR_BAR_IDLE_CHUNK = 48;
 
+export function rowMarkerKey(damId: string, laneCode: string) {
+  return `${damId}|${laneCode}`;
+}
+
+export function indexMarkersByRow(markers: GanttMarker[]) {
+  const map = new Map<string, GanttMarker[]>();
+  for (const m of markers) {
+    const key = rowMarkerKey(m.damId, m.laneCode);
+    const list = map.get(key);
+    if (list) list.push(m);
+    else map.set(key, [m]);
+  }
+  return map;
+}
+
 export function hourBarKey(
   m: Pick<GanttMarker, "damId" | "laneCode" | "procDueIdx">,
 ) {

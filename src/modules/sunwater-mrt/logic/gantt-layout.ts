@@ -22,6 +22,7 @@ export type GanttLayoutItem =
       collapsed: boolean;
       childCount: number;
       h: number;
+      top: number;
       stripe: number;
       chip: NextDueChip | null;
       children: { damId: string; laneCode: string }[];
@@ -35,6 +36,7 @@ export type GanttLayoutItem =
       laneLabel: string;
       color: string;
       h: number;
+      top: number;
       stripe: number;
       chip: NextDueChip | null;
     }
@@ -42,6 +44,7 @@ export type GanttLayoutItem =
       type: "gap";
       key: string;
       h: number;
+      top: number;
       stripe: number;
     };
 
@@ -140,6 +143,7 @@ export function buildGanttLayout(
         laneLabel: pair.lane.label,
         color: pair.lane.color,
         h: laneH,
+        top: y,
         stripe: 0,
         chip: pair.chip,
       });
@@ -205,6 +209,7 @@ export function buildGanttLayout(
       collapsed: isCollapsed,
       childCount: group.children.length,
       h: headingH,
+      top: y,
       stripe: 0,
       chip: earliestNextDue(
         group.children
@@ -228,13 +233,20 @@ export function buildGanttLayout(
           laneLabel: pair.lane.label,
           color: pair.lane.color,
           h: laneH,
+          top: y,
           stripe: 0,
           chip: pair.chip,
         });
         y += laneH;
       }
     }
-    items.push({ type: "gap", key: `${group.key}-gap`, h: gap, stripe: 0 });
+    items.push({
+      type: "gap",
+      key: `${group.key}-gap`,
+      h: gap,
+      top: y,
+      stripe: 0,
+    });
     y += gap;
   }
 

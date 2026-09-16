@@ -59,10 +59,9 @@ import {
 import {
   computeHourBar,
   hourBarKey,
-  HOUR_BAR_IDLE_CHUNK,
+  indexMarkersByRow,
   markerOverlapsWindow,
-  prioritizeHourBarQueue,
-  scheduleIdle,
+  rowMarkerKey,
   type HourBarSpan,
 } from "../logic/gantt-stage";
 import {
@@ -83,6 +82,7 @@ import { ResourceLoadPane } from "./ResourceLoadPane";
 import { StackedEffortModal } from "./StackedEffortModal";
 import { GanttTimescale, ganttTimescaleHeight, monthGridEdge, weekGridLine } from "./GanttTimescale";
 import { PageIntro } from "./SubTabs";
+import { MrtInlineLoading } from "./MrtLoadingPane";
 
 const ZOOM_X = [8, 11, 14, 18, 24, 32, 48, 72];
 const ZOOM_Y = [0.7, 0.85, 1, 1.2, 1.45, 1.8];
@@ -189,11 +189,25 @@ export function GanttTab({
   } | null>(null);
   const [minimap, setMinimap] = useState({ leftPct: 0, widthPct: 12 });
   const [todayLabelLeft, setTodayLabelLeft] = useState<number | null>(null);
+  const [viewBand, setViewBand] = useState({
+    startC: 0,
+    endC: 40,
+    top: 0,
+    bottom: 720,
+  });
+  const [chartReady, setChartReady] = useState(false);
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const minimapWrapRef = useRef<HTMLDivElement>(null);
+  const minimapThumbRef = useRef<HTMLDivElement>(null);
+  const todayLabelRef = useRef<HTMLSpanElement>(null);
+  const panRootRef = useRef<HTMLDivElement>(null);
+  const minimapRef = useRef({ leftPct: 0, widthPct: 12 });
+  const viewBandRef = useRef(viewBand);
+  viewBandRef.current = viewBand;
+  const viewRaf = useRef(0);
   const allocScrollRef = useRef<HTMLDivElement>(null);
   const syncingH = useRef(false);
   const splitDragRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -251,7 +265,6 @@ export function GanttTab({
     y: number;
     text: string;
   } | null>(null);
-  const [panning, setPanning] = useState(false);
   const [showGantt, setShowGantt] = useState(true);
   const [showAlloc, setShowAlloc] = useState(false);
   const [grain, setGrain] = useState<LoadGrain>("month");
@@ -267,7 +280,7 @@ export function GanttTab({
   const tIdx = todayIdx(todayYm(), win.start);
   const scale = useMemo(
     () => makeGanttXScale(win.start, months, monthPx, grain),
-    [win.start, months, monthPx, grain],
+    [win.start.y, win.start.m, months, monthPx, grain],
   );
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
@@ -285,84 +298,13 @@ export function GanttTab({
     [store, damFilter, laneFilter, onlyOngoing, scheduleFilter],
   );
 
-  const [hourBars, setHourBars] = useState<Map<string, HourBarSpan>>(
-    () => new Map(),
-  );
-  const hourBarsRef = useRef(hourBars);
-  hourBarsRef.current = hourBars;
-  const hourDoneRef = useRef(new Set<string>());
-  const viewStartC = (minimap.leftPct / 100) * months;
-  const viewEndC = ((minimap.leftPct + minimap.widthPct) / 100) * months;
-  const viewStartCRef = useRef(viewStartC);
-  const viewEndCRef = useRef(viewEndC);
-  viewStartCRef.current = viewStartC;
-  viewEndCRef.current = viewEndC;
+  const markersByRow = useMemo(() => indexMarkersByRow(markers), [markers]);
+  const viewStartC = viewBand.startC;
+  const viewEndC = viewBand.endC;
 
   useEffect(() => {
-    hourDoneRef.current = new Set();
-    hourBarsRef.current = new Map();
-    setHourBars(new Map());
-    let cancelled = false;
-    let stopIdle = () => {};
-
-    function flush() {
-      if (cancelled) return;
-      setHourBars(new Map(hourBarsRef.current));
-    }
-
-    function step() {
-      if (cancelled) return;
-      const a = viewStartCRef.current - 0.5;
-      const b = viewEndCRef.current + 0.5;
-      const queue = prioritizeHourBarQueue(
-        markers,
-        hourDoneRef.current,
-        viewStartCRef.current,
-        viewEndCRef.current,
-        win.start,
-      );
-      if (queue.length === 0) {
-        flush();
-        return;
-      }
-      const fillingView = markerOverlapsWindow(queue[0], a, b, win.start);
-      const slice = fillingView
-        ? queue
-            .filter((m) => markerOverlapsWindow(m, a, b, win.start))
-            .slice(0, 400)
-        : queue.slice(0, HOUR_BAR_IDLE_CHUNK);
-      const next = new Map(hourBarsRef.current);
-      for (const m of slice) {
-        const key = hourBarKey(m);
-        hourDoneRef.current.add(key);
-        const span = computeHourBar(store, m, win.start);
-        if (span) next.set(key, span);
-      }
-      hourBarsRef.current = next;
-      if (fillingView) flush();
-      if (queue.length > slice.length) stopIdle = scheduleIdle(step);
-      else flush();
-    }
-
-    stopIdle = scheduleIdle(step);
-    return () => {
-      cancelled = true;
-      stopIdle();
-    };
-  }, [store, markers, win.start.y, win.start.m]);
-
-  useEffect(() => {
-    const a = viewStartC - 0.5;
-    const b = viewEndC + 0.5;
-    for (const m of markers) {
-      if (!markerOverlapsWindow(m, a, b, win.start)) continue;
-      const key = hourBarKey(m);
-      if (hourBarsRef.current.has(key) && !hourBars.has(key)) {
-        setHourBars(new Map(hourBarsRef.current));
-        return;
-      }
-    }
-  }, [viewStartC, viewEndC, markers, win.start.y, win.start.m, hourBars]);
+    setChartReady(true);
+  }, []);
 
   const pairs = useMemo(() => {
     if (!hideEmptyOnScreen) return basePairs;
@@ -373,23 +315,17 @@ export function GanttTab({
       markers.some((m) => {
         if (m.damId !== p.dam.id || m.laneCode !== p.lane.code) return false;
         if (m.kind === "completed" || m.kind === "notRequired") return false;
-        return markerOverlapsWindow(
-          m,
-          a,
-          b,
-          win.start,
-          hourBars.get(hourBarKey(m)),
-        );
+        return markerOverlapsWindow(m, a, b, win.start);
       }),
     );
   }, [
     hideEmptyOnScreen,
     basePairs,
     markers,
-    hourBars,
     viewStartC,
     viewEndC,
-    win.start,
+    win.start.y,
+    win.start.m,
   ]);
 
   const headerH = ganttTimescaleHeight(grain, "full");
@@ -431,13 +367,7 @@ export function GanttTab({
         if (dueBeforeIdx !== null && m.displayDueIdx > dueBeforeIdx) {
           return false;
         }
-        return markerOverlapsWindow(
-          m,
-          a,
-          b,
-          win.start,
-          hourBarsRef.current.get(hourBarKey(m)),
-        );
+        return markerOverlapsWindow(m, a, b, win.start);
       });
       let rows = aggregateResourceLoad(
         store,
@@ -478,6 +408,43 @@ export function GanttTab({
       buildGanttLayout(pairs, mode, collapsed, headingH, laneH, GROUP_GAP, rowSort),
     [pairs, mode, collapsed, headingH, laneH, rowSort],
   );
+
+  const visItems = useMemo(() => {
+    const a = viewBand.top - 80;
+    const b = viewBand.bottom + 80;
+    return items.filter((it) => it.top + it.h > a && it.top < b);
+  }, [items, viewBand.top, viewBand.bottom]);
+
+  const hourBars = useMemo(() => {
+    const a = viewStartC - 1;
+    const b = viewEndC + 1;
+    const map = new Map<string, HourBarSpan>();
+    function addRow(damId: string, laneCode: string) {
+      const list = markersByRow.get(rowMarkerKey(damId, laneCode));
+      if (!list) return;
+      for (const m of list) {
+        if (!markerOverlapsWindow(m, a, b, win.start)) continue;
+        const span = computeHourBar(store, m, win.start);
+        if (span) map.set(hourBarKey(m), span);
+      }
+    }
+    for (const it of visItems) {
+      if (it.type === "row") addRow(it.damId, it.laneCode);
+      else if (it.type === "heading" && it.collapsed && showSummarised) {
+        for (const c of it.children) addRow(c.damId, c.laneCode);
+      }
+    }
+    return map;
+  }, [
+    visItems,
+    markersByRow,
+    viewStartC,
+    viewEndC,
+    store,
+    win.start.y,
+    win.start.m,
+    showSummarised,
+  ]);
 
   const years = useMemo(() => {
     const out: { y: number; start: number; span: number }[] = [];
@@ -542,19 +509,57 @@ export function GanttTab({
       1.5,
       Math.min(100, (scroller.clientWidth / bodyW) * 100),
     );
-    setMinimap({ leftPct, widthPct });
+    minimapRef.current = { leftPct, widthPct };
+    const thumb = minimapThumbRef.current;
+    if (thumb) {
+      thumb.style.left = `${leftPct}%`;
+      thumb.style.width = `${widthPct}%`;
+    }
     const onScreenX = todayChartX(scaleRef.current) - scroller.scrollLeft;
     const viewportW = scroller.clientWidth || 0;
+    const todayEl = todayLabelRef.current;
     if (onScreenX < -60 || onScreenX > viewportW + 60) {
-      setTodayLabelLeft(null);
+      if (todayEl) todayEl.style.display = "none";
     } else {
       const labelWEst = 72;
       let left = onScreenX - labelWEst / 2;
       if (left + labelWEst + 4 > viewportW) left = viewportW - labelWEst - 4;
       if (left < 4) left = 4;
-      setTodayLabelLeft(left);
+      if (todayEl) {
+        todayEl.style.display = "";
+        todayEl.style.left = `${left}px`;
+      }
     }
-  }, [months, tIdx]);
+    const startC = (leftPct / 100) * months;
+    const endC = ((leftPct + widthPct) / 100) * months;
+    const top = bv?.scrollTop ?? 0;
+    const bottom = top + (bv?.clientHeight || scroller.clientHeight || 720);
+    const prev = viewBandRef.current;
+    const same =
+      Math.abs(prev.startC - startC) < 0.35 &&
+      Math.abs(prev.endC - endC) < 0.35 &&
+      Math.abs(prev.top - top) < 48 &&
+      Math.abs(prev.bottom - bottom) < 48;
+    if (same) return;
+    viewBandRef.current = { startC, endC, top, bottom };
+    if (viewRaf.current) return;
+    viewRaf.current = window.requestAnimationFrame(() => {
+      viewRaf.current = 0;
+      const next = viewBandRef.current;
+      setViewBand(next);
+      setMinimap(minimapRef.current);
+      const todayVisible =
+        todayChartX(scaleRef.current) - scroller.scrollLeft >= -60 &&
+        todayChartX(scaleRef.current) - scroller.scrollLeft <=
+          (scroller.clientWidth || 0) + 60;
+      setTodayLabelLeft(todayVisible ? 0 : null);
+    });
+  }, [months]);
+
+  useLayoutEffect(() => {
+    if (!chartReady) return;
+    syncChrome();
+  }, [chartReady, syncChrome, width, totalHeight, showGantt]);
 
   useLayoutEffect(() => {
     if (!focusOccurrence) return;
@@ -905,7 +910,7 @@ export function GanttTab({
       }
       if (panRef.current) {
         panRef.current = null;
-        setPanning(false);
+        panRootRef.current?.classList.remove("is-panning");
       }
     }
     window.addEventListener("pointermove", onMove);
@@ -1329,7 +1334,7 @@ export function GanttTab({
       startLeft: bv.scrollLeft,
       startTop: bv.scrollTop,
     };
-    setPanning(true);
+    panRootRef.current?.classList.add("is-panning");
   }
 
   function startMinimapDrag(
@@ -1341,8 +1346,8 @@ export function GanttTab({
     dragRef.current = {
       mode,
       startX: e.clientX,
-      startLeftPct: minimap.leftPct,
-      startWidthPct: minimap.widthPct,
+      startLeftPct: minimapRef.current.leftPct,
+      startWidthPct: minimapRef.current.widthPct,
     };
   }
 
@@ -1430,9 +1435,13 @@ export function GanttTab({
   }
 
   const bothPanes = showGantt && showAlloc;
+  const gridFrom = Math.max(0, Math.floor(viewStartC) - 1);
+  const gridTo = Math.min(months - 1, Math.ceil(viewEndC) + 1);
+  const markA = viewStartC - 1;
+  const markB = viewEndC + 1;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div ref={panRootRef} className="mrt-gantt-pan relative flex min-h-0 flex-1 flex-col">
       {pulseToast ? (
         <div className="mrt-gantt-focus-toast" role="status">
           {pulseToast}
@@ -1772,6 +1781,7 @@ export function GanttTab({
               style={{ left: `${(tIdx / months) * 100}%` }}
             />
             <div
+              ref={minimapThumbRef}
               data-minimap-window
               className="absolute top-0 bottom-0 cursor-grab border-[1.5px] border-[#1f4e78] bg-[rgba(31,78,120,0.18)] active:cursor-grabbing"
               style={{
@@ -1859,6 +1869,7 @@ export function GanttTab({
           ) : null}
           {todayLabelLeft !== null ? (
             <span
+              ref={todayLabelRef}
               className="pointer-events-none absolute top-0.5 z-20 text-center text-[9px] font-bold leading-tight text-[var(--rag-red)]"
               style={{ left: todayLabelLeft }}
             >
@@ -1869,7 +1880,7 @@ export function GanttTab({
           <div
             ref={headerRef}
             className="h-full overflow-hidden"
-            style={{ cursor: panning ? "grabbing" : "grab" }}
+            style={{ cursor: "grab" }}
             onPointerDown={(e) => startPan(e, "x")}
           >
           <div style={{ width }} className="relative">
@@ -1889,20 +1900,21 @@ export function GanttTab({
         <div
           ref={labelRef}
           className="overflow-hidden border-r border-[var(--border)] bg-[var(--surface)]"
-          style={{ cursor: panning ? "grabbing" : "grab" }}
+          style={{ cursor: "grab" }}
           onPointerDown={(e) => startPan(e, "y")}
         >
-          <div style={{ height: Math.max(totalHeight, 1), width: labelW }}>
-            {items.map((it) => {
+          <div className="relative" style={{ height: Math.max(totalHeight, 1), width: labelW }}>
+            {chartReady
+              ? visItems.map((it) => {
               if (it.type === "gap") {
-                return <div key={it.key} style={{ height: it.h }} />;
+                return null;
               }
               if (it.type === "heading") {
                 return (
                   <div
                     key={it.key}
-                    className="flex w-full items-center border-b border-[var(--border)] bg-[var(--surface-muted)] text-[11px] font-semibold"
-                    style={{ height: it.h }}
+                    className="absolute right-0 left-0 flex w-full items-center border-b border-[var(--border)] bg-[var(--surface-muted)] text-[11px] font-semibold"
+                    style={{ top: it.top, height: it.h }}
                   >
                     <button
                       type="button"
@@ -1924,8 +1936,8 @@ export function GanttTab({
                 return (
                   <div
                     key={it.key}
-                    className="flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] px-2 text-[10.5px]"
-                    style={{ height: it.h }}
+                    className="absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] px-2 text-[10.5px]"
+                    style={{ top: it.top, height: it.h }}
                     onDoubleClick={() => openLeaf(it)}
                   >
                     <span className="flex-1 truncate">{it.damName}</span>
@@ -1954,8 +1966,8 @@ export function GanttTab({
               return (
                 <div
                   key={it.key}
-                  className="flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] text-[10.5px]"
-                  style={{ height: it.h }}
+                  className="absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] text-[10.5px]"
+                  style={{ top: it.top, height: it.h }}
                   onDoubleClick={() => openLeaf(it)}
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 pl-6">
@@ -1979,53 +1991,51 @@ export function GanttTab({
                   </span>
                 </div>
               );
-            })}
+            })
+              : null}
           </div>
         </div>
         <div
           ref={bodyRef}
           className="overflow-auto bg-[var(--surface)]"
-          style={{ cursor: panning ? "grabbing" : "grab" }}
+          style={{ cursor: "grab" }}
           onScroll={syncChrome}
           onPointerDown={(e) => startPan(e, "both")}
         >
           <div className="relative" style={{ width, height: Math.max(totalHeight, 1) }}>
-            {grain === "week"
-              ? Array.from({ length: months }, (_, i) => {
+            {chartReady
+              ? Array.from({ length: gridTo - gridFrom + 1 }, (_, n) => {
+                  const i = gridFrom + n;
                   const { m0 } = idxToYm(i, win.start);
                   return (
                     <div
                       key={`m-${i}`}
                       className="absolute top-0 bottom-0"
                       style={{
-                        left: monthStartX(scale, i),
+                        left:
+                          grain === "week"
+                            ? monthStartX(scale, i)
+                            : i * monthPx,
                         width: 1,
                         background: monthScaleEdge(m0, grain),
                       }}
                     />
                   );
                 })
-              : Array.from({ length: months }, (_, i) => {
-              const { m0 } = idxToYm(i, win.start);
-              return (
-                <div
-                  key={i}
-                  className="absolute top-0 bottom-0"
-                  style={{
-                    left: i * monthPx,
-                    width: 1,
-                    background: monthScaleEdge(m0, grain),
-                  }}
-                />
-              );
-            })}
-            {grain === "week"
-              ? weekSlots.map((slot, i) => (
+              : (
+                <div className="flex h-full items-center justify-center">
+                  <MrtInlineLoading label="chart" />
+                </div>
+              )}
+            {chartReady && grain === "week"
+              ? weekSlots
+                  .filter((slot) => slot.startC < markB && slot.endC > markA)
+                  .map((slot) => (
                     <div
                       key={slot.key}
                       className="absolute top-0 bottom-0"
                       style={{
-                        left: i * scale.weekPx,
+                        left: continuousToChartX(scale, slot.startC),
                         width: 1,
                         background: weekGridLine(),
                       }}
@@ -2036,54 +2046,49 @@ export function GanttTab({
               className="pointer-events-none absolute top-0 z-10 h-full w-0.5 border-l-2 border-dashed border-[var(--rag-red)]"
               style={{ left: todayX }}
             />
-            {items.map((it, idx) => {
-              const top = items.slice(0, idx).reduce((s, x) => s + x.h, 0);
-              if (it.type === "gap") {
-                return (
-                  <div
-                    key={`${it.key}-tl`}
-                    className="absolute right-0 left-0"
-                    style={{ top, height: it.h }}
-                  />
-                );
-              }
+            {chartReady
+              ? visItems.map((it) => {
+              if (it.type === "gap") return null;
               if (it.type === "heading") {
                 const rollup =
                   it.collapsed && showSummarised
-                    ? markers.filter(
-                        (m) =>
-                          it.children.some(
-                            (c) =>
-                              c.damId === m.damId && c.laneCode === m.laneCode,
-                          ) && markerVisible(m),
+                    ? it.children.flatMap((c) =>
+                        (markersByRow.get(rowMarkerKey(c.damId, c.laneCode)) ||
+                          []).filter(
+                          (m) =>
+                            markerVisible(m) &&
+                            markerOverlapsWindow(m, markA, markB, win.start),
+                        ),
                       )
                     : [];
                 return (
                   <div
                     key={`${it.key}-tl`}
                     className="absolute right-0 left-0 border-b border-[var(--border)] bg-[var(--surface-muted)]"
-                    style={{ top, height: it.h }}
+                    style={{ top: it.top, height: it.h }}
                   >
                     {rollup.map((m) => renderGanttMarker(m))}
                   </div>
                 );
               }
-              const rowMarkers = markers.filter(
+              const rowMarkers = (
+                markersByRow.get(rowMarkerKey(it.damId, it.laneCode)) || []
+              ).filter(
                 (m) =>
-                  m.damId === it.damId &&
-                  m.laneCode === it.laneCode &&
-                  markerVisible(m),
+                  markerVisible(m) &&
+                  markerOverlapsWindow(m, markA, markB, win.start),
               );
               return (
                 <div
                   key={`${it.key}-tl`}
                   className="absolute right-0 left-0 border-b border-[var(--border)]/60"
-                  style={{ top, height: it.h }}
+                  style={{ top: it.top, height: it.h }}
                 >
                   {rowMarkers.map((m) => renderGanttMarker(m))}
                 </div>
               );
-            })}
+            })
+              : null}
           </div>
         </div>
         </div>
@@ -2127,7 +2132,7 @@ export function GanttTab({
               showClose={bothPanes}
               onClosePane={() => setShowAlloc(false)}
               onPanPointerDown={(e) => startPan(e, "x")}
-              panning={panning}
+              panning={false}
               onGoToPerson={onGoToPerson}
               loading={allocLoading}
             />

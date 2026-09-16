@@ -253,6 +253,7 @@ export function ResourceLoadPane({
                 const over = cell.rag === "yellow" || cell.rag === "red";
                 const multi = over && cell.contributions.length >= 2;
                 const clickable = cell.hours > 0 || cell.contributions.length > 0;
+                if (!clickable) return null;
                 const label = inChunk && cell.hours > 0 ? fmtHours(cell.hours) : "";
                 return (
                   <button

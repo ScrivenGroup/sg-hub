@@ -1148,6 +1148,17 @@ Out of this version
 - Heatmap no longer runs while Split is closed. Localhost PATCH until the next hub train.`,
   },
   {
+    id: "cl-sunwater-mrt-1.5.4",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.4",
+    createdAt: "2026-09-16T06:20:00.000Z",
+    title: "Gantt paints only what is on screen",
+    body: `- Dots, tails, row labels, and grid lines are limited to the visible window. Pan and hover no longer rebuild the whole 25-year DOM.
+- Scroll updates the minimap in the browser; React only refreshes when the view actually moves.
+- Heatmap cells with no hours are not mounted. Localhost PATCH until the next hub train.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",

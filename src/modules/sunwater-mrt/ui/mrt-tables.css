@@ -1137,6 +1137,11 @@
   flex-shrink: 0;
 }
 
+.mrt-gantt-pan.is-panning,
+.mrt-gantt-pan.is-panning * {
+  cursor: grabbing !important;
+}
+
 .mrt-alloc-pane {
   position: relative;
   min-height: 0;
