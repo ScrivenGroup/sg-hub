@@ -523,6 +523,21 @@ export async function saveMtgBuylistStore(
   await writeJson(mtgBuylistFile(userKey), parsed);
 }
 
+/** Wipe this user’s run without Zod-parsing a multi-MB harvest. Keeps Development notes. */
+export async function clearMtgBuylistStore(userKey: string): Promise<MtgBuylistStore> {
+  const fallback = emptyMtgBuylistStore();
+  let notes = "";
+  try {
+    const raw = await readJson<Record<string, unknown>>(mtgBuylistFile(userKey), fallback);
+    if (typeof raw.notes === "string") notes = raw.notes;
+  } catch {
+    /* empty is fine */
+  }
+  const next: MtgBuylistStore = { ...emptyMtgBuylistStore(), notes };
+  await writeJson(mtgBuylistFile(userKey), next);
+  return next;
+}
+
 const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");
 
 export async function savePlaymantisHarvestDiff(

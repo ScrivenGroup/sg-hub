@@ -826,6 +826,36 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.19",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.19",
+    createdAt: "2026-09-16T05:30:00.000Z",
+    title: "1.5.19 (dev) — Step 5 Incoming orders + master change list",
+    body: `## Publish to localhost (not live)
+
+- Step 5 Mate saved order HTML counts **Incoming** as sold (not only Accepted). Foil comes from the finish badge or the card URL.
+- Outer join is the **master change list** and can be downloaded as CSV. Leftover rows download as the **re-import CSV**.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.20",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.20",
+    createdAt: "2026-09-16T05:55:00.000Z",
+    title: "1.5.20 (dev) — Step 5 one outer-join table",
+    body: `## Publish to localhost (not live)
+
+- Step 5 is **one** CSV + Mate + Playmantis table. Filter chips are views (Master default, plus Reimport, CSV, Mate, Playmantis, Non-CSV, Sold, Unsold, Oversold).
+- **Download re-import CSV** stays on the toolbar in every view.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

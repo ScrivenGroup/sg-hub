@@ -177,6 +177,40 @@ export type OuterJoinRow = {
 
 type ResolvedPrinting = ManaBoxRow & { imagePrecise: boolean };
 
+export type JoinView =
+  | "master"
+  | "reimport"
+  | "csv"
+  | "mate"
+  | "pm"
+  | "noncsv"
+  | "sold"
+  | "oversold"
+  | "unsold";
+
+export function filterJoinRows(rows: OuterJoinRow[], view: JoinView): OuterJoinRow[] {
+  switch (view) {
+    case "reimport":
+      return rows.filter((row) => row.remaining > 0);
+    case "csv":
+      return rows.filter((row) => row.csvQty > 0);
+    case "mate":
+      return rows.filter((row) => row.mmQty > 0);
+    case "pm":
+      return rows.filter((row) => row.pmQty > 0);
+    case "noncsv":
+      return rows.filter((row) => row.csvQty <= 0);
+    case "sold":
+      return rows.filter((row) => row.csvQty > 0 && row.remaining === 0);
+    case "oversold":
+      return rows.filter((row) => row.remaining < 0);
+    case "unsold":
+      return rows.filter((row) => row.csvQty > 0 && row.mmQty === 0 && row.pmQty === 0);
+    default:
+      return rows;
+  }
+}
+
 export type OuterJoinResult = {
   csv: SourceListRow[];
   pm: SourceListRow[];
@@ -531,6 +565,33 @@ export function buildOuterJoin(
     leftoverCopies,
     removedCopies,
   };
+}
+
+function csvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+/** Master change list: CSV vs Mate vs Playmantis vs leftover. */
+export function outerJoinCsv(rows: OuterJoinRow[]): string {
+  const header = ["Name", "Set", "#", "Finish", "CSV", "Mate", "Playmantis", "Left", "Note"];
+  const lines = [header.join(",")];
+  for (const row of rows) {
+    lines.push(
+      [
+        csvCell(row.name),
+        csvCell(row.setCode),
+        csvCell(row.collectorNumber),
+        csvCell(row.finishLabel),
+        String(row.csvQty),
+        String(row.mmQty),
+        String(row.pmQty),
+        String(row.remaining),
+        csvCell(row.note),
+      ].join(","),
+    );
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 function isSetCode(raw: string): boolean {

@@ -29,13 +29,15 @@ import { parsePlaymantisImportReview, type ImportReviewRow } from "../logic/pars
 import { normalizeSetCode } from "../logic/names";
 import {
   buildOuterJoin,
+  filterJoinRows,
   normalizeSetName,
+  outerJoinCsv,
   parseSubmissionCsv,
   rowsNeedingScryfallImages,
   setCodeMapFromCsv,
+  type JoinView,
   type OuterJoinResult,
   type OuterJoinRow,
-  type SourceListRow,
 } from "../logic/reprepare";
 import { cardLookupKey, type CardHint } from "../logic/scryfall";
 import {
@@ -164,69 +166,6 @@ function CollapsibleSection({
       </button>
       {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
     </section>
-  );
-}
-
-function printingCount(n: number): string {
-  return `${n} printing${n === 1 ? "" : "s"}`;
-}
-
-/** Nested table disclosure inside a Run step. Remembers open/closed in this tab. */
-function CollapsibleTableSection({
-  id,
-  title,
-  count,
-  hint,
-  defaultOpen,
-  children,
-}: {
-  id: string;
-  title: string;
-  count?: string;
-  hint?: string;
-  defaultOpen: boolean;
-  children: ReactNode;
-}) {
-  const storageKey = `mtg-buylist-section-${id}`;
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return defaultOpen;
-    const saved = sessionStorage.getItem(storageKey);
-    if (saved === "1") return true;
-    if (saved === "0") return false;
-    return defaultOpen;
-  });
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    sessionStorage.setItem(storageKey, next ? "1" : "0");
-  }
-
-  return (
-    <div className="min-w-0">
-      <button
-        type="button"
-        className="sticky top-[6.5rem] z-10 flex w-full cursor-pointer items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] py-2 text-left text-sm font-medium"
-        aria-expanded={open}
-        onClick={toggle}
-      >
-        <span className="text-[var(--muted)]" aria-hidden>
-          {open ? "▾" : "▸"}
-        </span>
-        {title}
-        {count ? (
-          <span className="font-normal text-[var(--muted)]">· {count}</span>
-        ) : null}
-        {hint ? (
-          <span
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <InfoTip label={hint} />
-          </span>
-        ) : null}
-      </button>
-      {open ? <div className="pt-2">{children}</div> : null}
-    </div>
   );
 }
 
@@ -534,6 +473,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   const [pmFilter, setPmFilter] = useState<StreamFilter>("all");
   const [mateFilter, setMateFilter] = useState<StreamFilter>("all");
   const [compareFilter, setCompareFilter] = useState<CompareFilter>("all");
+  const [joinView, setJoinView] = useState<JoinView>("master");
   const [pendingCsv, setPendingCsv] = useState<{
     text: string;
     filename: string;
@@ -551,6 +491,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     filename: string;
     rows: ManaBoxRow[];
   } | null>(null);
+  const [submissionError, setSubmissionError] = useState("");
   const [setCodeHints, setSetCodeHints] = useState<Record<string, string>>({});
   const [cardIdHints, setCardIdHints] = useState<Record<string, string | CardHint>>({});
   const [importReview, setImportReview] = useState<{
@@ -585,12 +526,19 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   useEffect(() => {
     setPmSubmission(null);
     setMateSubmission(null);
+    setSubmissionError("");
+    setJoinView("master");
     setSetCodeHints({});
     setCardIdHints({});
     setImportReview(null);
     setDeltaSave(null);
     savedHarvestDiffKey.current = "";
   }, [store.csv?.uploadedAt, store.csv?.filename]);
+
+  useEffect(() => {
+    if (joinView === "mate" && !mateSubmission) setJoinView("master");
+    if (joinView === "pm" && !pmSubmission) setJoinView("master");
+  }, [joinView, mateSubmission, pmSubmission]);
 
   const dumpOffers = useMemo(() => {
     if (!importReview || !store.csv) return [];
@@ -879,10 +827,13 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       try {
         const rows = parseSubmissionCsv(text);
         if (!rows.length) {
-          setError("No card rows in that submission CSV");
+          const msg = "No card rows in that submission";
+          setError(msg);
+          setSubmissionError(msg);
           return;
         }
         setError("");
+        setSubmissionError("");
         const next = { filename: file.name, rows };
         if (storeName === "playmantis") {
           setPmSubmission(next);
@@ -906,11 +857,12 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           setMateSubmission(next);
         }
       } catch (err) {
-        setError(
+        const msg =
           err instanceof Error
             ? err.message
-            : "Need a Playmantis .eml, a saved Mate order HTML, or a ManaBox-shaped CSV",
-        );
+            : "Need a Playmantis .eml, a saved Mate order HTML, or a ManaBox-shaped CSV";
+        setError(msg);
+        setSubmissionError(msg);
       }
     });
   }
@@ -1120,8 +1072,16 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             type="button"
             className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
             style={{ minHeight: "var(--sg-btn-height)" }}
-            disabled={pending || busy}
-            onClick={() => run(() => clearBuylistRunAction(), "Clearing run…")}
+            disabled={pending}
+            onClick={() => {
+              setBusy(false);
+              setPmSubmission(null);
+              setMateSubmission(null);
+              setImportReview(null);
+              setPendingCsv(null);
+              setSubmissionError("");
+              run(() => clearBuylistRunAction(), "Clearing run…");
+            }}
           >
             Clear this run
           </button>
@@ -1720,7 +1680,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       <CollapsibleSection
         id="reprepare"
         title="5. Re-prepare ManaBox after pick"
-        hint="Subtract sold copies. Remaining > 0 overwrites ManaBox."
+        hint="Drop what the stores took. One CSV + Mate + Playmantis table; filters are views. Re-import CSV is always available."
         uniqueness={
           <ul className="list-disc space-y-0.5 pl-4">
             <li>
@@ -1757,7 +1717,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                     <button
                       type="button"
                       className="sg-btn-secondary"
-                      onClick={() => setPmSubmission(null)}
+                      onClick={() => {
+                        setPmSubmission(null);
+                        setSubmissionError("");
+                      }}
                     >
                       Clear
                     </button>
@@ -1769,7 +1732,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                   accept=".html,.htm,.csv,text/html,text/csv"
                   disabled={pending || busy}
                   label="MTGMate submission"
-                  hint="Saved Mate order page"
+                  hint="Saved order page · Incoming or Accepted"
                   onFile={(file) => acceptSubmission(file, "mate")}
                 />
                 {mateSubmission ? (
@@ -1778,7 +1741,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                     <button
                       type="button"
                       className="sg-btn-secondary"
-                      onClick={() => setMateSubmission(null)}
+                      onClick={() => {
+                        setMateSubmission(null);
+                        setSubmissionError("");
+                      }}
                     >
                       Clear
                     </button>
@@ -1787,80 +1753,24 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
               </div>
             </div>
 
-            <CollapsibleTableSection
-              id="reprepare-csv"
-              title="ManaBox CSV (this run)"
-              count={printingCount(join.csv.length)}
-              defaultOpen={!showJoin}
-            >
-              <SourceListTable kind="csv" rows={join.csv} />
-            </CollapsibleTableSection>
-            {pmSubmission ? (
-              <CollapsibleTableSection
-                id="reprepare-pm"
-                title="Playmantis buylist"
-                count={printingCount(join.pm.length)}
-                defaultOpen
-              >
-                <SourceListTable kind="pm" rows={join.pm} />
-              </CollapsibleTableSection>
-            ) : null}
-            {mateSubmission ? (
-              <CollapsibleTableSection
-                id="reprepare-mm"
-                title="MTGMate buylist"
-                count={printingCount(join.mm.length)}
-                defaultOpen
-              >
-                <SourceListTable kind="mm" rows={join.mm} />
-              </CollapsibleTableSection>
+            {submissionError ? (
+              <p className="rounded-lg border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_10%,var(--surface))] px-3 py-2 text-sm" role="alert">
+                {submissionError}
+              </p>
             ) : null}
 
             {showJoin ? (
-              <div className="space-y-4">
-                <p className="text-sm">
-                  {join.join.length} unique printings · removed {join.removedCopies} copies ·
-                  re-import {join.leftoverCopies} copies ({join.reimport.length} printings)
-                </p>
-                <CollapsibleTableSection
-                  id="reprepare-join"
-                  title="Outer join"
-                  count={printingCount(join.join.length)}
-                  defaultOpen
-                >
-                  <JoinTable rows={join.join} />
-                </CollapsibleTableSection>
-                <CollapsibleTableSection
-                  id="reprepare-reimport"
-                  title="ManaBox re-import (Remaining > 0)"
-                  count={printingCount(join.reimport.length)}
-                  hint="Qty = Remaining. Overwrite ManaBox with the download."
-                  defaultOpen
-                >
-                  <div className="space-y-2">
-                    {join.reimport.length ? (
-                      <SourceListTable kind="csv" rows={join.reimport} />
-                    ) : (
-                      <p className="text-sm text-[var(--muted)]">
-                        Nothing left — sold or store-only.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      className="sg-btn-primary border border-[var(--ink)]"
-                      onClick={() => {
-                        const stem = (store.csv?.filename || "manabox").replace(/\.csv$/i, "");
-                        downloadText(`${stem}-leftover-manabox.csv`, join.leftoverCsv);
-                      }}
-                    >
-                      Download leftover ManaBox CSV
-                    </button>
-                  </div>
-                </CollapsibleTableSection>
-              </div>
+              <JoinBoard
+                join={join}
+                view={joinView}
+                onView={setJoinView}
+                csvStem={(store.csv?.filename || "manabox").replace(/\.csv$/i, "")}
+                hasMate={Boolean(mateSubmission)}
+                hasPm={Boolean(pmSubmission)}
+              />
             ) : (
               <p className="text-sm text-[var(--muted)]">
-                Drop a submission to build the join.
+                Drop a submission to build the re-import CSV.
               </p>
             )}
           </div>
@@ -1879,53 +1789,6 @@ function AmbiguousPreviewMark() {
       role="img"
     >
       !
-    </span>
-  );
-}
-
-function SourceNameCell({
-  kind,
-  row,
-}: {
-  kind: "csv" | "pm" | "mm";
-  row: SourceListRow;
-}) {
-  const cell =
-    kind === "pm" ? (
-      <CardNameCell
-        name={row.name}
-        setCode={row.setCode}
-        collectorNumber={row.collectorNumber}
-        finish={row.finishLabel}
-        playmantisImageUrl={row.imageUrl}
-        showOwned={false}
-        showMate={false}
-      />
-    ) : kind === "mm" ? (
-      <CardNameCell
-        name={row.name}
-        setCode={row.setCode}
-        collectorNumber={row.collectorNumber}
-        finish={row.finishLabel}
-        mateImageUrl={row.imageUrl}
-        showOwned={false}
-        showPlaymantis={false}
-      />
-    ) : (
-      <CardNameCell
-        name={row.name}
-        setCode={row.setCode}
-        collectorNumber={row.collectorNumber}
-        finish={row.finishLabel}
-        ownedImageUrl={row.imageUrl}
-        showStore={false}
-      />
-    );
-  if (!row.imageAmbiguous) return cell;
-  return (
-    <span className="flex items-center gap-1.5 whitespace-nowrap">
-      {cell}
-      <AmbiguousPreviewMark />
     </span>
   );
 }
@@ -1976,47 +1839,138 @@ function FinishCell({ finish }: { finish: string }) {
   );
 }
 
-function SourceListTable({
-  title,
-  kind,
-  rows,
+function JoinBoard({
+  join,
+  view,
+  onView,
+  csvStem,
+  hasMate,
+  hasPm,
 }: {
-  title?: string;
-  kind: "csv" | "pm" | "mm";
-  rows: SourceListRow[];
+  join: OuterJoinResult;
+  view: JoinView;
+  onView: (view: JoinView) => void;
+  csvStem: string;
+  hasMate: boolean;
+  hasPm: boolean;
 }) {
+  const visible = filterJoinRows(join.join, view);
+  const oversold = join.join.filter((row) => row.remaining < 0).length;
+  const unsold = join.join.filter((row) => row.csvQty > 0 && row.mmQty === 0 && row.pmQty === 0)
+    .length;
+  const sold = join.join.filter((row) => row.csvQty > 0 && row.remaining === 0).length;
+  const nonCsv = join.join.filter((row) => row.csvQty <= 0).length;
+  const viewLabel: Record<JoinView, string> = {
+    master: "Master",
+    reimport: "Reimport",
+    csv: "CSV",
+    mate: "Mate",
+    pm: "Playmantis",
+    noncsv: "Non-CSV",
+    sold: "Sold",
+    oversold: "Oversold",
+    unsold: "Unsold",
+  };
   return (
-    <div className="min-w-0 space-y-2">
-      {title ? <h3 className="text-sm font-medium">{title}</h3> : null}
-      <div className="min-w-0 overflow-x-auto">
-        <table className={runTableClass}>
-          <thead className="bg-[var(--surface)]">
-            <tr className="text-[var(--muted)]">
-              <th className={nameHeadClass}>Name</th>
-              <MetaHead>Set</MetaHead>
-              <MetaHead>#</MetaHead>
-              <MetaHead title="Finish">Fin</MetaHead>
-              <MetaHead>Qty</MetaHead>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={`${kind}-${row.name}-${row.setCode}-${row.collectorNumber}-${row.finishLabel}-${i}`}
-                className="border-t border-[var(--border)]"
-              >
-                <td className={nameCellClass}>
-                  <SourceNameCell kind={kind} row={row} />
-                </td>
-                <td className={metaCellClass}>{row.setCode || "—"}</td>
-                <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
-                <FinishCell finish={row.finishLabel} />
-                <td className={metaCellClass}>{row.quantity}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm text-[var(--muted)]">
+            {join.leftoverCopies} leftover copies · {join.reimport.length} printings · removed{" "}
+            {join.removedCopies}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+          disabled={!join.reimport.length}
+          onClick={() => downloadText(`${csvStem}-reimport-manabox.csv`, join.leftoverCsv)}
+        >
+          Download re-import CSV
+        </button>
       </div>
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Step 5 view">
+        <FilterChip
+          active={view === "master"}
+          label={`Master (${join.join.length})`}
+          onClick={() => onView("master")}
+        />
+        <FilterChip
+          active={view === "reimport"}
+          label={`Reimport (${join.reimport.length})`}
+          onClick={() => onView("reimport")}
+        />
+        <FilterChip
+          active={view === "csv"}
+          label={`CSV (${join.csv.length})`}
+          onClick={() => onView("csv")}
+        />
+        {hasMate ? (
+          <FilterChip
+            active={view === "mate"}
+            label={`Mate (${join.mm.length})`}
+            onClick={() => onView("mate")}
+          />
+        ) : null}
+        {hasPm ? (
+          <FilterChip
+            active={view === "pm"}
+            label={`Playmantis (${join.pm.length})`}
+            onClick={() => onView("pm")}
+          />
+        ) : null}
+        {nonCsv > 0 ? (
+          <FilterChip
+            active={view === "noncsv"}
+            label={`Non-CSV (${nonCsv})`}
+            onClick={() => onView("noncsv")}
+          />
+        ) : null}
+        {sold > 0 ? (
+          <FilterChip
+            active={view === "sold"}
+            label={`Sold (${sold})`}
+            onClick={() => onView("sold")}
+          />
+        ) : null}
+        {unsold > 0 ? (
+          <FilterChip
+            active={view === "unsold"}
+            label={`Unsold (${unsold})`}
+            onClick={() => onView("unsold")}
+          />
+        ) : null}
+        {oversold > 0 ? (
+          <FilterChip
+            active={view === "oversold"}
+            label={`Oversold (${oversold})`}
+            tone="amber"
+            onClick={() => onView("oversold")}
+          />
+        ) : null}
+      </div>
+      <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-[var(--muted)]">
+        <span>
+          Showing {viewLabel[view]} · {visible.length} of {join.join.length}
+        </span>
+        <button
+          type="button"
+          className="sg-btn-secondary"
+          onClick={() =>
+            downloadText(
+              `${csvStem}-${view}.csv`,
+              outerJoinCsv(view === "master" ? join.join : visible),
+            )
+          }
+        >
+          Download this view
+        </button>
+      </p>
+      {visible.length ? (
+        <JoinTable rows={visible} />
+      ) : (
+        <p className="text-sm text-[var(--muted)]">No printings in this view.</p>
+      )}
     </div>
   );
 }

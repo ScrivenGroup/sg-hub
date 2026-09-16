@@ -8,6 +8,7 @@ import {
   getMtgBuylistStore,
   saveMateHarvestToken,
   saveMtgBuylistStore,
+  clearMtgBuylistStore,
   savePlaymantisHarvestDiff,
   listPlaymantisHarvestDiff,
   clearPlaymantisHarvestDiff,
@@ -23,7 +24,6 @@ import { buildMateImageLinks } from "./logic/mate-image-join";
 import { enrichRowsFromScryfall, lookupScryfallCardIds, lookupScryfallSetCodes, type CardHint, type CardLookup } from "./logic/scryfall";
 import { runParserSelfCheck } from "./logic/self-check";
 import {
-  emptyMtgBuylistStore,
   MTG_BUYLIST_HREF,
   priceSourceSchema,
   type MtgBuylistStore,
@@ -408,12 +408,11 @@ export async function saveBuylistNotesAction(notes: string) {
 }
 
 export async function clearBuylistRunAction() {
-  const loaded = await loadStore();
-  if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
-  const store = await persist(loaded.staff.userKey, {
-    ...emptyMtgBuylistStore(),
-    notes: loaded.store.notes,
-  });
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  const store = await clearMtgBuylistStore(staff.userKey);
+  revalidatePath(MTG_BUYLIST_HREF);
+  revalidatePath(`${MTG_BUYLIST_HREF}/development`);
   return { ok: true as const, store, summary: summaryOf(store) };
 }
 
