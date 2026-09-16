@@ -3,7 +3,8 @@ import {
   getMtgBuylistStore,
   saveMtgBuylistStore,
 } from "@/core/store/json-store";
-import { attachMateImageLinks, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { withAllocateResults } from "@/modules/mtg-buylist/logic/allocate";
 import { uniqueSetCodes } from "@/modules/mtg-buylist/logic/parse-csv";
 import {
   filterMateOffersForCsv,
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
     const keptSets = [...new Set(offers.map((o) => o.setCode).filter(Boolean))].sort();
-    const next = await attachMateImageLinks({
+    const next = withAllocateResults({
       ...store,
       mate: {
         harvestedAt: new Date().toISOString(),
@@ -73,12 +74,14 @@ export async function POST(request: Request) {
         sets: keptSets,
         offers,
       },
+      mateImageLinks: {},
     });
     await saveMtgBuylistStore(staff.userKey, next);
     revalidatePath(MTG_BUYLIST_HREF);
     revalidatePath(`${MTG_BUYLIST_HREF}/development`);
     return NextResponse.json({
       ok: true,
+      store: next,
       summary: {
         sets: keptSets.length,
         offers: offers.length,

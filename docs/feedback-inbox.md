@@ -2,8 +2,25 @@
 
 Open items for Cursor housekeeping / bug-fix sessions. Newest first.
 
-When the user asks to fix bugs or do housekeeping, read this file and
-`data/feedback.json` (and Internal → Feedback in the app).
+When the user asks to fix bugs or do housekeeping, query Neon first
+(`npx --yes tsx scripts/inspect-neon-inbox.ts`), then Development Inbox
+(`/d?tab=inbox`). Laptop `data/feedback.json` and seed
+are not the live register. Live rows are `kanban_ideas` (one inbox).
+
+---
+
+## BUG — Sunwater MRT load times
+- id: `fb-mtteyhko`
+- when: 2026-09-09T01:22:20.664Z
+- page: /w/sunwater-mrt
+- by: live Feedback
+- status: open
+
+sunwater-brt laod times stupid long.
+
+Feedback bug only. Do not copy to Kanban Inbox unless asked. Do not treat as
+Sunwater MRT product work in a notes-durability sitting. Detailed Kanban raises
+`IN-20260909-01` and `IN-20260908-03` are archived on Neon (bodies kept).
 
 ---
 

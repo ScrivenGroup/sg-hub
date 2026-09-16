@@ -10,6 +10,7 @@ import type {
 export const HUB_LABELS: Record<string, string> = {
   w: "Work",
   p: "Projects",
+  d: "Development",
   i: "Internal",
   s: "System",
 };
@@ -46,6 +47,22 @@ export const seedNodes: RegistryNode[] = [
     order: 2,
   },
   {
+    id: "hub-development",
+    hubPrefix: "d",
+    slug: "",
+    title: "Development",
+    code: "C45C26",
+    kind: "hub",
+    parentId: null,
+    href: "/d",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Inbox, board, changelog, notes, and design spec. Chrome Feedback lands in Inbox. Filter by leaf.",
+    order: 3,
+  },
+  {
     id: "hub-internal",
     hubPrefix: "i",
     slug: "",
@@ -57,8 +74,8 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "ScrivenGroup capture and tools.",
-    order: 3,
+    description: "ScrivenGroup tools.",
+    order: 4,
   },
   {
     id: "hub-system",
@@ -73,7 +90,7 @@ export const seedNodes: RegistryNode[] = [
     status: "live",
     hasNetworkMap: true,
     description: "Definition, Appearance, and Standards of this site.",
-    order: 4,
+    order: 5,
   },
   {
     id: "w-sunwater-mrt",
@@ -140,67 +157,6 @@ export const seedNodes: RegistryNode[] = [
     order: 3,
   },
   {
-    id: "i-kanban",
-    hubPrefix: "i",
-    slug: "kanban",
-    title: "Kanban Online",
-    code: "6BA4E3",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/kanban",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description:
-      "Global Inbox + KanBan. Same columns as a leaf. Filter by leaf tag. Raise defaults to Global.",
-    order: 0,
-  },
-  {
-    id: "i-ideas",
-    hubPrefix: "i",
-    slug: "ideas",
-    title: "Ideas",
-    code: "7EB6E8",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/ideas",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Domain-wide idea register.",
-    order: 1,
-  },
-  {
-    id: "i-notes",
-    hubPrefix: "i",
-    slug: "notes",
-    title: "Notes",
-    code: "5BB8C9",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/notes",
-    accessMode: "per_user",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Less formal capture.",
-    order: 2,
-  },
-  {
-    id: "i-feedback",
-    hubPrefix: "i",
-    slug: "feedback",
-    title: "Feedback",
-    code: "6B7FD4",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/feedback",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Site-wide feedback register for bugs, ideas, and housekeeping.",
-    order: 3,
-  },
-  {
     id: "i-testing",
     hubPrefix: "i",
     slug: "testing",
@@ -213,7 +169,7 @@ export const seedNodes: RegistryNode[] = [
     status: "sketched",
     hasNetworkMap: false,
     description: "Small web test pages.",
-    order: 4,
+    order: 1,
   },
   {
     id: "i-dev-choices",
@@ -228,7 +184,7 @@ export const seedNodes: RegistryNode[] = [
     status: "building",
     hasNetworkMap: false,
     description: "Locked development standards for humans and Cursor chats.",
-    order: 5,
+    order: 2,
   },
   {
     id: "s-definition",
@@ -272,7 +228,7 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "building",
     hasNetworkMap: false,
-    description: "How we develop on the hub: desks, station, and make it live.",
+    description: "Design library, behaviours, process, and a drop pile for live notes.",
     order: 3,
   },
 ];
@@ -578,15 +534,266 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
   {
     id: "cl-mtg-buylist-1.5.1",
     nodeId: "p-mtg-buylist",
-    kind: "plan",
+    kind: "release",
     version: "1.5.1",
+    createdAt: "2026-09-07T11:00:00.000Z",
+    title: "1.5.1 (dev) — Run uses the page width",
+    body: `## Publish to localhost (not live)
+
+- Run fills the window (not the 64rem hub column). Development stays the locked full-viewport board.
+- Playmantis, Mate, and Compare tables stretch to that width. Long card names wrap; the page does not scroll sideways.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.2",
+    nodeId: "p-mtg-buylist",
+    kind: "plan",
+    version: "1.5.2",
     createdAt: "2026-09-08T12:00:00.000Z",
-    title: "1.5.1 — Development uses the Kanban template (localhost)",
+    title: "1.5.2 — Development uses the Kanban template (localhost)",
     body: `## Localhost
 
 - Development is the shared Kanban Online host: Inbox, board, Changelog, Notes, Raise tagged to Buylist.
 - Parser fixture check stays under Testing.
 - Per-login notes still save on the buylist store. Not live until make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.3",
+    createdAt: "2026-09-09T01:10:00.000Z",
+    title: "1.5.3 (dev) — Re-prepare ManaBox after pick",
+    body: `## Publish to localhost (not live)
+
+- Run step 5: upload Playmantis and/or Mate submission CSVs (ManaBox-shaped) after the shop floor.
+- Download a leftover ManaBox CSV = this run’s original file minus those copies. Overwrite ManaBox with that, not Compare Not-sold.
+- Unmatched submission lines are listed. Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.4",
+    createdAt: "2026-09-09T23:50:00.000Z",
+    title: "1.5.4 (dev) — Sticky sections, Mate row and harvest polish",
+    body: `## Publish to localhost (not live)
+
+- Section headings stay under the hub header so you can collapse a long table.
+- Mate **Wrong printing** is a compact ↻ icon; row height stays the default.
+- Recovered-% chips ( >100% / ≥80% / … ) filter Playmantis, Mate, and Compare. Click again to clear.
+- Mate bookmark harvest filename ends with local date_time.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.5",
+    createdAt: "2026-09-09T23:58:00.000Z",
+    title: "1.5.5 (dev) — Real store submissions for leftover ManaBox",
+    body: `## Publish to localhost (not live)
+
+- Step 5 Playmantis drop is the sort-order **.eml** (the only reliable receipt).
+- Step 5 Mate drop is a **saved order HTML** from mtgmate.com.au/buylist/orders/… (Accepted rows only; one row = one copy).
+- ManaBox-shaped CSVs still work. Leftover match uses Scryfall id, then name/set/finish, then a unique name+finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.6",
+    createdAt: "2026-09-10T00:50:00.000Z",
+    title: "1.5.6 (dev) — Step 5 outer join and leftover re-import",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tabulates ManaBox CSV, Playmantis, and Mate (Name, Set, Finish, Qty) with Scryfall hover previews.
+- Outer join lists every unique printing: CSV Qty, MM Qty, PM Qty, Remaining (CSV − MM − PM), Note.
+- Remaining &gt; 0 is the ManaBox re-import download. Store-only and Remaining ≤ 0 stay on the join.
+- Playmantis set names resolve to set codes from this CSV, then a unique Scryfall set-name lookup.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.7",
+    createdAt: "2026-09-10T00:55:00.000Z",
+    title: "1.5.7 (dev) — Step 5 tables collapse",
+    body: `## Publish to localhost (not live)
+
+- Step 5 CSV, Playmantis, Mate, outer join, and re-import tables each fold independently. Open/closed is remembered in this tab.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.8",
+    createdAt: "2026-09-10T01:05:00.000Z",
+    title: "1.5.8 (dev) — Step 5 Scryfall previews for every row",
+    body: `## Publish to localhost (not live)
+
+- Step 5 rows without a ManaBox Scryfall ID look up the card by name + set (collector # when Mate has it) so the hover preview can show.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.9",
+    createdAt: "2026-09-10T01:12:00.000Z",
+    title: "1.5.9 (dev) — Step 5 collector numbers and lookup warning",
+    body: `## Publish to localhost (not live)
+
+- Step 5 tables (CSV, Playmantis, Mate, join, re-import) show collector # after Set.
+- A **!** mark means the hover face is a Scryfall name+set lookup, not a ManaBox Scryfall ID, so it may be the wrong printing.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.10",
+    createdAt: "2026-09-10T01:22:00.000Z",
+    title: "1.5.10 (dev) — Step 5 join notes and compact columns",
+    body: `## Publish to localhost (not live)
+
+- Outer join notes stay on one line so row height stays even.
+- Set, #, Finish, and qty column headers are centred; values keep a left offset; a light vertical rule separates those columns.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.11",
+    createdAt: "2026-09-10T01:28:00.000Z",
+    title: "1.5.11 (dev) — compact columns on every Run table",
+    body: `## Publish to localhost (not live)
+
+- Playmantis, Mate, Compare, and Step 5 tables use the same Set / # / Finish / qty spacing: centred headers, left-offset values, light vertical rules.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.12",
+    createdAt: "2026-09-10T01:34:00.000Z",
+    title: "1.5.12 (dev) — one-line card names, tighter columns",
+    body: `## Publish to localhost (not live)
+
+- Card names stay on one line. Compact columns use 13px type, shorter headers (Fin, Want, Left, CSV/MM/PM, List, Cr, Win), and tighter padding so Set / # / qty columns still fit.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.13",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.13",
+    createdAt: "2026-09-10T01:40:00.000Z",
+    title: "1.5.13 (dev) — richer card hover preview",
+    body: `## Publish to localhost (not live)
+
+- O / M / P / S hover shows the card face plus name, set, collector #, and finish.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.14",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.14",
+    createdAt: "2026-09-10T03:28:00.000Z",
+    title: "1.5.14 (dev) — Playmantis harvest vs site dump",
+    body: `## Publish to localhost (not live)
+
+- Playmantis stream has two paths side by side: Harvest, or bookmark the site’s Import Review and drop it there. Harvest vs site diffs save to playmantis_harvest_diff.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.15",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.15",
+    createdAt: "2026-09-10T04:00:00.000Z",
+    title: "1.5.15 (dev) — Import Review is the Playmantis table",
+    body: `## Publish to localhost (not live)
+
+- When a site dump sits next to a harvest, the Playmantis table uses Import Review. Harvest differs is a filter; expand shows harvest vs dump. Save PM deltas is a button, not an auto popup.
+- Import Review titles like “Sundering Growth (Source Material - Borderless)” join the CSV name.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.16",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.16",
+    createdAt: "2026-09-10T04:30:00.000Z",
+    title: "1.5.16 (dev) — Printing keys, Logs tab, clearer diffs",
+    body: `## Publish to localhost (not live)
+
+- Each run section has a key tooltip for how it identifies a printing. Card previews have a dark border. Harvest differs / expand diffs use the amber flag colour.
+- Logs is a primary tab; diffs is the first L2. Saved harvest diffs live there (confirmed clear). Inbox: past run summary logs.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.17",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.17",
+    createdAt: "2026-09-10T05:30:00.000Z",
+    title: "1.5.17 (dev) — Tighter copy, Logs review prompt",
+    body: `## Publish to localhost (not live)
+
+- Shorter step copy with bold keywords. Info icon on uniqueness. At limit filter. Compare Download CSV matches other streams. Step 5 sold-vendor tints. Logs can copy a harvest-diff review prompt and mark rows looked-at.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.18",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.18",
+    createdAt: "2026-09-10T05:40:00.000Z",
+    title: "1.5.18 (dev) — Bordered buttons, Mate upload phases",
+    body: `## Publish to localhost (not live)
+
+- Buylist action buttons use a border. Table|Show diffs matches other button size. Mate upload reports parse then image-join; the busy overlay no longer claims live counts.
+
+Live remains 1.5 until you say make it live.
 `,
   },
   {
@@ -1050,17 +1257,71 @@ Out of this version
 - Buylist product work on wip/buylist is not in this train.`,
   },
   {
+    id: "cl-kanban-online-0.2.1",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.1",
+    createdAt: "2026-09-09T06:30:00.000Z",
+    title: "0.2.1 — Inbox sittings query Neon first (localhost)",
+    body: `Kanban Online 0.2.1. Localhost until the next hub train. Ticket kt-notes-survive-publish.
+
+- Feedback and Kanban rows on Neon survive zip (data/ is stripped). Seed only adds missing ids; empty MRT seed ideas is not an empty inbox.
+- Inbox sittings: scripts/inspect-neon-inbox.ts then /i/feedback then seed. Do not call getKanbanBoard for forensics.
+- Feedback Bug stays on /i/feedback; Idea copies to Kanban; Raise is Kanban only.
+- Leaf tag on /i/kanban and /i/feedback defaults to Global (not the Kanban Online tool id).
+- Live proof of zip + restage remains kt-db-make-live.`,
+  },
+  {
+    id: "cl-kanban-online-0.2.2",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.2",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    title: "0.2.2 — One inbox for Feedback and Ideas (localhost)",
+    body: `Kanban Online 0.2.2. Localhost until the next hub train. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
+
+- One Neon table (kanban_ideas) for Feedback and Ideas. Kind + leaf tag + optional page breadcrumb.
+- Chrome Feedback is the bug/help door (Idea allowed, not advertised). Raise is the idea door.
+- /i/feedback and /i/ideas are views of the same rows. Bugs are not auto-ticketed.
+- Guest Feedback write is later (kt-inbox-guest-write / IN-20260908-04).`,
+  },
+  {
+    id: "cl-kanban-online-0.2.3",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.3",
+    createdAt: "2026-09-09T08:20:00.000Z",
+    title: "0.2.3 — Kanban is the Internal register (localhost)",
+    body: `Kanban 0.2.3. Localhost until the next hub train.
+
+- Dropped Internal cards for Feedback, Ideas, and Notes. Chrome Feedback and Raise stay as doors. Notes live on the Kanban Notes tab.
+- Card title is Kanban. Old URLs /i/feedback, /i/ideas, /i/notes redirect here.`,
+  },
+  {
+    id: "cl-kanban-online-0.2.4",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.4",
+    createdAt: "2026-09-09T08:48:00.000Z",
+    title: "0.2.4 — Development hub and one capture door (localhost)",
+    body: `Development 0.2.4. Localhost until the next hub train.
+
+- Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
+- /i/kanban redirects here. Internal keeps Testing and Development choices.
+- Chrome Feedback is the only capture door (Raise-style popup). Leaf Development tabs no longer show Raise.`,
+  },
+  {
     id: "cl-s-standards-plan",
     nodeId: "s-standards",
     kind: "plan",
     createdAt: "2026-09-09T01:00:00.000Z",
     title: "Process tab + Kanban Development (building)",
-    body: `System card beside Appearance. Design Library (atlas s-design-gallery) stays parked.
+    body: `System card beside Appearance. Home + Drop pile are the minimum bar; Design Library and Behaviours fill in on this desk.
 
-- Process teaches the live yard: wip/<leaf> desks → merge to station (dev_main :3000) → you say make it live → main + Azure zip. Spoken words: develop → commit → merge to station → make it live.
-- Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes, Raise tagged to Standards). Design spec stays on /i/kanban only.
-- Does not replace Internal → Development choices or Kanban Online.
-- Leaf cycle: sketched shell+plan → building same store types → live + version+datetime.
+- Process teaches the live yard: wip/<leaf> desks → merge to station (dev_main :3000) → you say make it live → main + Azure zip.
+- Drop is the pile for live notes from parallel desks (not chrome Feedback, not a Kanban ticket).
+- Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes). Design spec stays on /d. Chrome Feedback is the capture door; no in-tab Raise.
+- Does not replace Internal → Development choices or the Development hub.
 - One locker: ScrivenGroup/sg-hub. Never zip from a wip desk.`,
   },
 ];

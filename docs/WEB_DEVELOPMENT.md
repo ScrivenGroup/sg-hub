@@ -10,7 +10,7 @@ How to ask (if you do not know what is hard): say **what the user must do**, not
 
 ## 1. Leaf development cycle
 
-A **leaf** is a registry card (sub-hub or tool): `/w/{slug}`, `/p/{slug}`, `/i/{slug}`, `/s/{slug}`.
+A **leaf** is a registry card (sub-hub or tool): `/w/{slug}`, `/p/{slug}`, `/i/{slug}`, `/s/{slug}`. Development hub `/d` is the global suite, not a product leaf.
 
 | Stage | Status | What exists | Dummy data |
 | ----- | ------ | ----------- | ---------- |
@@ -30,9 +30,9 @@ Every **leaf** (not every inner tab) eventually has:
 
 | Element | Rule | Today (gap) |
 | ------- | ---- | ----------- |
-| **Development** | When a leaf leaves `sketched`, its Development surface is **Kanban Online** (`KanbanOnlineHost`): Raise (leaf-tagged), Inbox, board, Changelog, Notes. Relabel in `src/core/kanban/chrome.ts`. Design spec tab is **only** on global `/i/kanban`. Sketched shells: changelog on the shell only — no fake Kanban. | Template is `/i/kanban`. Buylist and MRT Development use the host. Other live/building leaves still to roll on. |
+| **Development** | When a leaf leaves `sketched`, its Development surface is **Kanban Online** (`KanbanOnlineHost`): Inbox, board, Changelog, Notes, Design spec. One product-level **Development** tab with those sub-tabs. Capture is chrome Feedback (Raise-style popup), not an in-tab Raise. Relabel in `src/core/kanban/chrome.ts`. Sketched shells: changelog on the shell only — no fake Kanban. | Template is `/d`. Buylist and MRT Development use the host. Other live/building leaves still to roll on. |
 | **Versions** | Show **numeric version + datetime** in the leaf header when `live` / shipping (MRT pattern). Changelog rows carry `version` + `createdAt`. **MTG Buylist:** each live update increments 1.x → 1.(x+1). In-dev patches will be 1.x.y. Major N.0 only when asked. | MRT yes. Buylist 1.2. Other leaves: changelog dates only until first release. |
-| **Feedback** | Global header (and mobile FAB) **always** has Feedback. Writes **one** register: `/i/feedback` + `data/feedback.json` (Postgres after cutover). Guests may be excluded (MRT). | Done in `AppShell`. |
+| **Feedback** | Global header (and mobile FAB) **always** has Feedback. Raise-style popup: type (default **bug**), title, details, leaf tag, attachments. Writes Development Inbox (`kanban_ideas`; Neon when `DATABASE_URL` is set). No Internal Feedback/Ideas/Notes cards; `/i/kanban` redirects to `/d`. Bugs are not auto-ticketed. Guests may be excluded until `kt-inbox-guest-write`. Sittings: Neon inspect script → `/d?tab=inbox` → seed last. Details: [`docs/FEEDBACK.md`](./FEEDBACK.md). | Done in `AppShell`. |
 | **Site map / fast travel** | **Site network** in chrome is the fast-travel map (Home → Hubs → cards). Definition is the same map for reading. Product interiors are inside a card, not extra map nodes (v1). | Done. Do not invent a second sitemap widget. |
 
 Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).

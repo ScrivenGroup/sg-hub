@@ -37,6 +37,9 @@ yarn-error.log*
 # local JSON store
 /data
 
+# sitting inspect / Kudu downloads
+/.tmp
+
 # Azure deploy package
 /.azure-deploy
 /scrivengroup-deploy.zip

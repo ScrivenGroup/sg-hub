@@ -22,7 +22,8 @@ export default async function HomePage() {
         <h1 className="text-3xl font-semibold tracking-tight">Home</h1>
         <p className="mt-2 max-w-xl text-[var(--muted)]">
           Choose a Hub. Work and Projects hold spin-out capable products;
-          Internal captures ideas; System defines and maintains the site.
+          Development is the suite; Internal holds leftover tools; System
+          defines and maintains the site.
         </p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -39,9 +40,11 @@ export default async function HomePage() {
                 </div>
               </div>
               <p className="text-sm text-[var(--muted)]">{hub.description}</p>
-              <p className="mt-4 text-xs text-[var(--muted)]">
-                {childCount} area{childCount === 1 ? "" : "s"}
-              </p>
+              {childCount > 0 ? (
+                <p className="mt-4 text-xs text-[var(--muted)]">
+                  {childCount} area{childCount === 1 ? "" : "s"}
+                </p>
+              ) : null}
             </Link>
           );
         })}

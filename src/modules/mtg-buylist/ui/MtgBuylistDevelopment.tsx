@@ -76,7 +76,7 @@ export function MtgBuylistDevelopment({
             </button>
             {check ? <pre className="sg-prose mt-3 text-sm">{check}</pre> : null}
           </div>
-          <button type="button" className="sg-btn-ghost text-sm" onClick={() => setTesting(false)}>
+          <button type="button" className="sg-btn-secondary text-sm" onClick={() => setTesting(false)}>
             Back to Development template
           </button>
         </section>

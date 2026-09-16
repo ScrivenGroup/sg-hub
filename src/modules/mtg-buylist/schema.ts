@@ -148,12 +148,36 @@ export const mtgBuylistStoreSchema = z.object({
   mateImageLinks: z.record(z.string(), z.string()).optional().default({}),
 });
 
+export const playmantisHarvestDiffRowSchema = z.object({
+  id: z.string(),
+  batchId: z.string(),
+  createdAt: z.string(),
+  userKey: z.string(),
+  csvFilename: z.string(),
+  reviewFilename: z.string(),
+  harvestedAt: z.string(),
+  name: z.string(),
+  setName: z.string(),
+  finish: z.string(),
+  scryfallId: z.string(),
+  csvQty: z.number(),
+  reviewStatus: z.string(),
+  harvestStatus: z.string(),
+  reviewCreditCents: z.number(),
+  harvestCreditCents: z.number(),
+  harvestLimit: z.number(),
+  verdict: z.string(),
+  note: z.string(),
+  lookedAt: z.string().optional().default(""),
+});
+
 export type ManaBoxRow = z.infer<typeof manaBoxRowSchema>;
 export type MateOffer = z.infer<typeof mateOfferSchema>;
 export type PlaymantisOffer = z.infer<typeof playmantisOfferSchema>;
 export type AllocateLine = z.infer<typeof allocateLineSchema>;
 export type AllocateResult = z.infer<typeof allocateResultSchema>;
 export type MtgBuylistStore = z.infer<typeof mtgBuylistStoreSchema>;
+export type PlaymantisHarvestDiffRow = z.infer<typeof playmantisHarvestDiffRowSchema>;
 
 export function emptyMtgBuylistStore(): MtgBuylistStore {
   return {

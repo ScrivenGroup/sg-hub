@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 import type {
@@ -24,6 +24,7 @@ import {
   mrtDams,
   mrtShare,
   notes,
+  playmantisHarvestDiff,
 } from "@/core/store/schema";
 import {
   MRT_RELATIONAL_DDL,
@@ -41,6 +42,7 @@ import {
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
+  normalizeInboxNote,
   type KanbanAttachmentStoreRow,
 } from "@/core/kanban/schema";
 
@@ -59,7 +61,7 @@ export type MrtShareRow = {
 
 type SimpleSchema = typeof schema;
 
-const DDL_VERSION = 2;
+const DDL_VERSION = 4;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -129,9 +131,19 @@ const DDL = [
     status text NOT NULL,
     created_at text NOT NULL,
     updated_at text NOT NULL,
-    copied_at text
+    copied_at text,
+    kind text NOT NULL DEFAULT 'idea',
+    source text NOT NULL DEFAULT 'raise',
+    page_href text,
+    page_title text,
+    submitted_by text
   )`,
   `CREATE INDEX IF NOT EXISTS kanban_ideas_node_id ON kanban_ideas (node_id)`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'idea'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'raise'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_href text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_title text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS submitted_by text`,
   `CREATE TABLE IF NOT EXISTS kanban_tickets (
     id text PRIMARY KEY,
     node_id text NOT NULL,
@@ -169,6 +181,30 @@ const DDL = [
     body text NOT NULL,
     updated_at text NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS playmantis_harvest_diff (
+    id text PRIMARY KEY,
+    batch_id text NOT NULL,
+    created_at text NOT NULL,
+    user_key text NOT NULL,
+    csv_filename text NOT NULL,
+    review_filename text NOT NULL,
+    harvested_at text NOT NULL,
+    name text NOT NULL,
+    set_name text NOT NULL,
+    finish text NOT NULL,
+    scryfall_id text NOT NULL,
+    csv_qty integer NOT NULL,
+    review_status text NOT NULL,
+    harvest_status text NOT NULL,
+    review_credit_cents integer NOT NULL,
+    harvest_credit_cents integer NOT NULL,
+    harvest_limit integer NOT NULL,
+    verdict text NOT NULL,
+    note text NOT NULL,
+    looked_at text NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS playmantis_harvest_diff_batch ON playmantis_harvest_diff (batch_id)`,
+  `ALTER TABLE playmantis_harvest_diff ADD COLUMN IF NOT EXISTS looked_at text NOT NULL DEFAULT ''`,
 ];
 
 type PgGlobal = {
@@ -462,16 +498,23 @@ export async function pgEnd(): Promise<void> {
 }
 
 function ideaFromRow(row: typeof kanbanIdeas.$inferSelect): KanbanInboxNote {
-  return kanbanInboxNoteSchema.parse({
-    id: row.id,
-    nodeId: row.nodeId,
-    title: row.title,
-    body: row.body,
-    status: row.status,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    copiedAt: row.copiedAt,
-  });
+  return normalizeInboxNote(
+    kanbanInboxNoteSchema.parse({
+      id: row.id,
+      nodeId: row.nodeId,
+      title: row.title,
+      body: row.body,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      copiedAt: row.copiedAt,
+      kind: row.kind,
+      source: row.source,
+      pageHref: row.pageHref,
+      pageTitle: row.pageTitle,
+      submittedBy: row.submittedBy,
+    }),
+  );
 }
 
 function ticketFromRow(row: typeof kanbanTickets.$inferSelect): KanbanTicket {
@@ -520,28 +563,39 @@ export async function pgGetKanbanMeta(): Promise<KanbanMeta[]> {
 
 export async function pgUpsertKanbanIdea(row: KanbanInboxNote): Promise<void> {
   const db = await getDb();
+  const note = normalizeInboxNote(row);
   await db
     .insert(kanbanIdeas)
     .values({
-      id: row.id,
-      nodeId: row.nodeId,
-      title: row.title,
-      body: row.body,
-      status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      copiedAt: row.copiedAt ?? null,
+      id: note.id,
+      nodeId: note.nodeId,
+      title: note.title,
+      body: note.body,
+      status: note.status,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      copiedAt: note.copiedAt ?? null,
+      kind: note.kind ?? "idea",
+      source: note.source ?? "raise",
+      pageHref: note.pageHref ?? null,
+      pageTitle: note.pageTitle ?? null,
+      submittedBy: note.submittedBy ?? null,
     })
     .onConflictDoUpdate({
       target: kanbanIdeas.id,
       set: {
-        nodeId: row.nodeId,
-        title: row.title,
-        body: row.body,
-        status: row.status,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        copiedAt: row.copiedAt ?? null,
+        nodeId: note.nodeId,
+        title: note.title,
+        body: note.body,
+        status: note.status,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        copiedAt: note.copiedAt ?? null,
+        kind: note.kind ?? "idea",
+        source: note.source ?? "raise",
+        pageHref: note.pageHref ?? null,
+        pageTitle: note.pageTitle ?? null,
+        submittedBy: note.submittedBy ?? null,
       },
     });
 }
@@ -714,5 +768,42 @@ export async function pgUpsertKanbanLeafNote(
       target: kanbanLeafNotes.nodeId,
       set: { body, updatedAt },
     });
+}
+
+export async function pgInsertPlaymantisHarvestDiff(
+  rows: (typeof playmantisHarvestDiff.$inferInsert)[],
+): Promise<void> {
+  if (!rows.length) return;
+  const db = await getDb();
+  await db.insert(playmantisHarvestDiff).values(rows);
+}
+
+export async function pgListPlaymantisHarvestDiff(limit = 200) {
+  const db = await getDb();
+  return db
+    .select()
+    .from(playmantisHarvestDiff)
+    .orderBy(desc(playmantisHarvestDiff.createdAt))
+    .limit(limit);
+}
+
+export async function pgClearPlaymantisHarvestDiff(): Promise<number> {
+  const db = await getDb();
+  const removed = await db.delete(playmantisHarvestDiff).returning({
+    id: playmantisHarvestDiff.id,
+  });
+  return removed.length;
+}
+
+export async function pgMarkPlaymantisHarvestDiffLookedAt(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const updated = await db
+    .update(playmantisHarvestDiff)
+    .set({ lookedAt: now })
+    .where(inArray(playmantisHarvestDiff.id, ids))
+    .returning({ id: playmantisHarvestDiff.id });
+  return updated.length;
 }
 

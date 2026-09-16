@@ -7,7 +7,7 @@ import {
   resolveOffersForScryfallId,
   scryfallIdsNeedingPlaymantisFetch,
 } from "./playmantis";
-import { csvJoinKeys, mateCollectorFromName, normalizeCardName } from "./names";
+import { csvJoinKeys, mateCollectorFromName, normalizeCardName, playmantisCardName } from "./names";
 import { emptyMtgBuylistStore } from "../schema";
 import {
   buildCompareRows,
@@ -17,6 +17,9 @@ import {
   recoveredPercent,
   recoveryBand,
 } from "./tables";
+import { buildOuterJoin, parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import { cardLookupKey } from "./scryfall";
+import { parseMateOrderHtml, parsePlaymantisSubmission } from "./parse-submissions";
 import {
   findMate,
   indexMateOffers,
@@ -25,6 +28,13 @@ import {
   resolveMateOffer,
 } from "./allocate";
 import type { MateOffer } from "../schema";
+import {
+  buildMateHarvestScript,
+  buildPlaymantisImportReviewBookmarklet,
+  buildPlaymantisImportReviewScript,
+} from "./bookmarklet";
+import { compareImportReview, harvestDiffRows, offersFromImportReview } from "./compare-import-review";
+import { parsePlaymantisImportReview } from "./parse-import-review";
 
 const TINY_CSV = `Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency,Added
 Ageless Entity,DDH,Duel Decks: Ajani vs. Nicol Bolas,18,normal,rare,1,18974,a4f9d79a-dff5-46e1-b767-30a451b54942,0.68,false,false,near_mint,en,AUD,2026-09-02T23:42:47.831Z
@@ -509,6 +519,12 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   if (normalizeCardName("Armor Wars (Showcase - Panel)").name !== "armor wars") {
     messages.push("Showcase - Panel parenthetical should strip for title match");
   }
+  if (playmantisCardName("Sundering Growth (Source Material - Borderless)") !== "sundering growth") {
+    messages.push("Source Material - Borderless parenthetical should strip for Import Review join");
+  }
+  if (playmantisCardName("Helmut Zemo, Mastermind (Extended Art)") !== "helmut zemo, mastermind") {
+    messages.push("Extended Art parenthetical should strip for Import Review join");
+  }
 
   const ageless = csv.find((r) => r.name === "Ageless Entity");
   const searing = csv.find((r) => r.name === "Searing Meditation");
@@ -906,6 +922,288 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   }
   if (unsoldPack.some((r) => r.name === "Searing Meditation")) {
     messages.push("Searing Meditation sold to Playmantis must not appear in not-sold");
+  }
+
+  const leftoverSold = parseSubmissionCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nSearing Meditation,DDH,1,6f5e0200-21c9-4926-b238-3f9b1f5fc6ed,normal\n",
+  );
+  const leftover = subtractSoldFromManaBox(csv, [leftoverSold]);
+  if (leftover.leftover.some((r) => r.name === "Searing Meditation")) {
+    messages.push("Leftover ManaBox should drop a fully submitted printing");
+  }
+  if (leftover.removedCopies !== 1) {
+    messages.push("Leftover subtract should remove 1 submitted copy");
+  }
+  const stack = parseManaBoxCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nForest,DDH,3,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,normal\n",
+  );
+  const soldOne = parseSubmissionCsv(
+    "Name,Set code,Quantity,Scryfall ID,Foil\nForest,DDH,1,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,normal\n",
+  );
+  const partial = subtractSoldFromManaBox(stack, [soldOne]);
+  if (partial.leftover[0]?.quantity !== 2) {
+    messages.push("Partial store submission should leave remaining quantity");
+  }
+  const ghost = subtractSoldFromManaBox(csv, [
+    parseSubmissionCsv(
+      "Name,Set code,Quantity,Scryfall ID,Foil\nGhost Card,XXX,1,eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee,normal\n",
+    ),
+  ]);
+  if (ghost.unmatched.length !== 1 || ghost.removedCopies !== 0) {
+    messages.push("Unknown submission line should stay unmatched and not remove copies");
+  }
+
+  const harvestScript = buildMateHarvestScript({
+    hubOrigin: "http://localhost:3003",
+    token: "test",
+    setCodes: ["ddh"],
+  });
+  if (!harvestScript.includes("mtgmate-buylist-harvest_")) {
+    messages.push("Mate harvest download should use a dated filename");
+  }
+  const reviewDump = buildPlaymantisImportReviewScript();
+  const reviewBookmark = buildPlaymantisImportReviewBookmarklet();
+  if (!reviewDump.includes("import-review-body") || !reviewDump.includes("playmantis-import-review_")) {
+    messages.push("Playmantis review dump should download the popup with a dated filename");
+  }
+  if (!reviewBookmark.startsWith("javascript:") || !reviewBookmark.includes("void")) {
+    messages.push("Playmantis review bookmark should be a javascript: URL");
+  }
+
+  const emptyShopPage = `<div id="import-review-body" class="import-modal-body">
+      <div class="import-loading">Upload a CSV to get started.</div>
+    </div>`;
+  const emptyParse = parsePlaymantisImportReview(emptyShopPage);
+  if (emptyParse.ok) {
+    messages.push("Empty Import Review shell must not parse as a dump");
+  }
+
+  const reviewHtml = `<div id="import-review-body" class="import-modal-body">
+    <div class="import-summary"><strong>1</strong> cards ready to add · <strong>1</strong> can't be added · <strong>1</strong> not found</div>
+    <div class="import-table-wrap"><table class="import-table"><thead><tr>
+      <th></th><th>Card</th><th>Set</th><th>Finish</th><th>CSV Qty</th><th>Accepted</th><th>Price Ea.</th><th>Subtotal</th>
+    </tr></thead><tbody>
+      <tr><td></td><td>Searing Meditation</td><td>Duel Decks: Ajani vs. Nicol Bolas</td><td>Nonfoil</td><td>1</td><td>1</td><td>$0.80</td><td>$0.80</td></tr>
+    </tbody></table></div>
+    <div class="import-section-label">Can't be added right now</div>
+    <ul class="import-issue-list"><li>Ageless Entity (Duel Decks: Ajani vs. Nicol Bolas) - already at max buy quantity</li></ul>
+    <div class="import-section-label">Not found in buylist</div>
+    <ul class="import-issue-list"><li>Unknown Card (Fake Set)</li></ul>
+  </div>`;
+  const reviewParse = parsePlaymantisImportReview(reviewHtml);
+  if (!reviewParse.ok || reviewParse.rows.length !== 3) {
+    messages.push("Import Review dump should parse matched, blocked, and not-found rows");
+  } else {
+    const log = compareImportReview({
+      csv,
+      harvest: [
+        {
+          scryfallId: "6f5e0200-21c9-4926-b238-3f9b1f5fc6ed",
+          title: "Searing Meditation",
+          finish: "Nonfoil",
+          creditCents: 80,
+          limit: 3,
+          missing: false,
+          fetchedAt: "2026-09-10T00:00:00.000Z",
+          imageUrl: "",
+          setName: "Duel Decks: Ajani vs. Nicol Bolas",
+        },
+        {
+          scryfallId: "dddddddd-eeee-ffff-1111-222222222222",
+          title: "Unknown Card",
+          finish: "Nonfoil",
+          creditCents: 50,
+          limit: 2,
+          missing: false,
+          fetchedAt: "2026-09-10T00:00:00.000Z",
+          imageUrl: "",
+          setName: "Fake Set",
+        },
+      ],
+      review: reviewParse.rows,
+    });
+    const searing = log.rows.find((r) => r.name === "Searing Meditation");
+    const unknown = log.rows.find((r) => r.name === "Unknown Card");
+    const ageless = log.rows.find((r) => r.name === "Ageless Entity");
+    if (searing?.verdict !== "agree") {
+      messages.push("Review match with the same harvest price should agree");
+    }
+    if (unknown?.verdict !== "harvest_extra") {
+      messages.push("Review not-found with a harvest price should be harvest_extra");
+    }
+    if (ageless?.reviewStatus !== "max_reached") {
+      messages.push("Can't-add reason should map to max_reached");
+    }
+    if (harvestDiffRows(log).some((r) => r.verdict === "agree")) {
+      messages.push("Harvest diff rows should omit agrees");
+    }
+    if (searing && !searing.scryfallId) {
+      messages.push("Compare log should keep the CSV Scryfall id");
+    }
+    const dumpOffers = offersFromImportReview(
+      csv,
+      reviewParse.rows,
+      "2026-09-10T00:00:00.000Z",
+    );
+    const dumpSearing = dumpOffers.find((o) => o.scryfallId === "6f5e0200-21c9-4926-b238-3f9b1f5fc6ed");
+    if (!dumpSearing || dumpSearing.creditCents !== 80 || dumpSearing.limit !== 1) {
+      messages.push("Site dump should become a Playmantis offer with review credit and accepted qty");
+    }
+  }
+
+  const sunderingCsv = parseManaBoxCsv(
+    `Name,Set code,Set name,Collector number,Foil,Quantity,Scryfall ID
+Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba6815767a
+`,
+  );
+  const sunderingReview = parsePlaymantisImportReview(`<div id="import-review-body">
+    <table class="import-table"><thead><tr>
+      <th></th><th>Card</th><th>Set</th><th>Finish</th><th>CSV Qty</th><th>Accepted</th><th>Price Ea.</th><th>Subtotal</th>
+    </tr></thead><tbody>
+      <tr><td></td><td>Sundering Growth (Source Material - Borderless)</td><td>Marvel Universe</td><td>Nonfoil</td><td>1</td><td>1</td><td>$1.25</td><td>$1.25</td></tr>
+    </tbody></table>
+  </div>`);
+  if (!sunderingReview.ok) {
+    messages.push("Sundering Growth fixture should parse");
+  } else {
+    const sunderingOffers = offersFromImportReview(
+      sunderingCsv,
+      sunderingReview.rows,
+      "2026-09-10T00:00:00.000Z",
+    );
+    const sunderingHit = sunderingOffers.find(
+      (o) => o.scryfallId === "2aa6ff08-efd2-4f51-b899-19ba6815767a",
+    );
+    if (!sunderingHit || sunderingHit.missing || sunderingHit.creditCents !== 125) {
+      messages.push("Sundering Growth Source Material title should join the CSV and keep $1.25");
+    }
+  }
+
+  const pmEmail = [
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    "<h4>Duel Decks: Ajani vs. Nicol Bolas</h4>",
+    "<ul><li><strong>1x</strong> Searing Meditation - Nonfoil</li>",
+    "<li><strong>2x</strong> Forest - Nonfoil</li></ul>",
+  ].join("\n");
+  const pmFromEmail = parsePlaymantisSubmission(pmEmail);
+  if (
+    pmFromEmail.length !== 2 ||
+    pmFromEmail[0]?.name !== "Searing Meditation" ||
+    pmFromEmail[1]?.quantity !== 2
+  ) {
+    messages.push("Playmantis .eml HTML should parse qty, name, finish, and set heading");
+  }
+  const pmLeftover = subtractSoldFromManaBox(csv, [pmFromEmail]);
+  if (pmLeftover.leftover.some((r) => r.name === "Searing Meditation")) {
+    messages.push("Playmantis email line should subtract Searing Meditation by name/set");
+  }
+
+  const mateHtml = `
+    <table><tbody class="buylist-card-table">
+      <tr class="buylist-card">
+        <td><i class="set-code ss ss-ddh" value="ddh"></i></td>
+        <td class="magic-card-name">
+          <a data-title="Ageless Entity" href="/cards/Ageless_Entity/DDH/18:lightly-played">Ageless Entity</a>
+          <span class="finish">Nonfoil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Accepted"></span></td>
+      </tr>
+      <tr class="buylist-card">
+        <td><i class="set-code" value="ddh"></i></td>
+        <td class="magic-card-name">
+          <a href="/cards/Ghost/DDH/1:lightly-played">Ghost</a>
+          <span class="finish">Nonfoil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Rejected"></span></td>
+      </tr>
+    </tbody></table>
+  `;
+  const mateFromHtml = parseMateOrderHtml(mateHtml);
+  if (mateFromHtml.length !== 1 || mateFromHtml[0]?.setCode !== "ddh" || mateFromHtml[0]?.collectorNumber !== "18") {
+    messages.push("Mate saved order HTML should keep Accepted rows only and read set/collector from the card URL");
+  }
+  const mateViaDetect = parseSubmissionCsv(mateHtml);
+  if (mateViaDetect.length !== 1) {
+    messages.push("Submission detect should treat a saved Mate order page as Mate HTML");
+  }
+
+  const pmWithOnly = parsePlaymantisSubmission(
+    [
+      "Content-Type: text/html; charset=utf-8",
+      "",
+      "<h4>Duel Decks: Ajani vs. Nicol Bolas</h4>",
+      "<ul><li><strong>1x</strong> Searing Meditation - Nonfoil</li>",
+      "<li><strong>2x</strong> Forest - Nonfoil</li></ul>",
+      "<h4>Aetherdrift</h4>",
+      "<ul><li><strong>1x</strong> Demonic Junker - Nonfoil</li></ul>",
+    ].join("\n"),
+  );
+  const join = buildOuterJoin(csv, pmWithOnly, mateFromHtml);
+  const searingJoin = join.join.find((r) => r.name === "Searing Meditation");
+  const forestJoin = join.join.find((r) => r.name === "Forest");
+  const agelessJoin = join.join.find((r) => r.name === "Ageless Entity");
+  const ghostJoin = join.join.find((r) => r.name === "Unknown Card");
+  const junkerJoin = join.join.find((r) => r.name === "Demonic Junker");
+  const pmForest = join.pm.find((r) => r.name === "Forest");
+  if (pmForest?.setCode !== "DDH") {
+    messages.push("PM source table should resolve set name to CSV set code DDH");
+  }
+  if (join.csv.find((r) => r.name === "Searing Meditation")?.collectorNumber !== "27") {
+    messages.push("CSV source table should show collector number");
+  }
+  if (join.mm.find((r) => r.name === "Ageless Entity")?.collectorNumber !== "18") {
+    messages.push("Mate source table should show collector number from the card URL");
+  }
+  if (pmForest?.collectorNumber !== "38") {
+    messages.push("PM matched line should inherit collector number from the CSV");
+  }
+  if (!searingJoin || searingJoin.csvQty !== 1 || searingJoin.pmQty !== 1 || searingJoin.remaining !== 0) {
+    messages.push("Join should subtract PM Searing Meditation from the CSV");
+  }
+  if (!forestJoin || forestJoin.csvQty !== 1 || forestJoin.pmQty !== 2 || forestJoin.remaining !== -1) {
+    messages.push("Join should keep oversold Forest on one row (CSV 1 − PM 2)");
+  }
+  if (!agelessJoin || agelessJoin.mmQty !== 1 || agelessJoin.remaining !== 0) {
+    messages.push("Join should subtract Mate Ageless Entity from the CSV");
+  }
+  if (!ghostJoin || ghostJoin.remaining !== 1 || ghostJoin.mmQty !== 0 || ghostJoin.pmQty !== 0) {
+    messages.push("Join should keep CSV-only Unknown Card with Remaining 1");
+  }
+  if (!junkerJoin || junkerJoin.csvQty !== 0 || junkerJoin.pmQty !== 1 || junkerJoin.remaining !== -1) {
+    messages.push("Join should list PM-only Demonic Junker as store-only");
+  }
+  if (join.reimport.some((r) => r.name === "Searing Meditation" || r.name === "Ageless Entity")) {
+    messages.push("Re-import must omit fully sold printings");
+  }
+  if (join.reimport.some((r) => r.name === "Forest" || r.name === "Demonic Junker")) {
+    messages.push("Re-import must omit Remaining ≤ 0");
+  }
+  if (!join.reimport.some((r) => r.name === "Unknown Card" && r.quantity === 1)) {
+    messages.push("Re-import should keep CSV-only cards with Remaining > 0");
+  }
+  const junkerId = "11111111-2222-3333-4444-555555555555";
+  const hinted = buildOuterJoin(
+    csv,
+    pmWithOnly,
+    mateFromHtml,
+    { aetherdrift: "dft" },
+    {
+      [cardLookupKey({ name: "Demonic Junker", setCode: "dft" })]: junkerId,
+    },
+  );
+  const junkerHinted = hinted.join.find((r) => r.name === "Demonic Junker");
+  if (!junkerHinted?.ownedImageUrl.includes(junkerId)) {
+    messages.push("Store-only join row should use a looked-up Scryfall image");
+  }
+  if (!hinted.pm.find((r) => r.name === "Demonic Junker")?.imageUrl.includes(junkerId)) {
+    messages.push("PM source table should show the looked-up Scryfall image");
+  }
+  if (!junkerHinted?.imageAmbiguous) {
+    messages.push("Looked-up store-only preview should be marked ambiguous");
+  }
+  if (hinted.join.find((r) => r.name === "Searing Meditation")?.imageAmbiguous) {
+    messages.push("CSV Scryfall ID preview must not be marked ambiguous");
   }
 
   return { ok: messages.length === 0, messages };

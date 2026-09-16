@@ -4,7 +4,6 @@ import {
   seedChangelogs,
   seedDependencies,
   seedDevChoices,
-  seedIdeas,
   seedNotes,
 } from "@/core/registry/seed";
 import type {
@@ -31,7 +30,11 @@ import {
   type KanbanTicket,
   boardFromRows,
   KANBAN_GLOBAL_NODE_ID,
+  isFeedbackRegisterNote,
+  nextInboxId,
+  normalizeInboxNote,
 } from "@/core/kanban/schema";
+import { defaultKanbanNodeIdFromHref } from "@/core/kanban/leaves";
 import { boardFromUnknown } from "@/core/kanban/pack";
 import { applyKanbanHygiene, missingKanbanSeed } from "@/core/kanban/seed";
 import {
@@ -52,6 +55,7 @@ import {
   emptyMtgBuylistStore,
   mtgBuylistStoreSchema,
   type MtgBuylistStore,
+  type PlaymantisHarvestDiffRow,
 } from "@/modules/mtg-buylist/schema";
 import {
   dualWriteJson,
@@ -59,15 +63,12 @@ import {
   pgGetDependencies,
   pgGetDevChoices,
   pgGetFeedback,
-  pgGetIdeas,
   pgGetNotes,
   pgDeleteChangelog,
   pgInsertDevChoice,
-  pgInsertFeedback,
   pgReplaceChangelogs,
   pgReplaceDependencies,
   pgReplaceDevChoices,
-  pgReplaceIdeas,
   pgReplaceNotes,
   pgGetMrtLive,
   pgUpsertMrtLive,
@@ -85,10 +86,13 @@ import {
   pgRetagKanbanAttachments,
   pgGetKanbanLeafNote,
   pgUpsertKanbanLeafNote,
+  pgInsertPlaymantisHarvestDiff,
+  pgListPlaymantisHarvestDiff,
+  pgClearPlaymantisHarvestDiff,
+  pgMarkPlaymantisHarvestDiffLookedAt,
 } from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
-const inboxPath = path.join(process.cwd(), "docs", "feedback-inbox.md");
 const devChoicesPath = path.join(process.cwd(), "docs", "DEV_CHOICES.md");
 
 async function ensureDir() {
@@ -307,15 +311,30 @@ export async function getChangelogsForNode(
   return all.filter((c) => c.nodeId === nodeId);
 }
 
+export async function getChangelogsForNodes(
+  nodeIds: readonly string[],
+): Promise<ChangelogEntry[]> {
+  const all = await getChangelogs();
+  const ids = new Set(nodeIds);
+  return all.filter((c) => ids.has(c.nodeId));
+}
+
 export async function getIdeas(): Promise<IdeaRecord[]> {
-  if (postgresEnabled()) {
-    const rows = await pgGetIdeas();
-    if (rows.length > 0) return rows;
-    await pgReplaceIdeas(seedIdeas);
-    await persistSimpleJson("ideas.json", seedIdeas);
-    return seedIdeas;
-  }
-  return readJson("ideas.json", seedIdeas);
+  const notes = await listKanbanIdeas();
+  return notes
+    .filter((row) => (row.kind ?? "idea") === "idea")
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      createdAt: row.createdAt,
+      status:
+        row.status === "archived"
+          ? "done"
+          : row.status === "open"
+            ? "inbox"
+            : "parked",
+    }));
 }
 
 export async function getNotes(): Promise<NoteRecord[]> {
@@ -330,8 +349,11 @@ export async function getNotes(): Promise<NoteRecord[]> {
 }
 
 export async function getFeedback(): Promise<FeedbackRecord[]> {
-  if (postgresEnabled()) return pgGetFeedback();
-  return readJson("feedback.json", [] as FeedbackRecord[]);
+  const notes = await listKanbanIdeas();
+  return notes
+    .filter(isFeedbackRegisterNote)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(inboxNoteToFeedbackRecord);
 }
 
 export async function getDevChoices(): Promise<DevChoiceRecord[]> {
@@ -518,16 +540,70 @@ export async function saveMtgBuylistStore(
   await writeJson(mtgBuylistFile(userKey), parsed);
 }
 
+const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");
+
+export async function savePlaymantisHarvestDiff(
+  rows: PlaymantisHarvestDiffRow[],
+): Promise<number> {
+  if (!rows.length) return 0;
+  if (postgresEnabled()) await pgInsertPlaymantisHarvestDiff(rows);
+  const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+  existing.push(...rows);
+  await persistSimpleJson(HARVEST_DIFF_FILE, existing);
+  return rows.length;
+}
+
+export async function listPlaymantisHarvestDiff(): Promise<PlaymantisHarvestDiffRow[]> {
+  const raw = postgresEnabled()
+    ? await pgListPlaymantisHarvestDiff()
+    : [...(await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []))].reverse().slice(0, 200);
+  return raw.map((row) => ({ ...row, lookedAt: row.lookedAt || "" }));
+}
+
+export async function clearPlaymantisHarvestDiff(): Promise<number> {
+  let cleared = 0;
+  if (postgresEnabled()) {
+    cleared = await pgClearPlaymantisHarvestDiff();
+  } else {
+    const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+    cleared = existing.length;
+  }
+  await persistSimpleJson(HARVEST_DIFF_FILE, []);
+  return cleared;
+}
+
+export async function markPlaymantisHarvestDiffLookedAt(ids: string[]): Promise<number> {
+  const want = new Set(ids.filter(Boolean));
+  if (!want.size) return 0;
+  const now = new Date().toISOString();
+  if (postgresEnabled()) await pgMarkPlaymantisHarvestDiffLookedAt([...want]);
+  const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+  let marked = 0;
+  const next = existing.map((row) => {
+    if (!want.has(row.id) || row.lookedAt) return row;
+    marked += 1;
+    return { ...row, lookedAt: now };
+  });
+  await persistSimpleJson(HARVEST_DIFF_FILE, next);
+  return postgresEnabled() ? want.size : marked;
+}
+
 function ideaRowForDisk(idea: KanbanInboxNote): KanbanInboxNote {
+  const note = normalizeInboxNote(idea);
   return {
-    id: idea.id,
-    nodeId: idea.nodeId,
-    title: idea.title,
-    body: idea.body,
-    status: idea.status,
-    createdAt: idea.createdAt,
-    updatedAt: idea.updatedAt,
-    copiedAt: idea.copiedAt ?? null,
+    id: note.id,
+    nodeId: note.nodeId,
+    title: note.title,
+    body: note.body,
+    status: note.status,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+    copiedAt: note.copiedAt ?? null,
+    kind: note.kind,
+    source: note.source,
+    pageHref: note.pageHref ?? null,
+    pageTitle: note.pageTitle ?? null,
+    submittedBy: note.submittedBy ?? null,
   };
 }
 
@@ -597,7 +673,7 @@ function parseKanbanIdeas(raw: unknown): KanbanInboxNote[] {
   const out: KanbanInboxNote[] = [];
   for (const row of raw) {
     const parsed = kanbanInboxNoteSchema.safeParse(row);
-    if (parsed.success) out.push(parsed.data);
+    if (parsed.success) out.push(normalizeInboxNote(parsed.data));
   }
   return out;
 }
@@ -719,7 +795,7 @@ function applyKanbanSeedToBundle(bundle: KanbanRowBundle): boolean {
   let changed = missing.ideas.length > 0 || missing.tickets.length > 0;
   if (changed) {
     const now = new Date().toISOString();
-    bundle.ideas.push(...missing.ideas);
+    bundle.ideas.push(...missing.ideas.map((row) => normalizeInboxNote(row)));
     bundle.tickets.push(...missing.tickets);
     const nodeIds = new Set<string>();
     for (const idea of missing.ideas) nodeIds.add(idea.nodeId);
@@ -740,6 +816,68 @@ function applyKanbanSeedToBundle(bundle: KanbanRowBundle): boolean {
     }
   }
   if (applyKanbanHygiene(bundle)) changed = true;
+  return changed;
+}
+
+const KNOWN_FEEDBACK_IDEA_IDS = new Set(["IN-20260908-04", "IN-20260908-05"]);
+
+function feedbackRecordToInbox(row: FeedbackRecord): KanbanInboxNote {
+  const firstLine = row.message.split(/\r?\n/)[0]?.trim() || row.pageTitle || "Feedback";
+  return normalizeInboxNote({
+    id: row.id,
+    nodeId: defaultKanbanNodeIdFromHref(row.pageHref),
+    title: firstLine.slice(0, 120),
+    body: row.message,
+    status: row.status === "done" ? "archived" : "open",
+    createdAt: row.createdAt,
+    updatedAt: row.createdAt,
+    copiedAt: null,
+    kind: row.kind,
+    source: "feedback",
+    pageHref: row.pageHref,
+    pageTitle: row.pageTitle,
+    submittedBy: row.submittedBy,
+  });
+}
+
+export function inboxNoteToFeedbackRecord(note: KanbanInboxNote): FeedbackRecord {
+  const normalized = normalizeInboxNote(note);
+  return {
+    id: normalized.id,
+    createdAt: normalized.createdAt,
+    kind: normalized.kind ?? "idea",
+    status: normalized.status === "archived" ? "done" : "open",
+    pageHref: normalized.pageHref || "/",
+    pageTitle: normalized.pageTitle || "",
+    message: normalized.body,
+    submittedBy: normalized.submittedBy || "",
+  };
+}
+
+async function loadLegacyFeedbackRows(): Promise<FeedbackRecord[]> {
+  if (postgresEnabled()) return pgGetFeedback();
+  const raw = await readJsonIfExists<FeedbackRecord[]>("feedback.json");
+  return Array.isArray(raw) ? raw : [];
+}
+
+function applyInboxUnifyToBundle(
+  bundle: KanbanRowBundle,
+  legacyFeedback: FeedbackRecord[],
+): boolean {
+  let changed = false;
+  const ids = new Set(bundle.ideas.map((row) => row.id));
+  for (const row of legacyFeedback) {
+    if (ids.has(row.id)) continue;
+    bundle.ideas.push(feedbackRecordToInbox(row));
+    ids.add(row.id);
+    changed = true;
+  }
+  for (const idea of bundle.ideas) {
+    if (KNOWN_FEEDBACK_IDEA_IDS.has(idea.id) && idea.source !== "feedback") {
+      idea.source = "feedback";
+      changed = true;
+    }
+  }
   return changed;
 }
 
@@ -770,7 +908,8 @@ async function loadKanbanFromJsonFiles(): Promise<{
   };
   const migrated = await migrateLegacyKanbanBoards(bundle);
   const seeded = applyKanbanSeedToBundle(bundle);
-  return { bundle, dirty: migrated || seeded };
+  const unified = applyInboxUnifyToBundle(bundle, await loadLegacyFeedbackRows());
+  return { bundle, dirty: migrated || seeded || unified };
 }
 
 async function persistKanbanBundle(bundle: KanbanRowBundle): Promise<void> {
@@ -804,7 +943,9 @@ async function loadKanbanRows(): Promise<KanbanRowBundle> {
           return fromJson.bundle;
         }
         const bundle = { ideas, tickets, meta };
-        if (applyKanbanSeedToBundle(bundle)) await persistKanbanBundle(bundle);
+        const seeded = applyKanbanSeedToBundle(bundle);
+        const unified = applyInboxUnifyToBundle(bundle, await loadLegacyFeedbackRows());
+        if (seeded || unified) await persistKanbanBundle(bundle);
         return bundle;
       }
       const fromJson = await loadKanbanFromJsonFiles();
@@ -1037,63 +1178,31 @@ export async function consumeMateHarvestToken(
 }
 
 export async function addFeedback(
-  entry: Omit<FeedbackRecord, "id" | "createdAt" | "status">,
+  entry: Omit<FeedbackRecord, "id" | "createdAt" | "status"> & { nodeId?: string },
 ): Promise<FeedbackRecord> {
-  const all = await getFeedback();
-  const record: FeedbackRecord = {
-    ...entry,
-    id: `fb-${Date.now().toString(36)}`,
-    createdAt: new Date().toISOString(),
+  const all = await listKanbanIdeas();
+  const now = new Date().toISOString();
+  const firstLine = entry.message.split(/\r?\n/)[0]?.trim() || entry.pageTitle || "Feedback";
+  const nodeId = entry.nodeId
+    ? entry.nodeId
+    : defaultKanbanNodeIdFromHref(entry.pageHref);
+  const note: KanbanInboxNote = normalizeInboxNote({
+    id: nextInboxId(all),
+    nodeId,
+    title: firstLine.slice(0, 120),
+    body: entry.message,
     status: "open",
-  };
-  all.unshift(record);
-  if (postgresEnabled()) await pgInsertFeedback(record);
-  await persistSimpleJson("feedback.json", all);
-  await appendFeedbackInbox(record);
-  return record;
-}
-
-async function appendFeedbackInbox(record: FeedbackRecord) {
-  const block = [
-    ``,
-    `## ${record.kind.toUpperCase()} — ${record.pageTitle || record.pageHref}`,
-    `- id: \`${record.id}\``,
-    `- when: ${record.createdAt}`,
-    `- page: ${record.pageHref}`,
-    `- by: ${record.submittedBy}`,
-    `- status: ${record.status}`,
-    ``,
-    record.message,
-    ``,
-    `---`,
-    ``,
-  ].join("\n");
-
-  try {
-    await fs.mkdir(path.dirname(inboxPath), { recursive: true });
-    try {
-      await fs.access(inboxPath);
-    } catch {
-      await fs.writeFile(
-        inboxPath,
-        `# Feedback inbox\n\nOpen items for Cursor housekeeping / bug-fix sessions. Newest first.\n\n---\n`,
-        "utf8",
-      );
-    }
-    const existing = await fs.readFile(inboxPath, "utf8");
-    // Insert after the header separator
-    const marker = "---\n";
-    const idx = existing.indexOf(marker);
-    if (idx >= 0) {
-      const head = existing.slice(0, idx + marker.length);
-      const tail = existing.slice(idx + marker.length);
-      await fs.writeFile(inboxPath, `${head}${block}${tail}`, "utf8");
-    } else {
-      await fs.writeFile(inboxPath, `${existing}\n${block}`, "utf8");
-    }
-  } catch {
-    // Azure ephemeral FS may block docs writes — register JSON still saved when possible
-  }
+    createdAt: now,
+    updatedAt: now,
+    copiedAt: null,
+    kind: entry.kind,
+    source: "feedback",
+    pageHref: entry.pageHref,
+    pageTitle: entry.pageTitle,
+    submittedBy: entry.submittedBy,
+  });
+  await upsertKanbanIdea(note);
+  return inboxNoteToFeedbackRecord(note);
 }
 
 async function appendDevChoicesDoc(record: DevChoiceRecord) {

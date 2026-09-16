@@ -1,5 +1,5 @@
 import type { PlaymantisOffer } from "../schema";
-import { decodeHtmlEntities, normalizeCardName, normalizeFinish } from "./names";
+import { decodeHtmlEntities, normalizeFinish, playmantisCardName } from "./names";
 
 const SEARCH_BASE = "https://playmantis.com.au/search";
 /** Same cadence as Playmantis’s own ManaBox CSV import, plus a pause after every batch so chained server actions don’t fire back-to-back. */
@@ -201,9 +201,7 @@ function firstProduct(parsed: ParsedOffer[]): ParsedOffer[] {
 }
 
 function playmantisTitleKey(raw: string): string {
-  return normalizeCardName(raw)
-    .name.replace(/\s*\([^)]*\)\s*$/g, "")
-    .trim();
+  return playmantisCardName(raw);
 }
 
 function titlesMatch(a: string, b: string): boolean {

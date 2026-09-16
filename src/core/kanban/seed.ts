@@ -102,6 +102,16 @@ const MTG_BUYLIST_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-05T06:33:00.000Z",
     copiedAt: null,
   },
+  {
+    id: "IN-20260910-01",
+    nodeId: "p-mtg-buylist",
+    title: "Past run summary logs",
+    body: "Logs → diffs is harvest vs Import Review only. Consider a backend table of past run summaries (CSV name, when, store credit totals, sell counts) so Logs can grow another L2 tab without relying on the current Run store.",
+    status: "open",
+    createdAt: "2026-09-10T04:40:00.000Z",
+    updatedAt: "2026-09-10T04:40:00.000Z",
+    copiedAt: null,
+  },
 ];
 
 const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
@@ -179,6 +189,27 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
     createdAt: "2026-09-08T02:00:00.000Z",
     updatedAt: "2026-09-08T12:00:00.000Z",
     copiedAt: null,
+  },
+  {
+    id: "IN-20260908-01",
+    nodeId: "global",
+    title: "test idea from localhost",
+    body: "We should have a Design Library added as another hub or internal hub. Duplicate of IN-20260908-06.",
+    status: "archived",
+    createdAt: "2026-09-08T12:02:39.069Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260908-05",
+    nodeId: "global",
+    title: "Feedback merge into Kanban ideas.",
+    body: "The feedback functionally should merge into the Kanban ideas register. There's boil down to both being 'user generates input '. Feedback being global to capture bugs and improvements is still a good idea. 'raise' is useful in terms of dumping ideas within a leaf. Figure out how to have a single dataset, because the workflow becomes 'i am on branch wip/leaf, scout the Kanban for related ideas and work a plan to acrion'.",
+    status: "archived",
+    createdAt: "2026-09-08T22:54:24.856Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+    copiedAt: null,
+    source: "feedback",
   },
 ];
 
@@ -280,7 +311,7 @@ const HUB_DECISIONS_TICKETS: KanbanTicket[] = [
     title: "Make DB cutover live (zip deploy)",
     body: `Code for simple stores + MRT relational rows + zip exclude of data/ is in-repo. Not live until you say make it live.
 
-Done when: Feedback add and an MRT Save survive zip deploy and App Service restage. Plan: docs/NEON_CUTOVER.md. Do not deploy from a random chat — wait for that phrase.
+Done when: a Feedback add, a Kanban Raise, and an MRT Save survive zip deploy and App Service restage. Notes durability: kt-notes-survive-publish. Plan: docs/NEON_CUTOVER.md. Do not deploy from a random chat — wait for that phrase.
 
 Chat: persistence / hub-decisions pack (close that thread).`,
     lane: "platform",
@@ -288,6 +319,25 @@ Chat: persistence / hub-decisions pack (close that thread).`,
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-notes-survive-publish",
+    nodeId: "global",
+    title: "Live Feedback and Kanban notes must survive publish",
+    body: `Durability/publish card. sourceIdeaId IN-20260909-03.
+
+Live staff notes live on Neon when DATABASE_URL is set. Zip strips data/. persistKanbanBundle upserts; pgReplaceKanbanRows has no callers. Seed only adds missing ids. w-sunwater-mrt seed ideas: [] is not the live inbox.
+
+Sittings: npx --yes tsx scripts/inspect-neon-inbox.ts (Neon SELECT first) then /i/feedback then seed. Do not call getKanbanBoard for forensics (it can seed-write). Never print DATABASE_URL.
+
+Done when: a Feedback add and a Kanban Raise survive zip + App Service restage. That live proof is kt-db-make-live (still Open). Do not zip from a wip desk. No MRT product work on this card.
+
+Feedback Bug stays on /i/feedback; Idea copies to Kanban Inbox; Raise is Kanban only.`,
+    lane: "platform",
+    column: "open",
+    sourceIdeaId: "IN-20260909-03",
+    createdAt: "2026-09-09T06:20:00.000Z",
+    updatedAt: "2026-09-09T06:20:00.000Z",
   },
   {
     id: "kt-db-phase0-neon",
@@ -400,6 +450,61 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
     createdAt: "2026-09-09T00:00:00.000Z",
     updatedAt: "2026-09-09T00:00:00.000Z",
   },
+  {
+    id: "kt-inbox-unify-schema",
+    nodeId: "global",
+    title: "One inbox table for Feedback and Ideas",
+    body: "Data: kanban_ideas has kind, source, pageHref, pageTitle, submittedBy. Migrate leftover feedback rows (keep fb-* ids). Stop dual-write to the feedback table and dummy ideas table. JSON fallback mirrors columns.",
+    lane: "data",
+    column: "done",
+    sourceIdeaId: "IN-20260908-05",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+  },
+  {
+    id: "kt-inbox-feedback-chrome",
+    nodeId: "global",
+    title: "Feedback chrome is the bug/help door",
+    body: "Experience: header/FAB Feedback defaults to Bug. Leaf tag + page breadcrumb always stored. Idea remains in the type list but is not advertised. Raise writes kind=idea source=raise.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260908-05",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+  },
+  {
+    id: "kt-inbox-register-views",
+    nodeId: "global",
+    title: "Feedback and Ideas pages are inbox views",
+    body: "Structure: /i/feedback shows bug/housekeeping/other plus source=feedback. /i/ideas shows kind=idea. i-ideas is untaggable. Inbox has a type chip and type filter (leaf hosts default to Idea).",
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260908-05",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+  },
+  {
+    id: "kt-inbox-sitting-docs",
+    nodeId: "global",
+    title: "Sittings use one inbox; bugs are not auto-ticketed",
+    body: "Platform: FEEDBACK.md and WEB_DEVELOPMENT Feedback row. Inspect script reads kind. Neon first. Split ideas into tickets; do not auto-ticket bugs.",
+    lane: "platform",
+    column: "done",
+    sourceIdeaId: "IN-20260908-05",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+  },
+  {
+    id: "kt-inbox-guest-write",
+    nodeId: "global",
+    title: "Guest Feedback writes the shared inbox",
+    body: "Later. External guests use chrome Feedback only (no Development). Tag with audience/username and an external badge. Schema already has submittedBy. sourceIdeaId IN-20260908-04.",
+    lane: "experience",
+    column: "later",
+    sourceIdeaId: "IN-20260908-04",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    updatedAt: "2026-09-09T06:50:00.000Z",
+  },
 ];
 
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
@@ -409,6 +514,7 @@ const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTic
     tickets: [...GLOBAL_DONE_TICKETS, ...HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "global")],
   },
   "w-sunwater-mrt": {
+    // Empty on purpose — seed is not the live board. Inbox sittings query Neon first.
     ideas: [],
     tickets: HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "w-sunwater-mrt"),
   },
@@ -418,7 +524,9 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260907-02",
   "IN-20260907-03",
   "IN-20260907-05",
+  "IN-20260908-01",
   "IN-20260908-02",
+  "IN-20260908-05",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -430,6 +538,10 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-kanban-design-spec",
   "kt-kanban-rollout-buylist",
   "kt-kanban-rollout-mrt",
+  "kt-inbox-unify-schema",
+  "kt-inbox-feedback-chrome",
+  "kt-inbox-register-views",
+  "kt-inbox-sitting-docs",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

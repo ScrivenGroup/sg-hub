@@ -363,6 +363,11 @@ export const kanbanIdeas = pgTable("kanban_ideas", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   copiedAt: text("copied_at"),
+  kind: text("kind").notNull().default("idea"),
+  source: text("source").notNull().default("raise"),
+  pageHref: text("page_href"),
+  pageTitle: text("page_title"),
+  submittedBy: text("submitted_by"),
 });
 
 export const kanbanTickets = pgTable("kanban_tickets", {
@@ -402,4 +407,28 @@ export const kanbanLeafNotes = pgTable("kanban_leaf_notes", {
   nodeId: text("node_id").primaryKey(),
   body: text("body").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+/** Harvest vs Playmantis Import Review — training rows for improving the harvest. */
+export const playmantisHarvestDiff = pgTable("playmantis_harvest_diff", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  userKey: text("user_key").notNull(),
+  csvFilename: text("csv_filename").notNull(),
+  reviewFilename: text("review_filename").notNull(),
+  harvestedAt: text("harvested_at").notNull(),
+  name: text("name").notNull(),
+  setName: text("set_name").notNull(),
+  finish: text("finish").notNull(),
+  scryfallId: text("scryfall_id").notNull(),
+  csvQty: integer("csv_qty").notNull(),
+  reviewStatus: text("review_status").notNull(),
+  harvestStatus: text("harvest_status").notNull(),
+  reviewCreditCents: integer("review_credit_cents").notNull(),
+  harvestCreditCents: integer("harvest_credit_cents").notNull(),
+  harvestLimit: integer("harvest_limit").notNull(),
+  verdict: text("verdict").notNull(),
+  note: text("note").notNull(),
+  lookedAt: text("looked_at").notNull().default(""),
 });

@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import path from "path";
 import { stripDeployDataDir } from "./strip-deploy-data.mjs";
 import { addFeedback, getFeedback } from "../src/core/store/json-store";
-import { pgDeleteFeedback, postgresEnabled } from "../src/core/store/simple-pg";
+import { pgDeleteKanbanIdea, postgresEnabled } from "../src/core/store/simple-pg";
 
 const MARKER = "ticket-2026-09-04-sg-neon-simple-stores-check";
 
@@ -30,15 +30,6 @@ function loadDatabaseUrlFromEnvLocal(): boolean {
   return false;
 }
 
-function stripInboxById(id: string) {
-  const inbox = path.join(process.cwd(), "docs", "feedback-inbox.md");
-  if (!existsSync(inbox)) return;
-  const text = readFileSync(inbox, "utf8");
-  const parts = text.split(/\n---\n/);
-  const kept = parts.filter((part) => !part.includes(`id: \`${id}\``));
-  writeFileSync(inbox, kept.join("\n---\n"), "utf8");
-}
-
 async function checkZipExclude(): Promise<void> {
   const tmp = path.join(process.cwd(), ".tmp-check-deploy");
   rmSync(tmp, { recursive: true, force: true });
@@ -60,22 +51,28 @@ async function checkJsonFallback(): Promise<string> {
   }
   const record = await addFeedback({
     kind: "housekeeping",
-    pageHref: "/i/feedback",
+    pageHref: "/d",
     pageTitle: "Simple-store check",
     message: MARKER,
     submittedBy: "check-simple-stores",
   });
-  const file = path.join(process.cwd(), "data", "feedback.json");
+  const file = path.join(process.cwd(), "data", "kanban", "ideas.json");
   const raw = readFileSync(file, "utf8");
-  const rows = JSON.parse(raw) as Array<{ id: string; message: string }>;
-  const found = rows.find((row) => row.id === record.id && row.message === MARKER);
+  const rows = JSON.parse(raw) as Array<{ id: string; body: string }>;
+  const found = rows.find((row) => row.id === record.id && row.body === MARKER);
   if (!found) {
-    throw new Error("JSON fallback: feedback.json missing the check row");
+    throw new Error("JSON fallback: kanban/ideas.json missing the check row");
   }
-  const next = rows.filter((row) => row.id !== record.id);
-  writeFileSync(file, JSON.stringify(next, null, 2), "utf8");
-  stripInboxById(record.id);
-  console.log("json-fallback: addFeedback wrote data/feedback.json — ok");
+  writeFileSync(
+    file,
+    JSON.stringify(
+      rows.filter((row) => row.id !== record.id),
+      null,
+      2,
+    ),
+    "utf8",
+  );
+  console.log("json-fallback: addFeedback wrote data/kanban/ideas.json — ok");
   return record.id;
 }
 
@@ -90,7 +87,7 @@ async function checkPostgres(): Promise<void> {
   }
   const record = await addFeedback({
     kind: "housekeeping",
-    pageHref: "/i/feedback",
+    pageHref: "/d",
     pageTitle: "Simple-store check",
     message: MARKER + "-pg",
     submittedBy: "check-simple-stores",
@@ -100,9 +97,8 @@ async function checkPostgres(): Promise<void> {
   if (!found) {
     throw new Error("Postgres: getFeedback did not return the inserted row");
   }
-  await pgDeleteFeedback(record.id);
-  stripInboxById(record.id);
-  console.log("postgres: addFeedback hit Postgres — ok (row deleted)");
+  await pgDeleteKanbanIdea(record.id);
+  console.log("postgres: addFeedback hit kanban_ideas — ok (row deleted)");
 }
 
 async function main() {
