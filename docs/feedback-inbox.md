@@ -14,13 +14,12 @@ are not the live register. Live rows are `kanban_ideas` (one inbox).
 - when: 2026-09-09T01:22:20.664Z
 - page: /w/sunwater-mrt
 - by: live Feedback
-- status: open
+- status: archived
 
 sunwater-brt laod times stupid long.
 
-Feedback bug only. Do not copy to Kanban Inbox unless asked. Do not treat as
-Sunwater MRT product work in a notes-durability sitting. Detailed Kanban raises
-`IN-20260909-01` and `IN-20260908-03` are archived on Neon (bodies kept).
+Split 2026-09-16 into `kt-mrt-shell-first` and `kt-mrt-defer-board`. Spec in archived
+`IN-20260909-01` and `IN-20260908-03`.
 
 ---
 

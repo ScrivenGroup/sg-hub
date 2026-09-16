@@ -1,6 +1,6 @@
 /** Client-facing product version. Shown in the tracker shell. */
-export const MRT_VERSION = "1.5";
+export const MRT_VERSION = "1.5.2";
 /** Instant this version shipped (ISO). */
-export const MRT_VERSION_AT = "2026-08-31T09:00:00.000Z";
+export const MRT_VERSION_AT = "2026-09-16T01:25:00.000Z";
 /** Fixed Australia/Brisbane display — avoids locale hydration mismatch. */
-export const MRT_VERSION_WHEN = "31 Aug 2026, 7:00 pm";
+export const MRT_VERSION_WHEN = "16 Sep 2026, 11:25 am";

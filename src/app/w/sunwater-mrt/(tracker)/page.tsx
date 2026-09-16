@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth, isMrtGuest } from "@/auth";
 import { headers } from "next/headers";
 import { AppShell } from "@/core/shell/AppShell";
@@ -6,15 +7,10 @@ import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
 import {
-  getGuestMrtSandbox,
-  getChangelogsForNode,
-  getKanbanBoard,
-  getSunwaterMrtStore,
-} from "@/core/store/json-store";
-import {
   assertGuestShareOrSignOut,
 } from "@/modules/sunwater-mrt/actions";
-import { MrtWorkspace } from "@/modules/sunwater-mrt/ui/MrtWorkspace";
+import { MrtLoadingPane } from "@/modules/sunwater-mrt/ui/MrtLoadingPane";
+import { MrtPlanBody } from "@/modules/sunwater-mrt/ui/MrtPlanBody";
 import { MRT_VERSION, MRT_VERSION_WHEN } from "@/modules/sunwater-mrt/version";
 
 const HREF = "/w/sunwater-mrt";
@@ -25,14 +21,9 @@ export default async function SunwaterMrtPage() {
   if (guest) await assertGuestShareOrSignOut();
 
   const node = getNodeByHref(HREF);
-  const guestId = session?.user?.id;
-  const store =
-    guest && guestId
-      ? await getGuestMrtSandbox(guestId)
-      : await getSunwaterMrtStore();
-  const changelogs = await getChangelogsForNode("w-sunwater-mrt");
-  const board = await getKanbanBoard("w-sunwater-mrt");
   const { kind } = hostKindFromHeaders(await headers());
+  const showDevelopment = !guest;
+  const loadTotal = showDevelopment ? 2 : 1;
 
   if (!node) {
     return (
@@ -63,15 +54,23 @@ export default async function SunwaterMrtPage() {
         </h1>
       }
     >
-      <MrtWorkspace
-        initialStore={store}
-        changelogs={changelogs}
-        showDevelopment={!guest}
-        readOnly={false}
-        sandbox={guest}
-        board={board}
-        hostKind={kind}
-      />
+      <Suspense
+        fallback={
+          <MrtLoadingPane
+            step={1}
+            total={loadTotal}
+            label="plan"
+            showDevelopment={showDevelopment}
+          />
+        }
+      >
+        <MrtPlanBody
+          guest={guest}
+          guestId={session?.user?.id}
+          showDevelopment={showDevelopment}
+          hostKind={kind}
+        />
+      </Suspense>
     </AppShell>
   );
 }

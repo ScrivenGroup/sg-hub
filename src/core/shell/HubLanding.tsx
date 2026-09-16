@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
 import { PageNav } from "@/core/shell/PageNav";
 import { getChildren, getNodeById } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
+import { PendingNavLink } from "@/core/ui/PendingNavLink";
 import { StatusPill } from "@/core/ui/StatusPill";
 import { RagDot } from "@/core/ui/RagDot";
 import type { RagLevel } from "@/core/contracts/types";
@@ -47,7 +47,7 @@ export function HubLanding({
         <ul className="grid gap-3 sm:grid-cols-2">
           {children.map((child) => (
             <li key={child.id}>
-              <Link href={child.href} className="sg-card h-full">
+              <PendingNavLink href={child.href} className="sg-card block h-full">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">{child.title}</h2>
                   <CodeBadge node={child} />
@@ -56,7 +56,7 @@ export function HubLanding({
                 <p className="text-sm text-[var(--muted)]">
                   {child.description}
                 </p>
-              </Link>
+              </PendingNavLink>
             </li>
           ))}
         </ul>

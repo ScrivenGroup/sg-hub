@@ -1115,6 +1115,28 @@ Out of this version
 - Header shows the sub-version and its datetime (v1.5 · 31 Aug 2026, 7:00 pm).`,
   },
   {
+    id: "cl-sunwater-mrt-1.5.1",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.1",
+    createdAt: "2026-09-16T00:38:00.000Z",
+    title: "Shell-first load with qty",
+    body: `- AppShell and MRT tabs paint before the plan rows arrive. Pane shows Loading plan… 1 of 2.
+- Kanban board loads only when Development is opened (2 of 2). Gantt no longer waits on Inbox.
+- Localhost PATCH until the next hub train. sourceIdeaId fb-mtteyhko.`,
+  },
+  {
+    id: "cl-sunwater-mrt-1.5.2",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.2",
+    createdAt: "2026-09-16T01:25:00.000Z",
+    title: "Loading on the Work card and route",
+    body: `- Clicking the Sunwater MRT card on Work shows Loading… until the tracker route answers.
+- The tracker route paints a loading shell (tabs + qty) before AppShell/auth finishes.
+- Hub-wide indicators for every page are kt-hub-page-loading (Later), not this leaf.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",

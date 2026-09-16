@@ -5,6 +5,7 @@ import { AuthError } from "next-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  getKanbanBoard,
   getMrtGuestActivity,
   logMrtGuestActivity,
   resetGuestMrtSandbox,
@@ -12,6 +13,7 @@ import {
   saveSunwaterMrtStore,
   type MrtGuestActivity,
 } from "@/core/store/json-store";
+import type { KanbanBoard } from "@/core/kanban/schema";
 import {
   createMrtShare,
   deleteMrtShare,
@@ -208,4 +210,13 @@ export async function assertGuestShareOrSignOut() {
       ? `/w/sunwater-mrt/guest?s=${encodeURIComponent(s)}`
       : "/w/sunwater-mrt/guest",
   });
+}
+
+export async function loadMrtKanbanBoardAction(): Promise<
+  { ok: true; board: KanbanBoard } | { ok: false; error: string }
+> {
+  const session = await staffSession();
+  if (!session) return { ok: false, error: "Staff sign-in required" };
+  const board = await getKanbanBoard("w-sunwater-mrt");
+  return { ok: true, board };
 }

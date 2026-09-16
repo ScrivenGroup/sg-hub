@@ -12,3 +12,4 @@ Locked: `dc-web-stack`, `dc-leaf-cycle`, `dc-leaf-contract`, `dc-design-defaults
 - **Chrome:** `AppShell` (Home, Site network, Feedback → one register, Profile), `PageNav`. Starting classes: `sg-card`, `sg-btn-primary` / `secondary` / `ghost`, `sg-input`.
 - Hex = **badge only** unless a ThemeContract. Dialogs: viewport-capped (PLATFORM / EffortPopupShell).
 - How to take requests: product behaviour, not “edit the HTML file.”
+- Preview on **this desk’s port** (`docs/YARD_DESKS.md`). Station `:3000`. WIP `:3001+`. Match `AUTH_URL`. Never send a wip sitting to `localhost:3000`.

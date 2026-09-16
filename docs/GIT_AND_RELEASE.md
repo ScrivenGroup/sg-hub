@@ -41,7 +41,7 @@ Private remote: **https://github.com/ScrivenGroup/sg-hub**. `gh` as ScrivenGroup
 - Do not `git init` inside a leaf folder. A room is not a repo.
 - Never zip-deploy from a wip desk. Publish only from merged `dev_main` after you say **make it live** (then `main` + tag).
 
-**Desks:** sibling git worktrees. Port **3000** = station (`scrivengroup` / `dev_main`). Ports **3001+** = desks (`scrivengroup-wip-<leaf>` / `wip/<leaf>`). Add/remove commands: [`docs/YARD_DESKS.md`](./YARD_DESKS.md). `move_agent_to_root` to that desk folder before disk.
+**Desks:** sibling git worktrees. Port **3000** = station (`scrivengroup` / `dev_main`). Ports **3001+** = desks (`scrivengroup-wip-<leaf>` / `wip/<leaf>`). Add/remove commands: [`docs/YARD_DESKS.md`](./YARD_DESKS.md). `move_agent_to_root` to that desk folder before disk. Preview and `AUTH_URL` stay on **that** port — never station `:3000` from a wip chat.
 
 ## Why this is not Claude’s “push and magic”
 

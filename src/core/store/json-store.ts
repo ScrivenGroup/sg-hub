@@ -1022,6 +1022,17 @@ export async function upsertKanbanIdea(idea: KanbanInboxNote): Promise<void> {
   await retagKanbanAttachments(idea.id, idea.nodeId);
 }
 
+export async function upsertKanbanTicket(ticket: KanbanTicket): Promise<void> {
+  const bundle = await loadKanbanRows();
+  upsertRow(bundle.tickets, ticket);
+  bumpKanbanMeta(bundle, ticket.nodeId, {
+    at: ticket.updatedAt,
+    kind: "pack",
+    summary: `Saved ${ticket.id}`,
+  });
+  await persistKanbanBundle(bundle);
+}
+
 export async function getKanbanIdeaById(
   id: string,
 ): Promise<KanbanInboxNote | null> {

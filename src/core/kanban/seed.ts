@@ -211,6 +211,22 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
     copiedAt: null,
     source: "feedback",
   },
+  {
+    id: "IN-20260916-01",
+    nodeId: "global",
+    title: "WIP desk preview must stay on that desk’s port",
+    body: `Bug. Agents copy station .env.local (AUTH_URL=http://localhost:3000) onto a wip desk, run next on :3001, then type “localhost:3001” while login, callbacks, and clickable preview dump the user on :3000 (station).
+
+Yard protocol: station scrivengroup / dev_main = :3000. Each wip/<leaf> desk = its own port (:3001, :3002, …). AUTH_URL on that desk must match the port next dev uses. Never paste a :3000 preview from a wip chat.
+
+Update the brain so this cannot happen again: YARD_DESKS, publish-yard rule, GIT_AND_RELEASE desks line, .env.example, kanban session prompt Host, hub-web-dev, checklist item 8. Split remaining docs (technical.md, hub-decisions-pack, README) if they still say “open localhost:3000” as the only preview.`,
+    status: "open",
+    kind: "bug",
+    source: "raise",
+    createdAt: "2026-09-16T01:14:00.000Z",
+    updatedAt: "2026-09-16T01:14:00.000Z",
+    copiedAt: null,
+  },
 ];
 
 const GLOBAL_DONE_TICKETS: KanbanTicket[] = [
@@ -364,6 +380,32 @@ Sandbox rows keyed by guest; TTL 168h; persist across deploy; Reset-to-live clon
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
     updatedAt: "2026-09-08T10:45:00.000Z",
+  },
+  {
+    id: "kt-mrt-shell-first",
+    nodeId: "w-sunwater-mrt",
+    title: "MRT paints shell before plan data",
+    body: `sourceIdeaId fb-mtteyhko. Spec in archived IN-20260908-03 and IN-20260909-01.
+
+AppShell and MRT tabs render immediately. The workspace pane shows a loading line with qty (Loading plan… 1 of 2). MRT-local only — not the hub-wide spinner in fb-mtuwhdnu.`,
+    lane: "experience",
+    column: "open",
+    sourceIdeaId: "fb-mtteyhko",
+    createdAt: "2026-09-16T00:38:00.000Z",
+    updatedAt: "2026-09-16T00:38:00.000Z",
+  },
+  {
+    id: "kt-mrt-defer-board",
+    nodeId: "w-sunwater-mrt",
+    title: "Do not block Gantt on the Kanban board",
+    body: `sourceIdeaId fb-mtteyhko.
+
+Gantt path loads plan + changelogs in parallel. getKanbanBoard runs only when Development is shown. Do not call getKanbanBoard for inbox forensics.`,
+    lane: "behaviour",
+    column: "open",
+    sourceIdeaId: "fb-mtteyhko",
+    createdAt: "2026-09-16T00:38:00.000Z",
+    updatedAt: "2026-09-16T00:38:00.000Z",
   },
   {
     id: "kt-publish-gha",
