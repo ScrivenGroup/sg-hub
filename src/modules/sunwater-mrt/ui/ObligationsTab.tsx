@@ -78,6 +78,7 @@ export function ObligationsTab({
 }) {
   const [sub, setSub] = useState<(typeof SUBS)[number]>("All Obligations");
   const [dial, setDial] = useState(clampHorizonYears(store.horizonYears));
+  const [dialText, setDialText] = useState(String(dial));
   const [lookAhead, setLookAhead] = useState<(typeof LOOKAHEAD)[number]>(12);
   const [open, setOpen] = useState<GanttMarker | null>(null);
   const [baselineOpen, setBaselineOpen] = useState(false);
@@ -203,11 +204,22 @@ export function ObligationsTab({
               min={5}
               max={40}
               className="mrt-input w-16"
-              value={dial}
+              // Type freely; clamp when leaving the box, so "10" is not read as
+              // "1" and snapped to the minimum mid-keystroke.
+              value={dialText}
               disabled={readOnly}
-              onChange={(e) =>
-                setDial(clampHorizonYears(Number(e.target.value)))
-              }
+              onChange={(e) => setDialText(e.target.value)}
+              onBlur={() => {
+                const years = clampHorizonYears(Number(dialText));
+                setDial(years);
+                setDialText(String(years));
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                const years = clampHorizonYears(Number(dialText));
+                setDial(years);
+                setDialText(String(years));
+              }}
             />
             years into the future
           </span>

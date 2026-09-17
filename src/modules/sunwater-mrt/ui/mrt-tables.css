@@ -1149,6 +1149,8 @@
 }
 
 .mrt-alloc-loading {
+  /* Overlay the hours pane. In flow it pushed the rows down. */
+  position: absolute;
   z-index: 8;
   display: flex;
   align-items: center;
@@ -1177,6 +1179,37 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Whole name row while its new date is being saved. */
+.mrt-row-is-saving {
+  background: color-mix(in srgb, var(--surface-muted) 70%, var(--surface));
+  opacity: 0.55;
+}
+
+/* Row waiting on a saved due date. */
+.mrt-row-saving {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: mrt-inline-spin 0.7s linear infinite;
+}
+
+/* Chart is thinking: filters, grouping, collapse, marker rebuild. */
+.mrt-gantt-busy {
+  position: absolute;
+  inset: 0;
+  /* Cover the whole chart grid without ever adding a track to it. */
+  grid-area: 1 / 1 / -1 / -1;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
 
 .mrt-alloc-split {

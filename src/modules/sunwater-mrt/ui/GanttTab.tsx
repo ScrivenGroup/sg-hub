@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { ScheduleStore } from "../schema";
@@ -45,7 +46,7 @@ import {
   isUserNotRequired,
   occurrenceStatus,
   recalculateRow,
-  rowNeedsRecalc,
+  staleRecalcRows,
   type GanttMarker,
   type NextDueChip,
 } from "../logic/scheduling";
@@ -62,13 +63,20 @@ import {
   markerOverlapsWindow,
 } from "../logic/gantt-stage";
 import {
+  clearGanttOverlay,
+  devicePx,
   hitTestGanttMarker,
   markerDueX,
   markerHoverTitle,
   markerPaintKey,
+  paintGanttMarkerOverlay,
+  quantisePx,
+  readGanttPaintTheme,
   worldFromClient,
   type GanttCamera,
   type GanttDragShift,
+  type GanttPaintRect,
+  type GanttPaintTheme,
 } from "../logic/gantt-paint";
 import {
   aggregateResourceLoad,
@@ -95,7 +103,18 @@ import {
 import { PageIntro } from "./SubTabs";
 import { MrtInlineLoading } from "./MrtLoadingPane";
 
-const ZOOM_X = [8, 11, 14, 18, 24, 32, 48, 72];
+const ZOOM_X = [8, 11, 14, 18, 24, 32, 48, 72, 110, 170, 260, 400, 620];
+const MIN_MONTH_PX = 6;
+/** Enough that a single month can fill a wide pane. */
+const MAX_MONTH_PX = 2400;
+/**
+ * How long the pointer rests on a due before it can be dragged. The cursor
+ * changes to the sideways arrows when the wait is up. Move before that and the
+ * gesture pans instead.
+ */
+const MARKER_HOLD_MS = 180;
+/** Cursor that says "this due can now be slid along the timeline". */
+const MARKER_ARMED_CURSOR = "ew-resize";
 const ZOOM_Y = [0.7, 0.85, 1, 1.2, 1.45, 1.8];
 const BASE_MONTH_PX = 14;
 const BASE_LANE_H = 20;
@@ -106,6 +125,8 @@ const ALLOC_H_KEY = "mrt-alloc-h";
 const ALLOC_H_DEFAULT = 200;
 const ALLOC_H_MIN = 100;
 const ALLOC_H_MAX = 480;
+// How far the view must travel before the hours pane recomputes its slice.
+const LABEL_BAND_STEP = 300;
 
 function loadAllocH() {
   if (typeof window === "undefined") return ALLOC_H_DEFAULT;
@@ -119,12 +140,40 @@ type PendingScroll =
   | { type: "idx-center"; idx: number }
   | { type: "frac"; frac: number }
   | { type: "pct"; pct: number }
-  | { type: "xy"; x: number; y: number };
+  | { type: "xy"; x: number; y: number }
+  | { type: "exact"; x: number; y: number };
 
 export type GanttOccurrenceFocus = {
   damId: string;
   laneCode: string;
   procDueIdx: number;
+};
+
+/**
+ * Filters, grouping and camera kept by the workspace, so leaving the Gantt tab
+ * and coming back does not throw the user's view away. Reset still clears it.
+ */
+export type GanttViewState = {
+  damFilter?: string[];
+  laneFilter?: string[];
+  dueBeforeIdx?: number | null;
+  onlyOngoing?: boolean;
+  scheduleFilter?: null | "scheduled" | "predicted";
+  hideEmptyOnScreen?: boolean;
+  monthPx?: number;
+  zoomY?: number;
+  grain?: LoadGrain;
+  groupMode?: Exclude<GroupMode, "flat">;
+  flatMode?: boolean;
+  collapsed?: Record<string, boolean>;
+  allCollapsed?: boolean;
+  showSummarised?: boolean;
+  rowSort?: GanttSort | null;
+  showGantt?: boolean;
+  showAlloc?: boolean;
+  landed?: boolean;
+  camX?: number;
+  camY?: number;
 };
 
 function DueChip({ chip }: { chip: NextDueChip | null }) {
@@ -141,6 +190,18 @@ function DueChip({ chip }: { chip: NextDueChip | null }) {
   );
 }
 
+/** This row is waiting on a saved date. */
+function RowSaving() {
+  return (
+    <span
+      className="mrt-row-saving"
+      role="status"
+      aria-label="Saving this row"
+      title="Saving the new date…"
+    />
+  );
+}
+
 function todayShort() {
   const now = new Date();
   return `${String(now.getDate()).padStart(2, "0")}-${MONTH_NAMES[now.getMonth()]}-${String(now.getFullYear()).slice(2)}`;
@@ -154,6 +215,7 @@ export function GanttTab({
   onGoToPerson,
   focusOccurrence,
   onFocusConsumed,
+  viewRef,
 }: {
   store: ScheduleStore;
   onChange: (store: ScheduleStore) => void;
@@ -162,34 +224,46 @@ export function GanttTab({
   onGoToPerson?: (personId: string) => void;
   focusOccurrence?: GanttOccurrenceFocus | null;
   onFocusConsumed?: () => void;
+  viewRef?: React.MutableRefObject<GanttViewState>;
 }) {
+  const kept = viewRef?.current ?? {};
   const [open, setOpen] = useState<GanttMarker | null>(null);
-  const [damFilter, setDamFilter] = useState<string[]>(() =>
-    store.dams[0] ? [store.dams[0].id] : [],
+  const [damFilter, setDamFilter] = useState<string[]>(
+    () => kept.damFilter ?? (store.dams[0] ? [store.dams[0].id] : []),
   );
-  const [laneFilter, setLaneFilter] = useState<string[]>(() =>
-    store.lanes.map((l) => l.code),
+  const [laneFilter, setLaneFilter] = useState<string[]>(
+    () => kept.laneFilter ?? store.lanes.map((l) => l.code),
   );
-  const [dueBeforeIdx, setDueBeforeIdx] = useState<number | null>(null);
-  const [onlyOngoing, setOnlyOngoing] = useState(false);
+  const [dueBeforeIdx, setDueBeforeIdx] = useState<number | null>(
+    kept.dueBeforeIdx ?? null,
+  );
+  const [onlyOngoing, setOnlyOngoing] = useState(kept.onlyOngoing ?? false);
   const [scheduleFilter, setScheduleFilter] = useState<
     null | "scheduled" | "predicted"
-  >(null);
+  >(kept.scheduleFilter ?? null);
   const [panel, setPanel] = useState<null | "dam" | "type" | "due" | "legend">(null);
-  const [monthPx, setMonthPx] = useState(BASE_MONTH_PX);
-  const [zoomY, setZoomY] = useState(1);
+  const [monthPx, setMonthPx] = useState(kept.monthPx ?? BASE_MONTH_PX);
+  const [zoomY, setZoomY] = useState(kept.zoomY ?? 1);
   const [groupMode, setGroupMode] = useState<Exclude<GroupMode, "flat">>(
-    "dam-obl",
+    kept.groupMode ?? "dam-obl",
   );
-  const [flatMode, setFlatMode] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [allCollapsed, setAllCollapsed] = useState(false);
-  const [showSummarised, setShowSummarised] = useState(true);
+  const [flatMode, setFlatMode] = useState(kept.flatMode ?? false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+    () => kept.collapsed ?? {},
+  );
+  const [allCollapsed, setAllCollapsed] = useState(kept.allCollapsed ?? false);
+  const [showSummarised, setShowSummarised] = useState(
+    kept.showSummarised ?? true,
+  );
   const [baselineOpen, setBaselineOpen] = useState(false);
-  const [rowSort, setRowSort] = useState<GanttSort | null>(null);
+  const [rowSort, setRowSort] = useState<GanttSort | null>(
+    kept.rowSort ?? null,
+  );
   const [pulseKey, setPulseKey] = useState<string | null>(null);
   const [pulseToast, setPulseToast] = useState<string | null>(null);
-  const [hideEmptyOnScreen, setHideEmptyOnScreen] = useState(false);
+  const [hideEmptyOnScreen, setHideEmptyOnScreen] = useState(
+    kept.hideEmptyOnScreen ?? false,
+  );
   const [rebalance, setRebalance] = useState<{
     contributions: LoadContribution[];
     personId: string;
@@ -201,9 +275,19 @@ export function GanttTab({
     bottom: 720,
   });
   const [chartReady, setChartReady] = useState(false);
+  // "The chart is thinking" — heavy list rebuilds run as a transition so the
+  // old picture stays live behind the overlay.
+  const [reshaping, startReshape] = useTransition();
+  const [markersBusy, setMarkersBusy] = useState(true);
+  const [savingRowKey, setSavingRowKey] = useState<string | null>(null);
 
   const bodyRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const labelLayerRef = useRef<HTMLDivElement>(null);
+  const dragOverlayRef = useRef<HTMLCanvasElement>(null);
+  const dragTipRef = useRef<HTMLDivElement>(null);
+  const hideKeyRef = useRef<string | null>(null);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minimapWrapRef = useRef<HTMLDivElement>(null);
   const minimapThumbRef = useRef<HTMLDivElement>(null);
   const todayLabelRef = useRef<HTMLSpanElement>(null);
@@ -213,9 +297,13 @@ export function GanttTab({
   const cameraRef = useRef<GanttCamera>({ x: 0, y: 0, w: 800, h: 480 });
   const minimapRef = useRef({ leftPct: 0, widthPct: 12 });
   const viewBandRef = useRef(viewBand);
+  // The band React last committed — compared against so a slow pan still
+  // rebuilds the name rows before they run out.
+  const committedBandRef = useRef(viewBand);
   const viewRaf = useRef(0);
   const paintRaf = useRef(0);
   const fyLanded = useRef(false);
+  const viewRestored = useRef(false);
   const hideEmptyRef = useRef(false);
   const showAllocRef = useRef(false);
   const allocScrollRef = useRef<HTMLDivElement>(null);
@@ -230,7 +318,14 @@ export function GanttTab({
     startWidthPct: number;
   } | null>(null);
   const monthPxRef = useRef(monthPx);
-  monthPxRef.current = monthPx;
+  // Pointer gestures write here and do their work once per frame, so a
+  // high-rate mouse cannot queue more work than the screen can show.
+  const dragPtRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRaf = useRef(0);
+  const zoomPtRef = useRef<{ clientX: number } | null>(null);
+  const zoomRaf = useRef(0);
+  const liveMonthPxRef = useRef<number | null>(null);
+  if (liveMonthPxRef.current === null) monthPxRef.current = monthPx;
   const storeRef = useRef(store);
   storeRef.current = store;
   const onChangeRef = useRef(onChange);
@@ -239,6 +334,7 @@ export function GanttTab({
   useEffect(() => {
     return () => {
       if (pulseTimer.current) clearTimeout(pulseTimer.current);
+      if (armTimer.current) clearTimeout(armTimer.current);
     };
   }, []);
   useEffect(() => {
@@ -261,25 +357,28 @@ export function GanttTab({
   const markerDragRef = useRef<{
     marker: GanttMarker;
     startX: number;
+    startY: number;
+    startLeft: number;
+    startTop: number;
+    downT: number;
+    armed: boolean;
     dragging: boolean;
     canDrag: boolean;
     baseIdx: number;
     baseDay: number;
     candidateIdx: number | null;
     candidateDay: number | null;
+    cy: number | null;
+    overlayRect: GanttPaintRect | null;
+    theme: GanttPaintTheme | null;
   } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{
-    key: string;
-    pxShift: number;
-    x: number;
-    y: number;
-    text: string;
-  } | null>(null);
-  const [showGantt, setShowGantt] = useState(true);
-  const [showAlloc, setShowAlloc] = useState(false);
+  const [showGantt, setShowGantt] = useState(kept.showGantt ?? true);
+  const [showAlloc, setShowAlloc] = useState(kept.showAlloc ?? false);
   hideEmptyRef.current = hideEmptyOnScreen;
   showAllocRef.current = showAlloc;
-  const [grain, setGrain] = useState<LoadGrain>("month");
+  const [grain, setGrain] = useState<LoadGrain>(kept.grain ?? "month");
+  const grainRef = useRef(grain);
+  grainRef.current = grain;
   const [allocH, setAllocH] = useState(loadAllocH);
   const allocHRef = useRef(allocH);
   allocHRef.current = allocH;
@@ -295,7 +394,9 @@ export function GanttTab({
     [win.start.y, win.start.m, months, monthPx, grain],
   );
   const scaleRef = useRef(scale);
-  scaleRef.current = scale;
+  // While a zoom gesture owns the scale, React's copy is behind; do not let a
+  // stray re-render pull the picture back to it.
+  if (liveMonthPxRef.current === null) scaleRef.current = scale;
   const todayX = todayChartX(scale);
   const width = scale.width;
   const laneH = BASE_LANE_H * zoomY;
@@ -305,14 +406,25 @@ export function GanttTab({
   const [markerList, setMarkerList] = useState<GanttMarker[] | null>(null);
   const markers = markerList ?? [];
   const markersLoading = markerList === null;
+  const markerListRef = useRef(markerList);
+  markerListRef.current = markerList;
+  const damFilterRef = useRef(damFilter);
 
   useEffect(() => {
     let cancelled = false;
+    // Only dim the chart when the asset filter changed, or on first build. A
+    // saved date also rebuilds markers, but that row shows its own spinner.
+    if (damFilterRef.current !== damFilter || markerListRef.current === null) {
+      setMarkersBusy(true);
+    }
+    damFilterRef.current = damFilter;
     const id = window.requestAnimationFrame(() => {
       if (cancelled) return;
       const list = ganttMarkers(store, damFilter);
       startTransition(() => {
-        if (!cancelled) setMarkerList(list);
+        if (cancelled) return;
+        setMarkerList(list);
+        setMarkersBusy(false);
       });
     });
     return () => {
@@ -334,6 +446,30 @@ export function GanttTab({
   useEffect(() => {
     setChartReady(true);
   }, []);
+
+  // Hand the current view back to the workspace so a tab switch keeps it.
+  useEffect(() => {
+    const v = viewRef?.current;
+    if (!v) return;
+    v.damFilter = damFilter;
+    v.laneFilter = laneFilter;
+    v.dueBeforeIdx = dueBeforeIdx;
+    v.onlyOngoing = onlyOngoing;
+    v.scheduleFilter = scheduleFilter;
+    v.hideEmptyOnScreen = hideEmptyOnScreen;
+    v.monthPx = monthPx;
+    v.zoomY = zoomY;
+    v.grain = grain;
+    v.groupMode = groupMode;
+    v.flatMode = flatMode;
+    v.collapsed = collapsed;
+    v.allCollapsed = allCollapsed;
+    v.showSummarised = showSummarised;
+    v.rowSort = rowSort;
+    v.showGantt = showGantt;
+    v.showAlloc = showAlloc;
+    v.landed = fyLanded.current;
+  });
 
   const pairs = useMemo(() => {
     if (!hideEmptyOnScreen) return basePairs;
@@ -437,11 +573,21 @@ export function GanttTab({
     [pairs, mode, collapsed, headingH, laneH, rowSort],
   );
 
-  const visItems = useMemo(() => {
-    const a = viewBand.top - 80;
-    const b = viewBand.bottom + 80;
-    return items.filter((it) => it.top + it.h > a && it.top < b);
-  }, [items, viewBand.top, viewBand.bottom]);
+  // Every name row is in the DOM, so vertical pan is a transform and never a
+  // React render. Building the list is the up-front cost when filters change.
+  const staleRows = useMemo(
+    () => staleRecalcRows(store, markers),
+    [store, markers],
+  );
+
+  // Any React render of the name rows re-asserts the camera, so names can
+  // never end up a few pixels off the dots.
+  useLayoutEffect(() => {
+    const layer = labelLayerRef.current;
+    if (layer) {
+      layer.style.transform = `translate3d(0,${-cameraRef.current.y}px,0)`;
+    }
+  });
 
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -452,9 +598,46 @@ export function GanttTab({
   const showSummarisedRef = useRef(showSummarised);
   showSummarisedRef.current = showSummarised;
   const dragShiftRef = useRef<GanttDragShift | null>(null);
-  dragShiftRef.current = dragPreview
-    ? { key: dragPreview.key, px: dragPreview.pxShift }
-    : null;
+  const pendingDropRef = useRef<{
+    markersSeen: Map<string, GanttMarker[]>;
+    rowKey: string;
+  } | null>(null);
+  const dropTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropSettled = useRef(false);
+
+  const settleDrop = useCallback(() => {
+    if (!pendingDropRef.current) return;
+    pendingDropRef.current = null;
+    dropSettled.current = false;
+    if (dropTimer.current) {
+      clearTimeout(dropTimer.current);
+      dropTimer.current = null;
+    }
+    hideKeyRef.current = null;
+    dragShiftRef.current = null;
+    setSavingRowKey(null);
+    timelineCanvasRef.current?.paint();
+  }, []);
+
+  // The markers now carry the saved date, so stop shifting this marker before
+  // anything paints again — otherwise it would be drawn shifted twice.
+  if (
+    pendingDropRef.current &&
+    pendingDropRef.current.markersSeen !== markersByRow
+  ) {
+    dragShiftRef.current = null;
+    dropSettled.current = true;
+  }
+
+  useLayoutEffect(() => {
+    if (dropSettled.current) settleDrop();
+  });
+
+  useEffect(() => {
+    return () => {
+      if (dropTimer.current) clearTimeout(dropTimer.current);
+    };
+  }, []);
 
   const years = useMemo(() => {
     const out: { y: number; start: number; span: number }[] = [];
@@ -508,15 +691,30 @@ export function GanttTab({
       const scroller = bv || alloc;
       if (!scroller) return;
       if (bv) {
-        cameraRef.current = {
-          x: bv.scrollLeft,
-          y: bv.scrollTop,
-          w: bv.clientWidth || cameraRef.current.w,
-          h: bv.clientHeight || cameraRef.current.h,
+        const dpr = devicePx();
+        const prev = cameraRef.current;
+        const cam = {
+          x: quantisePx(bv.scrollLeft, dpr),
+          y: quantisePx(bv.scrollTop, dpr),
+          w: bv.clientWidth || prev.w,
+          h: bv.clientHeight || prev.h,
         };
-        timelineCanvasRef.current?.paint();
-        timescaleCanvasRef.current?.paint();
-        if (labelRef.current) labelRef.current.scrollTop = bv.scrollTop;
+        const resized = cam.w !== prev.w || cam.h !== prev.h;
+        cameraRef.current = cam;
+        if (viewRef?.current) {
+          viewRef.current.camX = cam.x;
+          viewRef.current.camY = cam.y;
+        }
+        // Names ride the same camera as the dots, in this same frame.
+        const layer = labelLayerRef.current;
+        if (layer) layer.style.transform = `translate3d(0,${-cam.y}px,0)`;
+        if (resized) {
+          timelineCanvasRef.current?.paint();
+          timescaleCanvasRef.current?.paint();
+        } else {
+          timelineCanvasRef.current?.pan();
+          timescaleCanvasRef.current?.pan();
+        }
         if (alloc && Math.abs(alloc.scrollLeft - bv.scrollLeft) > 0.5) {
           syncingH.current = true;
           alloc.scrollLeft = bv.scrollLeft;
@@ -528,15 +726,13 @@ export function GanttTab({
         0,
         Math.min(100, (scroller.scrollLeft / bodyW) * 100),
       );
-      const widthPct = Math.max(
-        1.5,
-        Math.min(100, (scroller.clientWidth / bodyW) * 100),
-      );
+      const widthPct = Math.min(100, (scroller.clientWidth / bodyW) * 100);
       minimapRef.current = { leftPct, widthPct };
       const thumb = minimapThumbRef.current;
       if (thumb) {
         thumb.style.left = `${leftPct}%`;
-        thumb.style.width = `${widthPct}%`;
+        // Keep it grabbable when the window is down to a month or two.
+        thumb.style.width = `${Math.max(0.6, widthPct)}%`;
       }
       const onScreenX = todayChartX(scaleRef.current) - scroller.scrollLeft;
       const viewportW = scroller.clientWidth || 0;
@@ -558,29 +754,38 @@ export function GanttTab({
       const top = bv?.scrollTop ?? 0;
       const bottom = top + (bv?.clientHeight || scroller.clientHeight || 720);
       const nextBand = { startC, endC, top, bottom };
-      const prev = viewBandRef.current;
       viewBandRef.current = nextBand;
-      const vertChanged =
-        Math.abs(prev.top - top) >= 48 || Math.abs(prev.bottom - bottom) >= 48;
-      const followView =
-        hideEmptyRef.current || showAllocRef.current;
-      const horizChanged =
+      const committed = committedBandRef.current;
+      // Only the hours pane and "On screen" care about the band. Plain panning
+      // must not reach React at all.
+      const followView = hideEmptyRef.current || showAllocRef.current;
+      const changed =
         followView &&
-        (Math.abs(prev.startC - startC) >= 0.35 ||
-          Math.abs(prev.endC - endC) >= 0.35);
-      if (!vertChanged && !horizChanged) return;
+        (Math.abs(committed.startC - startC) >= 0.35 ||
+          Math.abs(committed.endC - endC) >= 0.35 ||
+          Math.abs(committed.top - top) >= LABEL_BAND_STEP);
+      if (!changed) return;
       if (viewRaf.current) return;
       viewRaf.current = window.requestAnimationFrame(() => {
         viewRaf.current = 0;
+        committedBandRef.current = viewBandRef.current;
         setViewBand(viewBandRef.current);
       });
     });
-  }, [months]);
+  }, [months, viewRef]);
 
   useLayoutEffect(() => {
     if (!chartReady) return;
     syncChrome();
   }, [chartReady, syncChrome, width, totalHeight, showGantt]);
+
+  // Plain panning no longer publishes the view band, so hand the current one
+  // over the moment something starts caring about it.
+  useEffect(() => {
+    if (!hideEmptyOnScreen && !showAlloc) return;
+    committedBandRef.current = viewBandRef.current;
+    setViewBand(viewBandRef.current);
+  }, [hideEmptyOnScreen, showAlloc]);
 
   useLayoutEffect(() => {
     if (!focusOccurrence) return;
@@ -707,6 +912,9 @@ export function GanttTab({
       } else if (pending.type === "xy") {
         bv.scrollLeft = Math.max(0, pending.x - bv.clientWidth / 2);
         bv.scrollTop = Math.max(0, pending.y - bv.clientHeight / 2);
+      } else if (pending.type === "exact") {
+        bv.scrollLeft = Math.max(0, pending.x);
+        bv.scrollTop = Math.max(0, pending.y);
       } else {
         bv.scrollLeft = (pending.pct / 100) * bodyW;
       }
@@ -722,16 +930,75 @@ export function GanttTab({
     return () => window.removeEventListener("resize", onResize);
   }, [syncChrome]);
 
+  /** One frame of a minimap resize: rescale on refs, no React re-render. */
+  const applyZoomFrame = useCallback(() => {
+    const drag = dragRef.current;
+    const wrap = minimapWrapRef.current;
+    const scroller = bodyRef.current || allocScrollRef.current;
+    const pt = zoomPtRef.current;
+    if (!drag || !wrap || !scroller || !pt || drag.mode === "move") return;
+    const rect = wrap.getBoundingClientRect();
+    const deltaPct = ((pt.clientX - drag.startX) / rect.width) * 100;
+    // Narrowest window is one month, so the timescale can be squeezed right in.
+    const minPct = (1 / Math.max(1, months)) * 100;
+    let newLeft = drag.startLeftPct;
+    let newWidth = drag.startWidthPct;
+    if (drag.mode === "right") {
+      newWidth = Math.max(
+        minPct,
+        Math.min(100 - drag.startLeftPct, drag.startWidthPct + deltaPct),
+      );
+    } else {
+      newLeft = Math.max(
+        0,
+        Math.min(
+          drag.startLeftPct + drag.startWidthPct - minPct,
+          drag.startLeftPct + deltaPct,
+        ),
+      );
+      newWidth = drag.startWidthPct + (drag.startLeftPct - newLeft);
+    }
+    const visibleMonths = (newWidth / 100) * months;
+    const nextPx = Math.max(
+      MIN_MONTH_PX,
+      Math.min(
+        MAX_MONTH_PX,
+        scroller.clientWidth / Math.max(1 / 31, visibleMonths),
+      ),
+    );
+    pendingScroll.current = { type: "pct", pct: newLeft };
+    // With the hours pane open the scale is shared, so let React own it.
+    if (showAllocRef.current) {
+      setMonthPx(nextPx);
+      return;
+    }
+    liveMonthPxRef.current = nextPx;
+    scaleRef.current = makeGanttXScale(
+      winStartRef.current,
+      months,
+      nextPx,
+      grainRef.current,
+    );
+    monthPxRef.current = nextPx;
+    if (spacerRef.current) {
+      spacerRef.current.style.width = `${scaleRef.current.width}px`;
+    }
+    scroller.scrollLeft = (newLeft / 100) * (scaleRef.current.width || 1);
+    timelineCanvasRef.current?.paint();
+    timescaleCanvasRef.current?.paint();
+    syncChrome();
+  }, [months, syncChrome]);
+
   useLayoutEffect(() => {
     function onMove(e: PointerEvent) {
       const drag = dragRef.current;
       const wrap = minimapWrapRef.current;
       const scroller = bodyRef.current || allocScrollRef.current;
       if (!drag || !wrap || !scroller) return;
-      const rect = wrap.getBoundingClientRect();
-      const deltaPct = ((e.clientX - drag.startX) / rect.width) * 100;
-      const bodyW = scaleRef.current.width || 1;
       if (drag.mode === "move") {
+        const rect = wrap.getBoundingClientRect();
+        const deltaPct = ((e.clientX - drag.startX) / rect.width) * 100;
+        const bodyW = scaleRef.current.width || 1;
         const newLeft = Math.max(
           0,
           Math.min(100 - drag.startWidthPct, drag.startLeftPct + deltaPct),
@@ -740,30 +1007,25 @@ export function GanttTab({
         syncChrome();
         return;
       }
-      let newLeft = drag.startLeftPct;
-      let newWidth = drag.startWidthPct;
-      if (drag.mode === "right") {
-        newWidth = Math.max(
-          1.5,
-          Math.min(100 - drag.startLeftPct, drag.startWidthPct + deltaPct),
-        );
-      } else {
-        newLeft = Math.max(
-          0,
-          Math.min(
-            drag.startLeftPct + drag.startWidthPct - 1.5,
-            drag.startLeftPct + deltaPct,
-          ),
-        );
-        newWidth = drag.startWidthPct + (drag.startLeftPct - newLeft);
+      zoomPtRef.current = { clientX: e.clientX };
+      if (!zoomRaf.current) {
+        zoomRaf.current = window.requestAnimationFrame(() => {
+          zoomRaf.current = 0;
+          applyZoomFrame();
+        });
       }
-      const visibleMonths = (newWidth / 100) * months;
-      const nextPx = scroller.clientWidth / Math.max(1, visibleMonths);
-      pendingScroll.current = { type: "pct", pct: newLeft };
-      setMonthPx(Math.max(6, Math.min(96, nextPx)));
     }
     function onUp() {
+      if (zoomRaf.current) {
+        window.cancelAnimationFrame(zoomRaf.current);
+        zoomRaf.current = 0;
+      }
+      zoomPtRef.current = null;
       dragRef.current = null;
+      // Hand the live scale back to React once, on release.
+      const live = liveMonthPxRef.current;
+      liveMonthPxRef.current = null;
+      if (live !== null) setMonthPx(live);
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -771,7 +1033,7 @@ export function GanttTab({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [months, syncChrome]);
+  }, [syncChrome, applyZoomFrame]);
 
   useLayoutEffect(() => {
     function onMove(e: PointerEvent) {
@@ -806,51 +1068,93 @@ export function GanttTab({
     };
   }, []);
 
+  /** One frame of a due-date drag: snap the date, move the tip and the dot. */
+  const applyMarkerDragFrame = useCallback(() => {
+    const md = markerDragRef.current;
+    const pt = dragPtRef.current;
+    if (!md || !pt || !md.dragging) return;
+    const deltaX = pt.x - md.startX;
+    const windowStart = winStartRef.current;
+    const maxIdx = months - 1;
+    const sc = scaleRef.current;
+    const baseC = idxDayToContinuous(md.baseIdx, md.baseDay, windowStart);
+    const baseX = continuousToChartX(sc, baseC);
+    let raw = chartXToContinuous(sc, baseX + deltaX);
+    raw = Math.max(0, Math.min(maxIdx, raw));
+    const rawIdx = Math.min(maxIdx, Math.floor(raw));
+    const { y, m0 } = idxToYm(rawIdx, windowStart);
+    const dim = daysInMonth(y, m0 + 1);
+    const rawDay = Math.min(
+      dim,
+      Math.max(1, Math.round((raw - rawIdx) * dim) + 1),
+    );
+    const snapped = rollupToEndOfWeek(rawIdx, rawDay, windowStart);
+    md.candidateIdx = snapped.idx;
+    md.candidateDay = snapped.day;
+    const snappedC = idxDayToContinuous(snapped.idx, snapped.day, windowStart);
+    const shiftPx = continuousToChartX(sc, snappedC) - baseX;
+    dragShiftRef.current = { key: markerPaintKey(md.marker), px: shiftPx };
+    const tip = dragTipRef.current;
+    if (tip) {
+      tip.textContent = `Due: Week ending ${idxDayToShortDateLabel(snapped.idx, snapped.day, windowStart)}`;
+      tip.style.left = `${pt.x + 14}px`;
+      tip.style.top = `${pt.y - 10}px`;
+      tip.style.display = "block";
+    }
+    const overlay = dragOverlayRef.current;
+    if (overlay && md.cy !== null && md.theme) {
+      md.overlayRect = paintGanttMarkerOverlay(overlay, {
+        camera: cameraRef.current,
+        scale: sc,
+        winStart: windowStart,
+        marker: md.marker,
+        cy: md.cy,
+        shiftPx,
+        theme: md.theme,
+        clear: md.overlayRect,
+      });
+    }
+  }, [months]);
+
   useLayoutEffect(() => {
     function onMove(e: PointerEvent) {
       const md = markerDragRef.current;
       if (md) {
         if (!md.canDrag) return;
-        const deltaX = e.clientX - md.startX;
         if (!md.dragging) {
-          if (Math.abs(deltaX) < 4) return;
+          if (Math.abs(e.clientX - md.startX) < 4) return;
+          if (!md.armed) {
+            // Moved off the mark before the drag armed: this is a pan, not a
+            // date change. Hand the gesture over so the flick stays continuous.
+            markerDragRef.current = null;
+            disarmMarker();
+            panRef.current = {
+              mode: "both",
+              startX: md.startX,
+              startY: md.startY,
+              startLeft: md.startLeft,
+              startTop: md.startTop,
+            };
+            panRootRef.current?.classList.add("is-panning");
+            return;
+          }
           md.dragging = true;
-          document.body.style.cursor = "grabbing";
+          document.body.style.cursor = MARKER_ARMED_CURSOR;
+          // Take this one marker out of the scene and paint it on the overlay
+          // instead, so moving it never touches the rest of the picture.
+          if (md.cy !== null) {
+            md.theme = readGanttPaintTheme(dragOverlayRef.current);
+            hideKeyRef.current = markerPaintKey(md.marker);
+            timelineCanvasRef.current?.paint();
+          }
         }
-        const windowStart = winStartRef.current;
-        const maxIdx = months - 1;
-        const sc = scaleRef.current;
-        const baseC = idxDayToContinuous(md.baseIdx, md.baseDay, windowStart);
-        const baseX = continuousToChartX(sc, baseC);
-        let raw = chartXToContinuous(sc, baseX + deltaX);
-        raw = Math.max(0, Math.min(maxIdx, raw));
-        const rawIdx = Math.min(maxIdx, Math.floor(raw));
-        const { y, m0 } = idxToYm(rawIdx, windowStart);
-        const dim = daysInMonth(y, m0 + 1);
-        const rawDay = Math.min(
-          dim,
-          Math.max(1, Math.round((raw - rawIdx) * dim) + 1),
-        );
-        const snapped = rollupToEndOfWeek(rawIdx, rawDay, windowStart);
-        md.candidateIdx = snapped.idx;
-        md.candidateDay = snapped.day;
-        const snappedC = idxDayToContinuous(
-          snapped.idx,
-          snapped.day,
-          windowStart,
-        );
-        setDragPreview({
-          key: markerPaintKey(md.marker),
-          pxShift: continuousToChartX(sc, snappedC) - baseX,
-          x: e.clientX,
-          y: e.clientY,
-          text: `Due: Week ending ${idxDayToShortDateLabel(snapped.idx, snapped.day, windowStart)}`,
-        });
-        dragShiftRef.current = {
-          key: markerPaintKey(md.marker),
-          px: continuousToChartX(sc, snappedC) - baseX,
-        };
-        timelineCanvasRef.current?.paint();
+        dragPtRef.current = { x: e.clientX, y: e.clientY };
+        if (!dragRaf.current) {
+          dragRaf.current = window.requestAnimationFrame(() => {
+            dragRaf.current = 0;
+            applyMarkerDragFrame();
+          });
+        }
         return;
       }
       const pan = panRef.current;
@@ -877,15 +1181,44 @@ export function GanttTab({
       if (pan.mode !== "x" && bodyRef.current) {
         bodyRef.current.scrollTop =
           pan.startTop - (e.clientY - pan.startY);
-        if (labelRef.current) {
-          labelRef.current.scrollTop = bodyRef.current.scrollTop;
-        }
       }
+      syncChrome();
     }
     function onUp() {
       const md = markerDragRef.current;
       if (md) {
+        // Settle on the last pointer position before reading the date.
+        if (dragRaf.current) {
+          window.cancelAnimationFrame(dragRaf.current);
+          dragRaf.current = 0;
+          applyMarkerDragFrame();
+        }
+        dragPtRef.current = null;
         document.body.style.cursor = "";
+        disarmMarker();
+        const tip = dragTipRef.current;
+        if (tip) tip.style.display = "none";
+        const saving =
+          md.canDrag &&
+          md.dragging &&
+          md.candidateIdx !== null &&
+          md.candidateDay !== null;
+        clearGanttOverlay(dragOverlayRef.current, md.overlayRect);
+        hideKeyRef.current = null;
+        if (saving) {
+          // Keep drawing this marker at the dropped spot until the saved date
+          // arrives. Every repaint in between shows the same picture, so there
+          // is nothing to snap back to.
+          pendingDropRef.current = {
+            markersSeen: markersByRowRef.current,
+            rowKey: `${md.marker.damId}-${md.marker.laneCode}`,
+          };
+          setSavingRowKey(`${md.marker.damId}-${md.marker.laneCode}`);
+          if (dropTimer.current) clearTimeout(dropTimer.current);
+          dropTimer.current = setTimeout(settleDrop, 4000);
+        } else {
+          dragShiftRef.current = null;
+        }
         if (
           md.canDrag &&
           md.dragging &&
@@ -919,7 +1252,7 @@ export function GanttTab({
           setOpen(md.marker);
         }
         markerDragRef.current = null;
-        setDragPreview(null);
+        timelineCanvasRef.current?.paint();
       }
       if (panRef.current) {
         panRef.current = null;
@@ -932,7 +1265,7 @@ export function GanttTab({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [months, syncChrome]);
+  }, [months, syncChrome, applyMarkerDragFrame, settleDrop]);
 
   function jumpToday() {
     pendingScroll.current = { type: "idx-center", idx: tIdx };
@@ -1023,7 +1356,14 @@ export function GanttTab({
     const bv = bodyRef.current;
     const startIdx = Math.max(0, fyStartIdx(endYear, win.start));
     const viewportW = bv?.clientWidth || 900;
-    const nextPx = Math.max(6, Math.min(96, viewportW / 12));
+    const nextPx = Math.max(MIN_MONTH_PX, Math.min(MAX_MONTH_PX, viewportW / 12));
+    // Already at "12 months fill the pane" — this is only a camera move. The
+    // tolerance absorbs a scrollbar appearing, which nudges clientWidth.
+    if (bv && Math.abs(monthPxRef.current * 12 - viewportW) <= 24) {
+      bv.scrollLeft = monthStartX(scaleRef.current, startIdx);
+      syncChrome();
+      return;
+    }
     pendingScroll.current = { type: "idx-start", idx: startIdx };
     setMonthPx(nextPx);
     if (bv) {
@@ -1032,13 +1372,54 @@ export function GanttTab({
     }
   }
 
+  // Coming back to the tab: put the camera back where it was and do not
+  // re-land on this FY.
   useLayoutEffect(() => {
-    if (!chartReady || fyLanded.current) return;
-    const bv = bodyRef.current;
-    if (!bv || bv.clientWidth < 40) return;
+    const v = viewRef?.current;
+    if (!v?.landed || viewRestored.current) return;
+    viewRestored.current = true;
     fyLanded.current = true;
-    jumpToFY(currentFyEndYear());
-  }, [chartReady, showGantt, width]);
+    const x = v.camX ?? 0;
+    const y = v.camY ?? 0;
+    pendingScroll.current = { type: "exact", x, y };
+    let id = 0;
+    let tries = 0;
+    const apply = () => {
+      const bv = bodyRef.current;
+      if (bv && bv.clientWidth >= 40) {
+        pendingScroll.current = null;
+        bv.scrollLeft = x;
+        bv.scrollTop = y;
+        syncChrome();
+        return;
+      }
+      if (tries++ > 60) return;
+      id = window.requestAnimationFrame(apply);
+    };
+    apply();
+    return () => window.cancelAnimationFrame(id);
+  }, [viewRef, syncChrome]);
+
+  // Land on the current FY at FY zoom, retrying until the pane has a width, so
+  // the first FY label pressed is already just a camera move.
+  useLayoutEffect(() => {
+    if (!chartReady || !showGantt || fyLanded.current) return;
+    let id = 0;
+    let tries = 0;
+    const tryLand = () => {
+      if (fyLanded.current) return;
+      const bv = bodyRef.current;
+      if (bv && bv.clientWidth >= 40) {
+        fyLanded.current = true;
+        jumpToFY(currentFyEndYear());
+        return;
+      }
+      if (tries++ > 60) return;
+      id = window.requestAnimationFrame(tryLand);
+    };
+    tryLand();
+    return () => window.cancelAnimationFrame(id);
+  }, [chartReady, showGantt]);
 
   function zoomXBy(dir: number) {
     const bv = bodyRef.current;
@@ -1080,36 +1461,44 @@ export function GanttTab({
     const bv = bodyRef.current;
     const viewportW = bv?.clientWidth || 900;
     pendingScroll.current = { type: "idx-center", idx: tIdx };
-    setMonthPx(Math.max(6, Math.min(96, viewportW / 24)));
+    setMonthPx(Math.max(MIN_MONTH_PX, Math.min(MAX_MONTH_PX, viewportW / 24)));
   }
 
   function toggleFlat() {
-    setFlatMode((v) => !v);
-    setCollapsed({});
-    setAllCollapsed(false);
+    startReshape(() => {
+      setFlatMode((v) => !v);
+      setCollapsed({});
+      setAllCollapsed(false);
+    });
   }
 
   function toggleGroupAxis() {
     if (flatMode) return;
-    setGroupMode((m) => (m === "dam-obl" ? "obl-dam" : "dam-obl"));
-    setCollapsed({});
-    setAllCollapsed(false);
+    startReshape(() => {
+      setGroupMode((m) => (m === "dam-obl" ? "obl-dam" : "dam-obl"));
+      setCollapsed({});
+      setAllCollapsed(false);
+    });
   }
 
   function toggleCollapseAll() {
     if (flatMode) return;
-    if (allCollapsed) {
-      setCollapsed({});
-      setAllCollapsed(false);
-    } else {
-      const keys = headingKeys(pairs, groupMode);
-      setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
-      setAllCollapsed(true);
-    }
+    startReshape(() => {
+      if (allCollapsed) {
+        setCollapsed({});
+        setAllCollapsed(false);
+      } else {
+        const keys = headingKeys(pairs, groupMode);
+        setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
+        setAllCollapsed(true);
+      }
+    });
   }
 
   function toggleHeading(key: string) {
-    setCollapsed((cur) => ({ ...cur, [key]: !cur[key] }));
+    startReshape(() => {
+      setCollapsed((cur) => ({ ...cur, [key]: !cur[key] }));
+    });
   }
 
   function openLeaf(item: Extract<GanttLayoutItem, { type: "row" }>) {
@@ -1152,13 +1541,14 @@ export function GanttTab({
     laneCode,
     damName,
     laneLabel,
+    stale,
   }: {
     damId: string;
     laneCode: string;
     damName: string;
     laneLabel: string;
+    stale: boolean;
   }) {
-    const stale = rowNeedsRecalc(store, damId, laneCode);
     return (
       <button
         type="button"
@@ -1181,9 +1571,10 @@ export function GanttTab({
   function captureCamera() {
     const bv = bodyRef.current;
     if (!bv) return;
+    const dpr = devicePx();
     cameraRef.current = {
-      x: bv.scrollLeft,
-      y: bv.scrollTop,
+      x: quantisePx(bv.scrollLeft, dpr),
+      y: quantisePx(bv.scrollTop, dpr),
       w: bv.clientWidth || cameraRef.current.w,
       h: bv.clientHeight || cameraRef.current.h,
     };
@@ -1233,16 +1624,70 @@ export function GanttTab({
     e.preventDefault();
     e.stopPropagation();
     const day = m.dueDay ?? defaultDueDayForIdx(m.displayDueIdx, win.start);
+    const bv = bodyRef.current;
     markerDragRef.current = {
       marker: m,
       startX: e.clientX,
+      startY: e.clientY,
+      startLeft: bv?.scrollLeft ?? 0,
+      startTop: bv?.scrollTop ?? 0,
+      downT: performance.now(),
+      armed: false,
       dragging: false,
       canDrag: m.kind !== "completed" && !readOnly,
       baseIdx: m.displayDueIdx,
       baseDay: day,
       candidateIdx: null,
       candidateDay: null,
+      cy: rowCenterForMarker(m),
+      overlayRect: null,
+      theme: null,
     };
+    // Arm the drag after the wait and say so with the cursor.
+    if (armTimer.current) clearTimeout(armTimer.current);
+    if (m.kind !== "completed" && !readOnly) {
+      armTimer.current = setTimeout(() => {
+        armTimer.current = null;
+        const md = markerDragRef.current;
+        if (!md || md.dragging) return;
+        md.armed = true;
+        if (bodyRef.current) {
+          bodyRef.current.style.cursor = MARKER_ARMED_CURSOR;
+        }
+      }, MARKER_HOLD_MS);
+    }
+  }
+
+  function disarmMarker() {
+    if (armTimer.current) {
+      clearTimeout(armTimer.current);
+      armTimer.current = null;
+    }
+    if (bodyRef.current) bodyRef.current.style.cursor = "grab";
+  }
+
+  /** World y of the row (or collapsed heading) a marker is painted on. */
+  function rowCenterForMarker(m: GanttMarker) {
+    for (const it of itemsRef.current) {
+      if (
+        it.type === "row" &&
+        it.damId === m.damId &&
+        it.laneCode === m.laneCode
+      ) {
+        return it.top + it.h / 2;
+      }
+      if (
+        it.type === "heading" &&
+        it.collapsed &&
+        showSummarisedRef.current &&
+        it.children.some(
+          (c) => c.damId === m.damId && c.laneCode === m.laneCode,
+        )
+      ) {
+        return it.top + it.h / 2;
+      }
+    }
+    return null;
   }
 
   function startPan(
@@ -1470,7 +1915,7 @@ export function GanttTab({
                 <FilterChecklist
                   items={store.dams.map((d) => ({ id: d.id, label: d.name }))}
                   selected={damFilter}
-                  onChange={setDamFilter}
+                  onChange={(next) => startReshape(() => setDamFilter(next))}
                 />
               </div>
             ) : null}
@@ -1493,7 +1938,7 @@ export function GanttTab({
                     label: `${l.code} ${l.label}`,
                   }))}
                   selected={laneFilter}
-                  onChange={setLaneFilter}
+                  onChange={(next) => startReshape(() => setLaneFilter(next))}
                 />
               </div>
             ) : null}
@@ -1829,10 +2274,10 @@ export function GanttTab({
             <GanttTimescaleCanvas
               ref={timescaleCanvasRef}
               cameraRef={cameraRef}
+              scaleRef={scaleRef}
               scale={scale}
               months={months}
               winStart={win.start}
-              todayX={todayX}
               grain={grain}
               years={years}
               viewH={headerH}
@@ -1840,14 +2285,17 @@ export function GanttTab({
           </div>
         </div>
         <div
-          ref={labelRef}
-          className="min-h-0 overflow-hidden border-r border-[var(--border)] bg-[var(--surface)]"
+          className="relative min-h-0 overflow-hidden border-r border-[var(--border)] bg-[var(--surface)]"
           style={{ cursor: "grab" }}
           onPointerDown={(e) => startPan(e, "y")}
         >
-          <div className="relative" style={{ height: Math.max(totalHeight, 1), width: labelW }}>
+          <div
+            ref={labelLayerRef}
+            className="absolute top-0 left-0"
+            style={{ width: labelW }}
+          >
             {chartReady
-              ? visItems.map((it) => {
+              ? items.map((it) => {
               if (it.type === "gap") {
                 return null;
               }
@@ -1878,7 +2326,9 @@ export function GanttTab({
                 return (
                   <div
                     key={it.key}
-                    className="absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] px-2 text-[10.5px]"
+                    className={`absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] px-2 text-[10.5px]${
+                      savingRowKey === it.key ? " mrt-row-is-saving" : ""
+                    }`}
                     style={{ top: it.top, height: it.h }}
                     onDoubleClick={() => openLeaf(it)}
                   >
@@ -1894,12 +2344,17 @@ export function GanttTab({
                       className="flex items-center justify-end gap-1"
                       style={{ width: DUE_COL_W }}
                     >
-                      <RecalcBtn
-                        damId={it.damId}
-                        laneCode={it.laneCode}
-                        damName={it.damName}
-                        laneLabel={it.laneLabel}
-                      />
+                      {savingRowKey === it.key ? (
+                        <RowSaving />
+                      ) : (
+                        <RecalcBtn
+                          damId={it.damId}
+                          laneCode={it.laneCode}
+                          damName={it.damName}
+                          laneLabel={it.laneLabel}
+                          stale={staleRows.has(it.key)}
+                        />
+                      )}
                       <DueChip chip={it.chip} />
                     </span>
                   </div>
@@ -1908,7 +2363,9 @@ export function GanttTab({
               return (
                 <div
                   key={it.key}
-                  className="absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] text-[10.5px]"
+                  className={`absolute right-0 left-0 flex cursor-pointer items-center border-b border-[var(--border)]/70 bg-[var(--surface)] text-[10.5px]${
+                    savingRowKey === it.key ? " mrt-row-is-saving" : ""
+                  }`}
                   style={{ top: it.top, height: it.h }}
                   onDoubleClick={() => openLeaf(it)}
                 >
@@ -1923,12 +2380,17 @@ export function GanttTab({
                     className="flex items-center justify-end gap-1 px-2"
                     style={{ width: DUE_COL_W }}
                   >
-                    <RecalcBtn
-                      damId={it.damId}
-                      laneCode={it.laneCode}
-                      damName={it.damName}
-                      laneLabel={it.laneLabel}
-                    />
+                    {savingRowKey === it.key ? (
+                      <RowSaving />
+                    ) : (
+                      <RecalcBtn
+                        damId={it.damId}
+                        laneCode={it.laneCode}
+                        damName={it.damName}
+                        laneLabel={it.laneLabel}
+                        stale={staleRows.has(it.key)}
+                      />
+                    )}
                     <DueChip chip={it.chip} />
                   </span>
                 </div>
@@ -1942,17 +2404,23 @@ export function GanttTab({
             ref={timelineCanvasRef}
             className="absolute inset-0 h-full w-full"
             cameraRef={cameraRef}
+            scaleRef={scaleRef}
             scale={scale}
             months={months}
             winStart={win.start}
-            todayX={todayX}
             grain={grain}
             items={items}
             markersByRow={markersByRow}
             dueBeforeIdx={dueBeforeIdx}
             showSummarised={showSummarised}
-            drag={dragShiftRef.current}
+            hideKeyRef={hideKeyRef}
+            dragShiftRef={dragShiftRef}
             pulseKey={pulseKey}
+          />
+          <canvas
+            ref={dragOverlayRef}
+            className="pointer-events-none absolute inset-0 block h-full w-full"
+            aria-hidden
           />
           <div
             ref={bodyRef}
@@ -1976,14 +2444,17 @@ export function GanttTab({
               setOpen(hit);
             }}
           >
-            <div style={{ width, height: Math.max(totalHeight, 1) }} />
+            <div
+              ref={spacerRef}
+              style={{ width, height: Math.max(totalHeight, 1) }}
+            />
           </div>
-          {markersLoading ? (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <MrtInlineLoading label="chart" />
-            </div>
-          ) : null}
         </div>
+        {markersLoading || markersBusy || reshaping ? (
+          <div className="mrt-gantt-busy pointer-events-none">
+            <MrtInlineLoading label="chart" />
+          </div>
+        ) : null}
         </div>
         ) : null}
         {bothPanes ? (
@@ -2036,14 +2507,11 @@ export function GanttTab({
         {win.start.y}–{win.end.y} · click an FY label to fill
         the chart with that year
       </p>
-      {dragPreview ? (
-        <div
-          className="pointer-events-none fixed z-50 rounded bg-[var(--ink)] px-2 py-1 text-[11px] text-[var(--surface)]"
-          style={{ left: dragPreview.x + 14, top: dragPreview.y - 10 }}
-        >
-          {dragPreview.text}
-        </div>
-      ) : null}
+      <div
+        ref={dragTipRef}
+        className="pointer-events-none fixed z-50 rounded bg-[var(--ink)] px-2 py-1 text-[11px] text-[var(--surface)]"
+        style={{ display: "none", left: 0, top: 0 }}
+      />
 
       {open ? (
         <OccurrenceModal

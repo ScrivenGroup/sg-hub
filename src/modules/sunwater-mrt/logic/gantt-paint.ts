@@ -40,6 +40,101 @@ export type GanttCamera = {
 
 export type GanttDragShift = { key: string; px: number };
 
+export type GanttPaintRect = { x: number; y: number; w: number; h: number };
+
+/**
+ * Mirror of what is currently on a canvas, kept so a pan can copy the pixels
+ * across by the pan delta and repaint only the uncovered edge strip.
+ */
+export type GanttSceneCache = {
+  cv: HTMLCanvasElement | null;
+  devW: number;
+  devH: number;
+  devX: number;
+  devY: number;
+  dpr: number;
+  valid: boolean;
+};
+
+export function newGanttScene(): GanttSceneCache {
+  return {
+    cv: null,
+    devW: 0,
+    devH: 0,
+    devX: 0,
+    devY: 0,
+    dpr: 0,
+    valid: false,
+  };
+}
+
+export function devicePx() {
+  return typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+}
+
+/** Camera positions land on whole device pixels so blits never resample. */
+export function quantisePx(v: number, dpr: number) {
+  return Math.round(v * dpr) / dpr;
+}
+
+export function mirrorGanttScene(
+  cache: GanttSceneCache,
+  main: HTMLCanvasElement,
+  devX: number,
+  devY: number,
+) {
+  if (!cache.cv) cache.cv = document.createElement("canvas");
+  const cv = cache.cv;
+  if (cv.width !== main.width) cv.width = main.width;
+  if (cv.height !== main.height) cv.height = main.height;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(main, 0, 0);
+  cache.devW = main.width;
+  cache.devH = main.height;
+  cache.devX = devX;
+  cache.devY = devY;
+  cache.dpr = devicePx();
+  cache.valid = true;
+}
+
+/**
+ * Shift the cached pixels by the pan delta. Returns the strips still to be
+ * painted, or null when the cache cannot serve this move (caller repaints).
+ */
+export function blitGanttScene(
+  main: HTMLCanvasElement,
+  cache: GanttSceneCache,
+  devX: number,
+  devY: number,
+  dpr: number,
+): GanttPaintRect[] | null {
+  if (!cache.valid || !cache.cv) return null;
+  if (cache.devW !== main.width || cache.devH !== main.height) return null;
+  if (cache.dpr !== dpr) return null;
+  const ddx = cache.devX - devX;
+  const ddy = cache.devY - devY;
+  if (Math.abs(ddx) >= main.width || Math.abs(ddy) >= main.height) return null;
+  const ctx = main.getContext("2d");
+  if (!ctx) return null;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(cache.cv, ddx, ddy);
+  const cssW = main.width / dpr;
+  const cssH = main.height / dpr;
+  const strips: GanttPaintRect[] = [];
+  if (ddx > 0) strips.push({ x: 0, y: 0, w: ddx / dpr, h: cssH });
+  else if (ddx < 0) {
+    strips.push({ x: (main.width + ddx) / dpr, y: 0, w: -ddx / dpr, h: cssH });
+  }
+  if (ddy > 0) strips.push({ x: 0, y: 0, w: cssW, h: ddy / dpr });
+  else if (ddy < 0) {
+    strips.push({ x: 0, y: (main.height + ddy) / dpr, w: cssW, h: -ddy / dpr });
+  }
+  return strips;
+}
+
 function cssVar(style: CSSStyleDeclaration | null, name: string, fallback: string) {
   return style?.getPropertyValue(name).trim() || fallback;
 }
@@ -260,28 +355,38 @@ export function paintGanttTimeline(
     drag: GanttDragShift | null;
     pulseKey: string | null;
     pulseT: number;
+    /** Paint only this screen rect (edge strip after a pan). */
+    clip?: GanttPaintRect | null;
+    /** Marker left out of the scene because an overlay is drawing it. */
+    hideKey?: string | null;
   },
 ) {
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const dpr = devicePx();
   const { camera, scale, theme } = opts;
   fitCanvas(canvas, camera.w, camera.h, dpr);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  const clip = opts.clip ?? null;
+  const rx = clip ? clip.x : 0;
+  const ry = clip ? clip.y : 0;
+  const rw = clip ? clip.w : camera.w;
+  const rh = clip ? clip.h : camera.h;
+  if (rw <= 0 || rh <= 0) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, camera.w, camera.h);
-  ctx.fillStyle = theme.surface;
-  ctx.fillRect(0, 0, camera.w, camera.h);
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, camera.w, camera.h);
+  ctx.rect(rx, ry, rw, rh);
   ctx.clip();
+  ctx.clearRect(rx, ry, rw, rh);
+  ctx.fillStyle = theme.surface;
+  ctx.fillRect(rx, ry, rw, rh);
   ctx.translate(-camera.x, -camera.y);
 
-  const viewLeft = camera.x;
-  const viewRight = camera.x + camera.w;
-  const viewTop = camera.y;
-  const viewBottom = camera.y + camera.h;
+  const viewLeft = camera.x + rx;
+  const viewRight = viewLeft + rw;
+  const viewTop = camera.y + ry;
+  const viewBottom = viewTop + rh;
   const padX = 2;
   const padY = 2;
 
@@ -290,12 +395,12 @@ export function paintGanttTimeline(
     if (it.type === "gap") continue;
     if (it.type === "heading") {
       ctx.fillStyle = theme.surfaceMuted;
-      ctx.fillRect(viewLeft, it.top, camera.w, it.h);
+      ctx.fillRect(viewLeft, it.top, rw, it.h);
       ctx.fillStyle = theme.border;
-      ctx.fillRect(viewLeft, it.top + it.h - 1, camera.w, 1);
+      ctx.fillRect(viewLeft, it.top + it.h - 1, rw, 1);
     } else {
       ctx.fillStyle = cssToRgba(theme.border, 0.6);
-      ctx.fillRect(viewLeft, it.top + it.h - 1, camera.w, 1);
+      ctx.fillRect(viewLeft, it.top + it.h - 1, rw, 1);
     }
   }
 
@@ -304,7 +409,7 @@ export function paintGanttTimeline(
     if (x < viewLeft - 1 || x > viewRight + 1) continue;
     const { m0 } = idxToYm(i, opts.winStart);
     ctx.fillStyle = cssToRgba(theme.border, monthEdgeAlpha(m0, opts.grain));
-    ctx.fillRect(x, viewTop, 1, camera.h);
+    ctx.fillRect(x, viewTop, 1, rh);
   }
   if (opts.grain === "week") {
     const weekAlpha = 0.22;
@@ -312,11 +417,11 @@ export function paintGanttTimeline(
       const x = continuousToChartX(scale, slot.startC);
       if (x < viewLeft - 1 || x > viewRight + 1) continue;
       ctx.fillStyle = cssToRgba(theme.border, weekAlpha);
-      ctx.fillRect(x, viewTop, 1, camera.h);
+      ctx.fillRect(x, viewTop, 1, rh);
     }
   }
 
-  strokeDashToday(ctx, theme, opts.todayX, viewTop, camera.h);
+  strokeDashToday(ctx, theme, opts.todayX, viewTop, rh);
 
   const markA = (viewLeft - padX) / Math.max(1, scale.monthPx);
   const markB = (viewRight + padX) / Math.max(1, scale.monthPx);
@@ -334,6 +439,7 @@ export function paintGanttTimeline(
     );
     const cy = it.top + it.h / 2;
     for (const m of marks) {
+      if (opts.hideKey && markerPaintKey(m) === opts.hideKey) continue;
       if (a !== undefined && b !== undefined) {
         if (!markerOverlapsWindow(m, a, b, opts.winStart)) continue;
       } else {
@@ -372,26 +478,32 @@ export function paintGanttTimescale(
     grain: LoadGrain;
     years: { y: number; start: number; span: number }[];
     theme: GanttPaintTheme;
+    /** Paint only this screen rect (edge strip after a pan). */
+    clip?: GanttPaintRect | null;
   },
 ) {
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const dpr = devicePx();
   const { scale, theme, grain } = opts;
   fitCanvas(canvas, opts.viewW, opts.viewH, dpr);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  const clip = opts.clip ?? null;
+  const rx = clip ? clip.x : 0;
+  const rw = clip ? clip.w : opts.viewW;
+  if (rw <= 0) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, opts.viewW, opts.viewH);
-  ctx.fillStyle = theme.surface;
-  ctx.fillRect(0, 0, opts.viewW, opts.viewH);
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, opts.viewW, opts.viewH);
+  ctx.rect(rx, 0, rw, opts.viewH);
   ctx.clip();
+  ctx.clearRect(rx, 0, rw, opts.viewH);
+  ctx.fillStyle = theme.surface;
+  ctx.fillRect(rx, 0, rw, opts.viewH);
   ctx.translate(-opts.cameraX, 0);
 
   const font = "ui-sans-serif, system-ui, sans-serif";
-  const left = opts.cameraX;
-  const right = opts.cameraX + opts.viewW;
+  const left = opts.cameraX + rx;
+  const right = left + rw;
   const week = grain === "week";
   const yearH = 16;
   const qH = 12;
@@ -490,6 +602,76 @@ export function paintGanttTimescale(
 
   strokeDashToday(ctx, theme, opts.todayX, 0, opts.viewH);
   ctx.restore();
+}
+
+/**
+ * Draws the marker being dragged on a transparent overlay so the scene under
+ * it never has to be repainted. Clears only the rect it drew last time.
+ */
+export function paintGanttMarkerOverlay(
+  canvas: HTMLCanvasElement,
+  opts: {
+    camera: GanttCamera;
+    scale: GanttXScale;
+    winStart: { y: number; m: number };
+    marker: GanttMarker;
+    cy: number;
+    shiftPx: number;
+    theme: GanttPaintTheme;
+    clear: GanttPaintRect | null;
+  },
+): GanttPaintRect {
+  const dpr = devicePx();
+  const { camera, scale, marker } = opts;
+  fitCanvas(canvas, camera.w, camera.h, dpr);
+  const ctx = canvas.getContext("2d");
+  const dueX = markerDueX(marker, scale, opts.winStart) + opts.shiftPx;
+  const leadX = markerLeadX(marker, scale) + opts.shiftPx;
+  const left = Math.min(leadX, dueX) - GANTT_DOT_R - 3;
+  const right = dueX + GANTT_DOT_R + 3;
+  const rect = {
+    x: left - camera.x,
+    y: opts.cy - camera.y - GANTT_DOT_R - 4,
+    w: Math.max(1, right - left),
+    h: GANTT_DOT_R * 2 + 8,
+  };
+  if (!ctx) return rect;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (opts.clear) {
+    ctx.clearRect(
+      opts.clear.x - 1,
+      opts.clear.y - 1,
+      opts.clear.w + 2,
+      opts.clear.h + 2,
+    );
+  }
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+  drawMarker(
+    ctx,
+    marker,
+    scale,
+    opts.winStart,
+    opts.cy,
+    opts.theme,
+    { key: markerPaintKey(marker), px: opts.shiftPx },
+    null,
+    0,
+  );
+  ctx.restore();
+  return rect;
+}
+
+export function clearGanttOverlay(
+  canvas: HTMLCanvasElement | null,
+  rect: GanttPaintRect | null,
+) {
+  if (!canvas || !rect) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const dpr = devicePx();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2);
 }
 
 export function hitTestGanttMarker(opts: {

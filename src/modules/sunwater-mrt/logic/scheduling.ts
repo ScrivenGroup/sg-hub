@@ -658,6 +658,50 @@ function nearestSlot(proc: number, slots: number[]) {
   return best;
 }
 
+/**
+ * Same test as rowNeedsRecalc for many rows off one marker pass. Calling
+ * rowNeedsRecalc per row rebuilds every marker in the store each time, which
+ * is far too slow for a full Gantt row list.
+ */
+export function staleRecalcRows(
+  store: ScheduleStore,
+  markers: GanttMarker[],
+): Set<string> {
+  const start = storeWindow(store).start;
+  const firstByRow = new Map<string, GanttMarker>();
+  for (const m of markers) {
+    if (m.kind === "completed" || m.kind === "notRequired") continue;
+    const key = `${m.damId}-${m.laneCode}`;
+    const cur = firstByRow.get(key);
+    if (!cur || m.displayDueIdx < cur.displayDueIdx) firstByRow.set(key, m);
+  }
+  const damById = new Map(store.dams.map((d) => [d.id, d]));
+  const laneByCode = new Map(store.lanes.map((l) => [l.code, l]));
+  const stale = new Set<string>();
+  for (const [key, first] of firstByRow) {
+    const dam = damById.get(first.damId);
+    const lane = laneByCode.get(first.laneCode);
+    if (!dam || !lane) continue;
+    if (!isScheduled(store, dam, lane, first.procDueIdx)) continue;
+    const anchor = store.laneCycleAnchors?.[first.damId]?.[first.laneCode];
+    const liveDay = effectiveDueDay(store, dam, lane, first.procDueIdx, start);
+    let off: boolean;
+    if (!anchor?.y || !anchor?.m) {
+      off =
+        first.displayDueIdx !== first.procDueIdx ||
+        liveDay !== defaultDueDayForIdx(first.displayDueIdx, start);
+    } else {
+      const originIdx = monthIndex(anchor.y, anchor.m, start);
+      off =
+        Math.round(first.displayDueIdx) !== originIdx ||
+        liveDay !==
+          cycleAnchorDueDay(store, dam, lane, first.displayDueIdx, start);
+    }
+    if (off) stale.add(key);
+  }
+  return stale;
+}
+
 export function rowNeedsRecalc(
   store: ScheduleStore,
   damId: string,

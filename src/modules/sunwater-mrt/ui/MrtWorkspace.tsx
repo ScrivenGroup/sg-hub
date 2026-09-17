@@ -9,7 +9,11 @@ import { AdminTab } from "./AdminTab";
 import { DefaultsTab } from "./DefaultsTab";
 import { DefinitionsTab, type DefinitionsSub } from "./DefinitionsTab";
 import { DevelopmentTab } from "./DevelopmentTab";
-import { GanttTab, type GanttOccurrenceFocus } from "./GanttTab";
+import {
+  GanttTab,
+  type GanttOccurrenceFocus,
+  type GanttViewState,
+} from "./GanttTab";
 import { HelpTab } from "./HelpTab";
 import { InputsTab, type InputsSub } from "./InputsTab";
 import { ObligationsTab } from "./ObligationsTab";
@@ -63,6 +67,8 @@ export function MrtWorkspace({
   const [, startTransition] = useTransition();
   const [resetting, startReset] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Gantt filters, grouping and camera outlive a trip to another tab.
+  const ganttView = useRef<GanttViewState>({});
 
   function persist(next: ScheduleStore) {
     if (readOnly) return;
@@ -212,6 +218,7 @@ export function MrtWorkspace({
           store={store}
           onChange={persist}
           readOnly={readOnly}
+          viewRef={ganttView}
           focusOccurrence={ganttFocus}
           onFocusConsumed={() => setGanttFocus(null)}
           onGoToDefaults={(laneCode) => {

@@ -236,6 +236,22 @@ export function OccurrenceModal({
     onChange(next);
   }
 
+  /** Throw away every saved date and hour for this occurrence. */
+  function resetToPredicted() {
+    if (readOnly) return;
+    if (
+      !confirm(
+        `Reset this occurrence for ${dam.name} · ${lane.code}?\n\nDrops the saved due date, lead-in and planned hours. The occurrence goes back to predicted (dashed) on the cycle date. Recalculate this row to rebase later cycles.`,
+      )
+    ) {
+      return;
+    }
+    const next: ScheduleStore = JSON.parse(JSON.stringify(store));
+    delete next.scheduledDetails[key];
+    onChange(next);
+    onClose();
+  }
+
   function removeMilestone() {
     if (readOnly || kind === "completed") return;
     const next: ScheduleStore = JSON.parse(JSON.stringify(store));
@@ -298,6 +314,16 @@ export function OccurrenceModal({
                 onClick={removeMilestone}
               >
                 Remove this milestone
+              </button>
+            )}
+            {readOnly || kind === "predicted" ? null : (
+              <button
+                type="button"
+                className="mrt-btn-secondary"
+                title="Drop the saved date and hours — back to a predicted (dashed) occurrence on the cycle date"
+                onClick={resetToPredicted}
+              >
+                Reset to predicted
               </button>
             )}
             <span className="mrt-occ-note">

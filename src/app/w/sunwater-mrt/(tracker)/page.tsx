@@ -36,6 +36,7 @@ export default async function SunwaterMrtPage() {
   return (
     <AppShell
       currentHref={HREF}
+      frameClassName="h-dvh max-h-dvh overflow-hidden"
       mainClassName="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-3 pt-0"
       title={
         <h1 className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">

@@ -1192,6 +1192,28 @@ Out of this version
 - Localhost PATCH until the next hub train.`,
   },
   {
+    id: "cl-sunwater-mrt-1.5.8",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.8",
+    createdAt: "2026-09-17T04:20:00.000Z",
+    title: "One camera over the Gantt: pan, FY and drag stop loading",
+    body: `- Row names and the chart now share one camera, so names stay level with their dots however far you pan up or down.
+- Panning slides the picture already drawn instead of drawing it again, and the chart stays inside its card.
+- FY labels move the camera. Once the chart lands on this financial year, every FY click snaps with no wait.
+- Dragging a due date follows the pointer on a thin overlay. The date is written on release, as before.
+- Dragging a due and resizing the timescale window now do their work once per screen frame, so a fast mouse cannot outrun the picture.
+- All name rows are built once when the filter changes, so panning with every asset on no longer stops to load the next stretch.
+- A spinner covers the chart while it rebuilds after Asset, Type, grouping or collapse. A dropped due holds its new spot and its row greys out with a spinner until the date is saved — no more jumping back to the old date.
+- The timescale window can be squeezed down to a single month. It used to stop at about a year.
+- Loading the hours pane now floats over it instead of pushing the rows down.
+- A quick flick that starts on a milestone pans the chart. Rest on the milestone for a moment and the cursor turns to sideways arrows, which means the date can now be dragged.
+- Asset and Type filters, grouping, collapse, zoom and your place on the chart survive a trip to another tab. Reset on the Gantt still clears them.
+- Occurrence popup has Reset to predicted: drops the saved date, lead-in and hours so the milestone goes back to a dashed cycle date.
+- Obligations: "Calculate for N years" accepts what you type and only clamps when you leave the box.
+- Localhost PATCH until the next hub train.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",
