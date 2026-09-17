@@ -1,10 +1,10 @@
 # Design library (agent names)
 
-In-app: System → Standards → Design Library / Behaviours. Live notes: Drop (`/s/standards?tab=drop`).
+In-app: System → Standards. Home lists gaps/conflicts with a suggested resolution. Live notes: Drop (`/s/standards?tab=drop`).
 
-Kit defaults live on each card even after a PM decision. Do not invent a parallel class. Conflicts are listed in-app for Bill — do not silently restyle MRT or Buylist.
+Kit defaults stay on each card after a PM decision. Do not invent a parallel class. Do not restyle MRT or Buylist until Bill locks a row.
 
-Source: `src/modules/standards/catalog.ts`.
+Source: `src/modules/standards/catalog.ts`. Farmed 2026-09-17.
 
 ## Use these names
 
@@ -20,6 +20,7 @@ Source: `src/modules/standards/catalog.ts`.
 | tok-radius | token | `--radius` |
 | tok-control-height | token | `--sg-btn-height` |
 | tok-type | token | `--font-sans` |
+| tok-motion | token | `prefers-reduced-motion` in globals.css |
 | obj-btn-primary | object | `sg-btn-primary` |
 | obj-btn-secondary | object | `sg-btn-secondary` |
 | obj-btn-ghost | object | `sg-btn-ghost` |
@@ -30,11 +31,14 @@ Source: `src/modules/standards/catalog.ts`.
 | obj-status-pill | object | `StatusPill` |
 | obj-rag | object | `RagDot` |
 | obj-info | object | `InfoTip` |
+| obj-skip | object | `sg-skip` |
+| obj-link | object | `underline underline-offset-2` |
+| obj-check | object | native checkbox/radio |
 | obj-dialog | object | `EffortPopupShell` / `ShellModal` (conflict) |
 | pat-page-header | pattern | PageNav + h1 + CodeBadge + StatusPill |
 | pat-leaf-tabs | pattern | `sg-tab` + `?tab=` |
 
-Gaps (no name yet): `obj-btn-destructive`, `obj-table`, `tok-elevation`, `tok-icon`, `pat-form`.
+Gaps (no name yet): `obj-btn-destructive`, `obj-table`, `obj-chip`, `obj-seg`, `obj-banner`, `obj-toast`, `tok-elevation`, `tok-icon`, `tok-focus`, `pat-form`.
 
 ## Behaviours
 

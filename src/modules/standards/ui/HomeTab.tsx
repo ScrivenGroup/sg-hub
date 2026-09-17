@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { STANDARDS_HREF, type StandardsDropRecord } from "../schema";
-import { libraryNeedingDecision } from "../catalog";
+import { libraryNeedingDecision, libraryTabFor } from "../catalog";
 import { DropList } from "./DropList";
 
 const DOORS = [
@@ -69,28 +69,44 @@ export function HomeTab({ drops }: { drops: StandardsDropRecord[] }) {
         <h2 id="queue-heading" className="mb-3 text-lg font-semibold">
           Needs a look
         </h2>
-        <div className="sg-card">
-          <p className="text-sm text-[var(--muted)]">
-            Farmed from what is already built. Nothing here restyles MRT or
-            Buylist until you decide.
-          </p>
-          <p className="mt-2 font-medium">
-            {conflicts} conflict{conflicts === 1 ? "" : "s"} · {gaps} gap
-            {gaps === 1 ? "" : "s"} · {drops.length} in the drop pile
-          </p>
-          <p className="mt-2 text-sm">
-            <Link href={`${STANDARDS_HREF}?tab=design`} className="underline underline-offset-2">
-              Open Design Library
-            </Link>
-            {" · "}
-            <Link
-              href={`${STANDARDS_HREF}?tab=behaviours`}
-              className="underline underline-offset-2"
-            >
-              Open Behaviours
-            </Link>
-          </p>
-        </div>
+        <p className="mb-3 text-sm text-[var(--muted)]">
+          Farmed from the hub as built. Suggestions are not applied. Drop a
+          decision on the pile, or say which row to lock.
+        </p>
+        <p className="mb-3 text-sm font-medium">
+          {conflicts} conflict{conflicts === 1 ? "" : "s"} · {gaps} gap
+          {gaps === 1 ? "" : "s"} · {drops.length} in the drop pile
+        </p>
+        <ul className="space-y-3">
+          {needs.map((row) => (
+            <li key={row.id} className="sg-card space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold">{row.title}</p>
+                <code className="font-mono text-xs text-[var(--muted)]">{row.id}</code>
+                <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-medium uppercase">
+                  {row.status}
+                </span>
+              </div>
+              {row.exists ? (
+                <p className="text-sm text-[var(--muted)]">{row.exists}</p>
+              ) : null}
+              {row.suggest ? (
+                <p className="text-sm">
+                  <span className="font-medium">Suggest: </span>
+                  {row.suggest}
+                </p>
+              ) : null}
+              <p className="text-sm">
+                <Link
+                  href={`${STANDARDS_HREF}?tab=${libraryTabFor(row)}#${row.id}`}
+                  className="underline underline-offset-2"
+                >
+                  Open card
+                </Link>
+              </p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="recent-heading">

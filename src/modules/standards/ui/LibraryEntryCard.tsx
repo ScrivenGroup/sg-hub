@@ -48,6 +48,22 @@ export function LibraryEntryCard({
         </div>
       </dl>
       {row.notes ? <p className="text-sm text-[var(--muted)]">{row.notes}</p> : null}
+      {row.exists ? (
+        <div className="text-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+            Exists today
+          </p>
+          <p>{row.exists}</p>
+        </div>
+      ) : null}
+      {row.suggest ? (
+        <div className="text-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+            Suggest
+          </p>
+          <p>{row.suggest}</p>
+        </div>
+      ) : null}
       {row.decisions && row.decisions.length > 0 ? (
         <ul className="space-y-1 text-sm text-[var(--muted)]">
           {row.decisions.map((d) => (
