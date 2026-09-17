@@ -90,6 +90,12 @@ import {
   pgRetagKanbanAttachments,
   pgGetKanbanLeafNote,
   pgUpsertKanbanLeafNote,
+  pgGetStandardsChoices,
+  pgUpsertStandardsChoice,
+  pgReplaceStandardsChoices,
+  pgGetStandardsHolds,
+  pgInsertStandardsHold,
+  pgDeleteStandardsHold,
   pgInsertPlaymantisHarvestDiff,
   pgListPlaymantisHarvestDiff,
   pgClearPlaymantisHarvestDiff,
@@ -397,19 +403,52 @@ export async function getDevChoices(): Promise<DevChoiceRecord[]> {
   return out;
 }
 
-export async function getStandardsChoices(): Promise<StandardsChoices> {
-  const rows = await readJson("standards-choices.json", {} as StandardsChoices);
+function asChoices(rows: unknown): StandardsChoices {
   if (!rows || typeof rows !== "object" || Array.isArray(rows)) return {};
-  return rows;
+  const out: StandardsChoices = {};
+  for (const [key, value] of Object.entries(rows as Record<string, unknown>)) {
+    if (typeof value === "string" && value) out[key] = value;
+  }
+  return out;
+}
+
+export async function getStandardsChoices(): Promise<StandardsChoices> {
+  if (postgresEnabled()) {
+    const rows = await pgGetStandardsChoices();
+    if (Object.keys(rows).length > 0) return rows;
+    const fromJson = asChoices(
+      await readJsonIfExists<StandardsChoices>("standards-choices.json"),
+    );
+    if (Object.keys(fromJson).length > 0) {
+      await pgReplaceStandardsChoices(fromJson, new Date().toISOString());
+    }
+    return fromJson;
+  }
+  return asChoices(
+    await readJson("standards-choices.json", {} as StandardsChoices),
+  );
 }
 
 export async function setStandardsChoice(entryId: string, optionId: string): Promise<void> {
   const all = await getStandardsChoices();
   all[entryId] = optionId;
-  await writeJson("standards-choices.json", all);
+  if (postgresEnabled()) {
+    await pgUpsertStandardsChoice(entryId, optionId, new Date().toISOString());
+  }
+  await persistSimpleJson("standards-choices.json", all);
 }
 
 export async function getStandardsHolds(): Promise<StandardsHoldRecord[]> {
+  if (postgresEnabled()) {
+    const rows = await pgGetStandardsHolds();
+    if (rows.length > 0) return rows;
+    const fromJson = await readJsonIfExists<StandardsHoldRecord[]>(
+      "standards-hold.json",
+    );
+    const list = Array.isArray(fromJson) ? fromJson : [];
+    for (const row of list) await pgInsertStandardsHold(row);
+    return list;
+  }
   const rows = await readJson("standards-hold.json", [] as StandardsHoldRecord[]);
   return Array.isArray(rows) ? rows : [];
 }
@@ -417,18 +456,34 @@ export async function getStandardsHolds(): Promise<StandardsHoldRecord[]> {
 export async function addStandardsHold(
   entry: Omit<StandardsHoldRecord, "id" | "createdAt">,
 ): Promise<StandardsHoldRecord> {
-  const all = await getStandardsHolds();
   const record: StandardsHoldRecord = {
     ...entry,
     id: `sh-${Date.now().toString(36)}`,
     createdAt: new Date().toISOString(),
   };
+  if (postgresEnabled()) {
+    await pgInsertStandardsHold(record);
+    await persistSimpleJson(
+      "standards-hold.json",
+      await pgGetStandardsHolds(),
+    );
+    return record;
+  }
+  const all = await getStandardsHolds();
   all.unshift(record);
   await writeJson("standards-hold.json", all);
   return record;
 }
 
 export async function removeStandardsHold(id: string): Promise<void> {
+  if (postgresEnabled()) {
+    await pgDeleteStandardsHold(id);
+    await persistSimpleJson(
+      "standards-hold.json",
+      await pgGetStandardsHolds(),
+    );
+    return;
+  }
   const all = await getStandardsHolds();
   await writeJson(
     "standards-hold.json",

@@ -1,6 +1,6 @@
 # Design library (agent names)
 
-In-app: System → Standards. Design Library is the definitive visual kit. Off-standard picks are flagged on the object. Leaf desks dump gaps on Home → Hold — they do not rewrite this library.
+In-app: System → Standards. Design Library is the definitive visual kit. Picks are Neon rows (not laptop JSON). Off-standard picks are flagged on the object and applied to `sg-*` on the hub. Leaf desks dump gaps on Home → Hold — they do not rewrite this library.
 
 Kit defaults stay on each card after a PM decision. Do not invent a parallel class. Do not restyle MRT or Buylist until Bill locks a row.
 

@@ -6,7 +6,7 @@ See also `src/core/checklist.md` and [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPME
 
 ## Design Library
 
-The in-app Design Library is the definitive visual kit. Do not invent a new class. If Bill picks something other than the hub standard, that object is flagged on the card (one current choice). Chrome Feedback stays the bug door (`/d?tab=inbox`). Do not restyle other leaves until that object is locked.
+The in-app Design Library is the definitive visual kit. Picks and Hold notes live on Neon (`standards_choices` / `standards_holds`) via `json-store` — the same `DATABASE_URL` as Kanban. Laptop `data/` is fallback only. A pick is shared across desks immediately; it is not a local draft waiting for make-it-live. Kit CSS that follows a pick (`sg-btn-primary` border, `sg-btn-danger`) applies on the next layout render. Chrome Feedback stays the bug door (`/d?tab=inbox`). Do not restyle MRT or Buylist product classes until that object is locked.
 
 ## Holding pile
 

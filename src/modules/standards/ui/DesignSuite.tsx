@@ -126,7 +126,7 @@ export function DesignSuite({ choices }: { choices: StandardsChoices }) {
               <ChoiceItem
                 entryId="obj-btn-destructive"
                 title="Destructive"
-                use="sg-btn-danger (not in kit)"
+                use="sg-btn-danger"
                 choices={local}
                 onPicked={pick}
               />

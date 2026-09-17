@@ -66,6 +66,8 @@ Simple registers → zip exclude → live migrate of those files → **then** MR
 
 **Kanban Online (2026-09-05):** `kanban_ideas` + `kanban_tickets` (+ `kanban_meta`) rows with `node_id`. Leaf scratchpad: `kanban_leaf_notes`. Not JSONB-per-leaf. Same `DATABASE_URL`. JSON fallback mirrors columns. Not deployed until Bill says.
 
+**Standards (2026-09-17):** `standards_choices` + `standards_holds`. Same `DATABASE_URL`. Picks are shared development truth, not a zip-later draft. JSON fallback only when Postgres is off.
+
 ---
 
 ## Execution: sub-agents & multitask

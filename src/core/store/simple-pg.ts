@@ -25,6 +25,8 @@ import {
   mrtShare,
   notes,
   playmantisHarvestDiff,
+  standardsChoices,
+  standardsHolds,
 } from "@/core/store/schema";
 import {
   MRT_RELATIONAL_DDL,
@@ -37,6 +39,12 @@ import type {
   KanbanMeta,
   KanbanTicket,
 } from "@/core/kanban/schema";
+import type {
+  StandardsChoices,
+  StandardsHoldKind,
+  StandardsHoldRecord,
+} from "@/modules/standards/schema";
+import { STANDARDS_HOLD_KINDS } from "@/modules/standards/schema";
 import {
   kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
@@ -61,7 +69,7 @@ export type MrtShareRow = {
 
 type SimpleSchema = typeof schema;
 
-const DDL_VERSION = 4;
+const DDL_VERSION = 5;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -180,6 +188,19 @@ const DDL = [
     node_id text PRIMARY KEY,
     body text NOT NULL,
     updated_at text NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS standards_choices (
+    entry_id text PRIMARY KEY,
+    option_id text NOT NULL,
+    updated_at text NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS standards_holds (
+    id text PRIMARY KEY,
+    created_at text NOT NULL,
+    kind text NOT NULL,
+    body text NOT NULL,
+    source text,
+    submitted_by text NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS playmantis_harvest_diff (
     id text PRIMARY KEY,
@@ -768,6 +789,78 @@ export async function pgUpsertKanbanLeafNote(
       target: kanbanLeafNotes.nodeId,
       set: { body, updatedAt },
     });
+}
+
+function holdKind(value: string): StandardsHoldKind {
+  return STANDARDS_HOLD_KINDS.includes(value as StandardsHoldKind)
+    ? (value as StandardsHoldKind)
+    : "note";
+}
+
+export async function pgGetStandardsChoices(): Promise<StandardsChoices> {
+  const db = await getDb();
+  const rows = await db.select().from(standardsChoices);
+  const out: StandardsChoices = {};
+  for (const row of rows) out[row.entryId] = row.optionId;
+  return out;
+}
+
+export async function pgUpsertStandardsChoice(
+  entryId: string,
+  optionId: string,
+  updatedAt: string,
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(standardsChoices)
+    .values({ entryId, optionId, updatedAt })
+    .onConflictDoUpdate({
+      target: standardsChoices.entryId,
+      set: { optionId, updatedAt },
+    });
+}
+
+export async function pgReplaceStandardsChoices(
+  rows: StandardsChoices,
+  updatedAt: string,
+): Promise<void> {
+  for (const [entryId, optionId] of Object.entries(rows)) {
+    await pgUpsertStandardsChoice(entryId, optionId, updatedAt);
+  }
+}
+
+export async function pgGetStandardsHolds(): Promise<StandardsHoldRecord[]> {
+  const db = await getDb();
+  const rows = await db.select().from(standardsHolds);
+  return rows
+    .map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      kind: holdKind(row.kind),
+      body: row.body,
+      source: row.source ?? undefined,
+      submittedBy: row.submittedBy,
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function pgInsertStandardsHold(
+  row: StandardsHoldRecord,
+): Promise<void> {
+  const db = await getDb();
+  await db.insert(standardsHolds).values({
+    id: row.id,
+    createdAt: row.createdAt,
+    kind: row.kind,
+    body: row.body,
+    source: row.source ?? null,
+    submittedBy: row.submittedBy,
+  });
+}
+
+export async function pgDeleteStandardsHold(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(standardsHolds).where(eq(standardsHolds.id, id));
 }
 
 export async function pgInsertPlaymantisHarvestDiff(

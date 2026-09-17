@@ -253,10 +253,10 @@ export const LIBRARY_SEED: LibraryEntry[] = [
     id: "obj-btn-destructive",
     layer: "object",
     title: "Destructive button",
-    use: "(none — not in kit)",
-    kitDefault: "Not defined. Do not invent a third green/red primary.",
-    exists: "MRT .mrt-btn-remove (red wash, often 44px). Buylist one-off red-border class on Run. No sg-btn-danger.",
-    suggest: "Add sg-btn-danger to globals.css: 32px, 10px radius, red border, surface fill, rag-red text. Then retarget MRT remove + Buylist. Confirm before using it (beh-destructive).",
+    use: "sg-btn-danger",
+    kitDefault: "Named class exists. Do not invent a third green/red primary.",
+    exists: "sg-btn-danger is in globals.css. MRT still uses .mrt-btn-remove. Buylist still has a one-off red-border on Run.",
+    suggest: "Use sg-btn-danger on new hub chrome. Do not retarget MRT remove or Buylist until Bill locks this row.",
     status: "conflict",
     conflicts: [
       {
@@ -757,6 +757,21 @@ export function isOffStandard(choices: Record<string, string>, entryId: string):
 
 export function offStandardEntries(choices: Record<string, string>): string[] {
   return LIBRARY_QUESTIONS.map((q) => q.id).filter((id) => isOffStandard(choices, id));
+}
+
+/** Live kit flags for `<html>`. Neon picks apply to sg-* immediately — not a later zip. */
+export function standardsKitAttrs(choices: Record<string, string>): {
+  "data-sg-primary": "fill" | "border";
+  "data-sg-danger": "later" | "named";
+  "data-sg-dialog": "one" | "two";
+} {
+  return {
+    "data-sg-primary":
+      choices["obj-btn-primary"] === "border" ? "border" : "fill",
+    "data-sg-danger":
+      choices["obj-btn-destructive"] === "named" ? "named" : "later",
+    "data-sg-dialog": choices["obj-dialog"] === "two" ? "two" : "one",
+  };
 }
 
 export function libraryByLayer(layer: LibraryLayer): LibraryEntry[] {

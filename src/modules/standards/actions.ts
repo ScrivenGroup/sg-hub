@@ -33,6 +33,7 @@ export async function setStandardsChoiceAction(formData: FormData) {
 
   await setStandardsChoice(entryId, optionId);
   revalidatePath(STANDARDS_HREF);
+  revalidatePath("/", "layout");
   return { ok: true as const };
 }
 
