@@ -29,7 +29,7 @@ Login → Home
   ├── Projects     /p     personal / spin-out capable
   ├── Development  /d     suite (Inbox, board, changelog, notes, design spec)
   ├── Internal     /i     leftover tools (`/i/dev-choices`, `/i/testing`)
-  └── System       /s     Definition + Appearance
+  └── System       /s     Definition + Appearance + Standards
 ```
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.

@@ -68,6 +68,28 @@ body {
   opacity: 0.92;
 }
 
+html[data-sg-primary="border"] .sg-btn-primary {
+  border: 1px solid color-mix(in srgb, var(--ink) 72%, black);
+}
+
+.sg-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--sg-btn-height);
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--rag-red);
+  background: var(--surface);
+  color: var(--rag-red);
+  font-weight: 600;
+  font-size: var(--sg-btn-font);
+}
+
+.sg-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rag-red) 12%, var(--surface));
+}
+
 .sg-btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -158,6 +180,22 @@ body {
   white-space: pre-wrap;
   line-height: 1.55;
   font-size: 0.95rem;
+}
+
+@keyframes sg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sg-loading-spin {
+  display: inline-block;
+  height: 3rem;
+  width: 3rem;
+  border-radius: 9999px;
+  border: 3px solid var(--muted);
+  border-top-color: var(--ink);
+  animation: sg-spin 0.7s linear infinite;
 }
 
 @media print {

@@ -148,6 +148,52 @@ export const mtgBuylistStoreSchema = z.object({
   mateImageLinks: z.record(z.string(), z.string()).optional().default({}),
 });
 
+export const DEFAULT_BUYLIST_RUN_ID = "this";
+export const MAX_LIVE_BUYLIST_RUNS = 8;
+
+export const buylistHarvestSchema = z.object({
+  mate: mtgBuylistStoreSchema.shape.mate,
+  playmantis: mtgBuylistStoreSchema.shape.playmantis,
+  mateImageLinks: z.record(z.string(), z.string()).optional().default({}),
+});
+
+export const buylistRunFileSchema = z.object({
+  id: z.string(),
+  updatedAt: z.string(),
+  csv: mtgBuylistStoreSchema.shape.csv,
+  mate: mtgBuylistStoreSchema.shape.mate.optional().default(null),
+  playmantis: mtgBuylistStoreSchema.shape.playmantis.optional().default(null),
+  resultPm: allocateResultSchema.nullable(),
+  resultMate: allocateResultSchema.nullable(),
+  resultCompare: allocateResultSchema.nullable(),
+  mateConfirmations: z.record(z.string(), z.string()).optional().default({}),
+  mateReconfirm: z.record(z.string(), z.boolean()).optional().default({}),
+  mateImageLinks: z.record(z.string(), z.string()).optional().default({}),
+});
+
+export const buylistRunMetaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  csvFilename: z.string().optional().default(""),
+  updatedAt: z.string(),
+  hasData: z.boolean(),
+});
+
+export const buylistArchiveSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  csvFilename: z.string().optional().default(""),
+  archivedAt: z.string(),
+});
+
+export const buylistOwnerIndexSchema = z.object({
+  notes: z.string().optional().default(""),
+  activeRunId: z.string(),
+  runs: z.array(buylistRunMetaSchema),
+  archives: z.array(buylistArchiveSchema).optional().default([]),
+  harvestFolded: z.boolean().optional().default(false),
+});
+
 export const playmantisHarvestDiffRowSchema = z.object({
   id: z.string(),
   batchId: z.string(),
@@ -177,6 +223,11 @@ export type PlaymantisOffer = z.infer<typeof playmantisOfferSchema>;
 export type AllocateLine = z.infer<typeof allocateLineSchema>;
 export type AllocateResult = z.infer<typeof allocateResultSchema>;
 export type MtgBuylistStore = z.infer<typeof mtgBuylistStoreSchema>;
+export type BuylistHarvest = z.infer<typeof buylistHarvestSchema>;
+export type BuylistRunFile = z.infer<typeof buylistRunFileSchema>;
+export type BuylistRunMeta = z.infer<typeof buylistRunMetaSchema>;
+export type BuylistArchive = z.infer<typeof buylistArchiveSchema>;
+export type BuylistOwnerIndex = z.infer<typeof buylistOwnerIndexSchema>;
 export type PlaymantisHarvestDiffRow = z.infer<typeof playmantisHarvestDiffRowSchema>;
 
 export function emptyMtgBuylistStore(): MtgBuylistStore {

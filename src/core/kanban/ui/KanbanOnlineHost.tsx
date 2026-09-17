@@ -24,6 +24,7 @@ import { KanbanChangelogPanel } from "./KanbanChangelogPanel";
 import { KanbanDesignSpec } from "./KanbanDesignSpec";
 import { KanbanNotesPanel } from "./KanbanNotesPanel";
 import { RaiseIdeaButton } from "./RaiseIdeaButton";
+import { useUiLoadingGate } from "@/core/shell/UiLoading";
 
 export type KanbanOnlineScope = "all" | "leaf";
 export type KanbanOnlinePanel = "inbox" | "kanban";
@@ -125,6 +126,7 @@ export function KanbanOnlineHost({
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const router = useRouter();
+  const runUi = useUiLoadingGate();
   const [chromeTabState, setChromeTab] = useState<ChromeTab>(() =>
     initialChromeTab(panel, initialTab),
   );
@@ -189,10 +191,13 @@ export function KanbanOnlineHost({
   }, [panel, forcedTab]);
 
   function selectChrome(next: ChromeTab) {
-    setChromeTab(next);
-    if (!showTabs) return;
-    const path = revalidateHref.split("?")[0];
-    router.replace(`${path}?tab=${urlTabFor(next)}`, { scroll: false });
+    if (next === chromeTab) return;
+    runUi(() => {
+      setChromeTab(next);
+      if (!showTabs) return;
+      const path = revalidateHref.split("?")[0];
+      router.replace(`${path}?tab=${urlTabFor(next)}`, { scroll: false });
+    });
   }
 
   return (

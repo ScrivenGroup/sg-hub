@@ -127,7 +127,7 @@ export async function AppShell({
       <main
         id="main"
         className={
-          mainClassName ?? "mx-auto max-w-5xl px-4 pb-24 pt-8 sm:pb-8"
+          mainClassName ?? "w-full px-4 pb-24 pt-8 sm:pb-8"
         }
       >
         {children}

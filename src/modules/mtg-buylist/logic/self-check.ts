@@ -8,7 +8,7 @@ import {
   scryfallIdsNeedingPlaymantisFetch,
 } from "./playmantis";
 import { csvJoinKeys, mateCollectorFromName, normalizeCardName, playmantisCardName } from "./names";
-import { emptyMtgBuylistStore } from "../schema";
+import { MAX_LIVE_BUYLIST_RUNS, emptyMtgBuylistStore } from "../schema";
 import {
   buildCompareRows,
   buildMateStreamRows,
@@ -17,7 +17,17 @@ import {
   recoveredPercent,
   recoveryBand,
 } from "./tables";
-import { buildOuterJoin, parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import { buildOuterJoin, filterJoinRows, parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import {
+  assembleBuylistStore,
+  emptyBuylistOwnerIndex,
+  emptyBuylistRunFile,
+  pickArchiveVictim,
+  runHasStoredData,
+  shouldArchiveForNewRun,
+  splitBuylistStore,
+  splitLegacyStore,
+} from "./runs";
 import { cardLookupKey } from "./scryfall";
 import { parseMateOrderHtml, parsePlaymantisSubmission } from "./parse-submissions";
 import {
@@ -1128,6 +1138,40 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
     messages.push("Submission detect should treat a saved Mate order page as Mate HTML");
   }
 
+  const mateIncoming = `
+    <table><tbody class="buylist-card-table">
+      <tr class="buylist-card ">
+        <td><i class="set-code ss ss-khm" value="khm"></i></td>
+        <td class="magic-card-name">
+          <a data-title="Smashing Success" href="/cards/Smashing_Success/KHM/151:foil:lightly-played">Smashing Success</a>
+          <span class="badge badge-label finish">Foil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Incoming"></span></td>
+      </tr>
+      <tr class="buylist-card ">
+        <td><i class="set-code" value="ddh"></i></td>
+        <td class="magic-card-name">
+          <a href="/cards/Ghost/DDH/1:lightly-played">Ghost</a>
+          <span class="finish">Nonfoil</span>
+        </td>
+        <td class="buylist-card-state"><span title="Rejected"></span></td>
+      </tr>
+    </tbody></table>
+  `;
+  const incomingParsed = parseMateOrderHtml(mateIncoming);
+  if (
+    incomingParsed.length !== 1 ||
+    incomingParsed[0]?.name !== "Smashing Success" ||
+    incomingParsed[0]?.foil !== "foil" ||
+    incomingParsed[0]?.collectorNumber !== "151"
+  ) {
+    messages.push("Mate order HTML should keep Incoming foil rows and skip Rejected");
+  }
+  const incomingViaDetect = parseSubmissionCsv(mateIncoming);
+  if (incomingViaDetect.length !== 1) {
+    messages.push("Submission detect should treat Incoming Mate order rows as sold");
+  }
+
   const pmWithOnly = parsePlaymantisSubmission(
     [
       "Content-Type: text/html; charset=utf-8",
@@ -1182,6 +1226,27 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
   if (!join.reimport.some((r) => r.name === "Unknown Card" && r.quantity === 1)) {
     messages.push("Re-import should keep CSV-only cards with Remaining > 0");
   }
+  if (filterJoinRows(join.join, "master").length !== join.join.length) {
+    messages.push("Master view should include every outer-join row");
+  }
+  if (filterJoinRows(join.join, "reimport").some((r) => r.remaining <= 0)) {
+    messages.push("Reimport view should only include Remaining > 0");
+  }
+  if (filterJoinRows(join.join, "csv").some((r) => r.csvQty <= 0)) {
+    messages.push("CSV view should only include rows with CSV qty");
+  }
+  if (filterJoinRows(join.join, "noncsv").some((r) => r.csvQty > 0)) {
+    messages.push("Non-CSV view should exclude CSV printings");
+  }
+  if (!filterJoinRows(join.join, "oversold").some((r) => r.name === "Forest")) {
+    messages.push("Oversold view should include Forest");
+  }
+  if (!filterJoinRows(join.join, "unsold").some((r) => r.name === "Unknown Card")) {
+    messages.push("Unsold view should include CSV-only Unknown Card");
+  }
+  if (!filterJoinRows(join.join, "sold").some((r) => r.name === "Searing Meditation")) {
+    messages.push("Sold view should include fully sold CSV printings");
+  }
   const junkerId = "11111111-2222-3333-4444-555555555555";
   const hinted = buildOuterJoin(
     csv,
@@ -1204,6 +1269,66 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
   }
   if (hinted.join.find((r) => r.name === "Searing Meditation")?.imageAmbiguous) {
     messages.push("CSV Scryfall ID preview must not be marked ambiguous");
+  }
+
+  if (runHasStoredData(emptyBuylistRunFile())) {
+    messages.push("Empty run file must not count as having data");
+  }
+  if (emptyBuylistOwnerIndex().runs.length || emptyBuylistOwnerIndex().activeRunId) {
+    messages.push("A new owner should start with no run folders");
+  }
+  const emptyLegacy = splitLegacyStore(emptyMtgBuylistStore());
+  if (emptyLegacy.index.runs.length) {
+    messages.push("Empty legacy store should not become a blank run folder");
+  }
+  const legacy = splitLegacyStore({
+    ...emptyMtgBuylistStore(),
+    notes: "keep-notes",
+    csv: {
+      filename: "box.csv",
+      uploadedAt: "2026-09-17T00:00:00.000Z",
+      rows: csv,
+      priceSource: "other",
+      priceCurrency: "AUD",
+    },
+  });
+  if (legacy.index.notes !== "keep-notes" || !runHasStoredData(legacy.run)) {
+    messages.push("Legacy split should keep notes on the owner index and data on the run");
+  }
+  const assembled = assembleBuylistStore(
+    { ...emptyBuylistOwnerIndex(), notes: "keep-notes" },
+    legacy.run,
+  );
+  if (assembled.notes !== "keep-notes" || assembled.mate || assembled.csv?.filename !== "box.csv") {
+    messages.push("Assemble should attach owner notes and leave harvest off an empty catalog");
+  }
+  const mateOnRun = splitBuylistStore(
+    {
+      ...emptyMtgBuylistStore(),
+      mate: {
+        harvestedAt: "2026-09-17T00:00:00.000Z",
+        source: "upload",
+        sets: ["mh3"],
+        offers: [],
+      },
+    },
+    "run-a",
+  );
+  if (mateOnRun.harvest.mate || !mateOnRun.run.mate) {
+    messages.push("Mate belongs on the run folder, not the shared harvest");
+  }
+  if (!shouldArchiveForNewRun(MAX_LIVE_BUYLIST_RUNS) || shouldArchiveForNewRun(MAX_LIVE_BUYLIST_RUNS - 1)) {
+    messages.push("A 9th live run should archive; eight should not");
+  }
+  const victim = pickArchiveVictim(
+    [
+      { id: "keep", name: "New", csvFilename: "", updatedAt: "2026-09-17T02:00:00.000Z", hasData: false },
+      { id: "old", name: "Old", csvFilename: "old.csv", updatedAt: "2026-09-17T01:00:00.000Z", hasData: true },
+    ],
+    "keep",
+  );
+  if (victim?.id !== "old") {
+    messages.push("Archive victim should be the oldest run that is not the kept tab");
   }
 
   return { ok: messages.length === 0, messages };

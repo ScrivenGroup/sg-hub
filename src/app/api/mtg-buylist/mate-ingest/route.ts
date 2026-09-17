@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   try {
     const parsed = parseMatePayload(raw);
-    const store = await getMtgBuylistStore(record.userKey);
+    const store = await getMtgBuylistStore(record.userKey, record.runId);
     const next = await attachMateImageLinks({
       ...store,
       mate: {
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         offers: parsed.offers,
       },
     });
-    await saveMtgBuylistStore(record.userKey, next);
+    await saveMtgBuylistStore(record.userKey, next, record.runId);
     revalidatePath(MTG_BUYLIST_HREF);
     revalidatePath(`${MTG_BUYLIST_HREF}/development`);
     return cors(origin, 200, {

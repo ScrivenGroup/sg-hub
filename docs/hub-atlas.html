@@ -379,7 +379,7 @@
         state: "Live. Home card opens the suite. Internal keeps Testing and Development choices."
       },
       { id: "hub-internal", hubPrefix: "i", slug: "", title: "Internal", code: "4A8FDC", kind: "hub", parentId: null, href: "/i", accessMode: "shared", status: "live", description: "ScrivenGroup tools.", order: 4, areas: 2 },
-      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition and Appearance of this site.", order: 5, areas: 2 },
+      { id: "hub-system", hubPrefix: "s", slug: "", title: "System", code: "8B6BC4", kind: "hub", parentId: null, href: "/s", accessMode: "shared", status: "live", description: "Definition, Appearance, and Standards of this site.", order: 5, areas: 3 },
       {
         id: "w-sunwater-mrt", hubPrefix: "w", slug: "sunwater-mrt", title: "Sunwater - Milestone Resourcing Tracker",
         code: "4E8C6B", kind: "subhub", parentId: "hub-work", href: "/w/sunwater-mrt", accessMode: "shared", status: "live",
@@ -464,6 +464,21 @@
           "Sub-hub hex codes colour the <strong>badge only</strong>, unless a ThemeContract override is added for that card."
         ],
         state: "Live for the global SG theme. Per-card ThemeContract overrides (for example Fuel Tracker dark/car) are planned, not shipped."
+      },
+      {
+        id: "s-standards", hubPrefix: "s", slug: "standards", title: "Standards",
+        code: "9A74C8", kind: "tool", parentId: "hub-system", href: "/s/standards", accessMode: "shared", status: "building",
+        description: "Design library, behaviours, process, and a drop pile for live notes.",
+        inUse: true,
+        contents: [
+          "Home: System card for hub design and process standards.",
+          "Drop pile: capture live notes from parallel desks (not chrome Feedback, not a ticket).",
+          "Design Library and Behaviours: named tokens/objects/patterns; kit default vs PM decision.",
+          "Process: yard (desk → station → live git → Azure).",
+          "Development: Kanban host tagged to this leaf. Design spec stays on <code>/d</code>.",
+          "Does not replace Internal → Development choices or the Development hub. Atlas <code>s-design-gallery</code> is absorbed here, not a sibling card."
+        ],
+        state: "Building. Home + Drop are the minimum bar on this desk."
       }
     ];
 

@@ -9,6 +9,8 @@ import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { type KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
 import { parserSelfCheckAction, saveBuylistNotesAction } from "../actions";
 import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
+import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
+import { useUiLoadingGate } from "@/core/shell/UiLoading";
 
 export function MtgBuylistDevelopment({
   changelogs,
@@ -27,19 +29,28 @@ export function MtgBuylistDevelopment({
   const [testing, setTesting] = useState(initialTab === "testing");
   const [check, setCheck] = useState("");
   const [pending, startTransition] = useTransition();
+  const runUi = useUiLoadingGate();
   const devHref = `${MTG_BUYLIST_HREF}/development`;
   const hostTab: KanbanOnlineStart =
     initialTab === "testing" || initialTab === "spec" ? "changelog" : initialTab;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <MtgBuylistPendingOverlay
+        open={pending}
+        status="Running parser check…"
+        detail="Stay on this page."
+      />
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
           type="button"
           role="tab"
           aria-selected={testing}
           className="sg-tab"
-          onClick={() => setTesting(true)}
+          onClick={() => {
+            if (testing) return;
+            runUi(() => setTesting(true));
+          }}
         >
           Testing
         </button>

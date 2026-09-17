@@ -1,5 +1,5 @@
 import type { ManaBoxRow } from "../schema";
-import { decodeHtmlEntities, normalizeFinish } from "./names";
+import { decodeHtmlEntities, normalizeCardName, normalizeFinish } from "./names";
 import { parseManaBoxCsv } from "./parse-csv";
 
 function emptyRow(partial: Partial<ManaBoxRow> & Pick<ManaBoxRow, "name" | "quantity">): ManaBoxRow {
@@ -112,28 +112,51 @@ function parsePlaymantisPlain(text: string): ManaBoxRow[] {
   return out;
 }
 
-/** Saved Mate buylist order page (File → Save). One row = one accepted copy. */
+const MATE_SKIP_STATE = /^(rejected|declined|missing|removed|cancelled|canceled)$/i;
+
+/** Sold unless Mate marked the line as rejected/removed. Incoming counts — that is the post-pick parcel. */
+function isMateSoldRow(row: string): boolean {
+  const state = row.match(
+    /class="[^"]*buylist-card-state[^"]*"[\s\S]{0,500}?title="([^"]+)"/i,
+  )?.[1];
+  if (!state) return true;
+  return !MATE_SKIP_STATE.test(state.trim());
+}
+
+function finishFromMateRow(row: string, href: string): string {
+  const badge = row.match(/class="[^"]*\bfinish\b[^"]*"[^>]*>([^<]+)/i)?.[1];
+  if (badge) return finishFromLabel(badge);
+  if (/:etched\b/i.test(href)) return "etched";
+  if (/:foil\b/i.test(href)) return "foil";
+  return "normal";
+}
+
+function countMateOrderRows(html: string): number {
+  return (html.match(/<tr[^>]*class="[^"]*buylist-card/gi) || []).length;
+}
+
+/** Saved Mate buylist order page (File → Save). One row = one sold copy (Incoming or Accepted). */
 export function parseMateOrderHtml(html: string): ManaBoxRow[] {
   const out: ManaBoxRow[] = [];
   const rowRe = /<tr[^>]*class="[^"]*buylist-card[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch: RegExpExecArray | null;
   while ((rowMatch = rowRe.exec(html))) {
     const row = rowMatch[1];
-    if (!/title="Accepted"/i.test(row)) continue;
-    const finish = row.match(/class="finish"[^>]*>([^<]+)/i)?.[1] || "Nonfoil";
+    if (!isMateSoldRow(row)) continue;
     const href = row.match(/href="(\/cards\/[^"]+)"/i)?.[1] || "";
     const hrefParts = href.match(/\/cards\/[^/]+\/([A-Za-z0-9]+)\/(\d+)/);
     const setFromIcon = row.match(/class="[^"]*set-code[^"]*"[^>]*value="([^"]+)"/i)?.[1];
     const title = row.match(/data-title="([^"]+)"/i)?.[1];
     const linkText = row.match(/<a[^>]*>([\s\S]*?)<\/a>/i)?.[1];
-    const name = decodeHtmlEntities(title || stripTags(linkText || ""));
-    if (!name) continue;
+    const rawName = decodeHtmlEntities(title || stripTags(linkText || ""));
+    if (!rawName) continue;
+    const normalised = normalizeCardName(rawName);
     out.push(
       emptyRow({
-        name,
+        name: rawName,
         setCode: (hrefParts?.[1] || setFromIcon || "").toLowerCase(),
-        collectorNumber: hrefParts?.[2] || "",
-        foil: finishFromLabel(finish),
+        collectorNumber: hrefParts?.[2] || normalised.collectorNumber || "",
+        foil: finishFromMateRow(row, href),
         quantity: 1,
       }),
     );
@@ -146,6 +169,12 @@ export function parseSubmissionText(text: string): ManaBoxRow[] {
   if (/buylist-card/i.test(trimmed) && /magic-card-name|buylist-card-table/i.test(trimmed)) {
     const mate = parseMateOrderHtml(trimmed);
     if (mate.length) return mate;
+    const listed = countMateOrderRows(trimmed);
+    if (listed > 0) {
+      throw new Error(
+        `Mate order page has ${listed} cards but none counted as sold. Rejected/removed lines are skipped; Incoming and Accepted should count.`,
+      );
+    }
   }
   if (
     /playmantis/i.test(trimmed) ||

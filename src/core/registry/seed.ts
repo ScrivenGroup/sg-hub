@@ -89,7 +89,7 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "Definition and Appearance of this site.",
+    description: "Definition, Appearance, and Standards of this site.",
     order: 5,
   },
   {
@@ -215,6 +215,21 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description: "Theme tokens, templates, icons.",
     order: 2,
+  },
+  {
+    id: "s-standards",
+    hubPrefix: "s",
+    slug: "standards",
+    title: "Standards",
+    code: "9A74C8",
+    kind: "tool",
+    parentId: "hub-system",
+    href: "/s/standards",
+    accessMode: "shared",
+    status: "building",
+    hasNetworkMap: false,
+    description: "Design library, behaviours, process, and a holding pile for later.",
+    order: 3,
   },
 ];
 
@@ -777,6 +792,154 @@ Live remains 1.5 until you say make it live.
     body: `## Publish to localhost (not live)
 
 - Buylist action buttons use a border. Table|Show diffs matches other button size. Mate upload reports parse then image-join; the busy overlay no longer claims live counts.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.19",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.19",
+    createdAt: "2026-09-16T05:30:00.000Z",
+    title: "1.5.19 (dev) — Step 5 Incoming orders + master change list",
+    body: `## Publish to localhost (not live)
+
+- Step 5 Mate saved order HTML counts **Incoming** as sold (not only Accepted). Foil comes from the finish badge or the card URL.
+- Outer join is the **master change list** and can be downloaded as CSV. Leftover rows download as the **re-import CSV**.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.20",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.20",
+    createdAt: "2026-09-16T05:55:00.000Z",
+    title: "1.5.20 (dev) — Step 5 one outer-join table",
+    body: `## Publish to localhost (not live)
+
+- Step 5 is **one** CSV + Mate + Playmantis table. Filter chips are views (Master default, plus Reimport, CSV, Mate, Playmantis, Non-CSV, Sold, Unsold, Oversold).
+- **Download re-import CSV** stays on the toolbar in every view.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.21",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.21",
+    createdAt: "2026-09-17T00:15:00.000Z",
+    title: "1.5.21 (dev) — Parallel runs as owned documents",
+    body: `## Publish to localhost (not live)
+
+- Each login owns a harvest plus separate run tabs (CSV / Compare). **+** opens a new run; **×** clears that tab (confirm if it has data). The last tab always remains, empty if needed.
+- A ninth live run archives the oldest to Logs. Harvest diffs are scoped to your login.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.22",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.22",
+    createdAt: "2026-09-17T00:40:00.000Z",
+    title: "1.5.22 (dev) — Idle New Run, hover close",
+    body: `## Publish to localhost (not live)
+
+- **×** sits in the run-tab name and appears on hover; **+** and **×** have hover wash.
+- None selected is allowed. **New Run** shows an empty screen — no dummy blank folder. Drop a CSV to open one.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.23",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.23",
+    createdAt: "2026-09-17T01:10:00.000Z",
+    title: "1.5.23 (dev) — New Run CSV opens a folder",
+    body: `## Publish to localhost (not live)
+
+- Dropping a ManaBox CSV on **New Run** keeps the file and opens a run folder after confirm. Idle refresh no longer swallows the upload.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.24",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.24",
+    createdAt: "2026-09-17T01:30:00.000Z",
+    title: "1.5.24 (dev) — Isolated run tabs",
+    body: `## Publish to localhost (not live)
+
+- Each tab keeps its own Mate and Playmantis harvest (not a shared login dump). Closing a tab removes that harvest.
+- Switching tabs loads that folder only — no full-page “Loading MTG Buylist” skeleton.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.25",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.25",
+    createdAt: "2026-09-17T03:40:00.000Z",
+    title: "1.5.25 (dev) — Buylist loading waits",
+    body: `## Publish to localhost (not live)
+
+- Run, Logs, and Development share one spinner overlay (route wait, L1 tab click, and in-page work).
+- Pages were waiting on a second auth decrypt, a leftover harvest.json read, and re-allocating a run that already had results. Those are skipped; Logs and Development fetch in parallel.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.26",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.26",
+    createdAt: "2026-09-17T04:50:00.000Z",
+    title: "1.5.26 (dev) — CSV rows + row-colour legend",
+    body: `## Publish to localhost (not live)
+
+- Step 1 has a collapsed CSV table. Edit qty / finish / # / Scryfall ID before harvest (or Save if the file is already in the run).
+- Playmantis, Mate, Compare, and Step 5 show a row-colour legend (green sellable / grey at limit / amber not found; leftover / oversold on Step 5). Recovered-% chips are unchanged.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.27",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.27",
+    createdAt: "2026-09-17T05:20:00.000Z",
+    title: "1.5.27 (dev) — Loading veil + confirm pink",
+    body: `## Publish to localhost (not live)
+
+- Filter tabs and in-app links show an opaque loading spinner (not the harvest processing card).
+- Confirm printing rows are pink so they are distinct from amber Not found.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.28",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.28",
+    createdAt: "2026-09-17T06:30:00.000Z",
+    title: "1.5.28 (dev) — Compare shows set and #",
+    body: `## Publish to localhost (not live)
+
+- Compare (Step 4) lists Set and collector number so same-name lands and reprints are distinguishable.
 
 Live remains 1.5 until you say make it live.
 `,
@@ -1406,6 +1569,20 @@ Out of this version
 - Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
 - /i/kanban redirects here. Internal keeps Testing and Development choices.
 - Chrome Feedback is the only capture door (Raise-style popup). Leaf Development tabs no longer show Raise.`,
+  },
+  {
+    id: "cl-s-standards-plan",
+    nodeId: "s-standards",
+    kind: "plan",
+    createdAt: "2026-09-09T01:00:00.000Z",
+    title: "Process tab + Kanban Development (building)",
+    body: `System card beside Appearance. Home + Drop pile are the minimum bar; Design Library and Behaviours fill in on this desk.
+
+- Process teaches the live yard: wip/<leaf> desks → merge to station (dev_main :3000) → you say make it live → main + Azure zip.
+- Drop is the pile for live notes from parallel desks (not chrome Feedback, not a Kanban ticket).
+- Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes). Design spec stays on /d. Chrome Feedback is the capture door; no in-tab Raise.
+- Does not replace Internal → Development choices or the Development hub.
+- One locker: ScrivenGroup/sg-hub. Never zip from a wip desk.`,
   },
 ];
 

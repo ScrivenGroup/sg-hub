@@ -1,18 +1,26 @@
 "use server";
 
+import { z } from "zod";
 import { randomBytes } from "crypto";
+import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth, isMrtGuest } from "@/auth";
 import {
-  getMtgBuylistStore,
+  getMtgBuylistWorkspace,
   saveMateHarvestToken,
   saveMtgBuylistStore,
+  saveMtgBuylistNotes,
+  clearMtgBuylistStore,
+  idleMtgBuylistRun,
   savePlaymantisHarvestDiff,
   listPlaymantisHarvestDiff,
+  listBuylistArchives,
   clearPlaymantisHarvestDiff,
   markPlaymantisHarvestDiffLookedAt,
+  type BuylistWorkspacePack,
 } from "@/core/store/json-store";
+import type { BuylistArchive, BuylistRunMeta } from "./schema";
 import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/allocate";
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
@@ -23,9 +31,10 @@ import { buildMateImageLinks } from "./logic/mate-image-join";
 import { enrichRowsFromScryfall, lookupScryfallCardIds, lookupScryfallSetCodes, type CardHint, type CardLookup } from "./logic/scryfall";
 import { runParserSelfCheck } from "./logic/self-check";
 import {
-  emptyMtgBuylistStore,
   MTG_BUYLIST_HREF,
+  manaBoxRowSchema,
   priceSourceSchema,
+  type ManaBoxRow,
   type MtgBuylistStore,
   type PriceSource,
 } from "./schema";
@@ -51,6 +60,9 @@ export type StaffIdentity = { userKey: string; label: string };
 export type BuylistActionSummary = {
   ok: true;
   store: MtgBuylistStore;
+  runs?: BuylistRunMeta[];
+  activeRunId?: string;
+  archives?: BuylistArchive[];
   summary: {
     csvRows: number;
     pmOffers: number;
@@ -72,34 +84,49 @@ function summaryOf(store: MtgBuylistStore) {
   };
 }
 
-export async function requireBuylistStaff(): Promise<StaffIdentity | null> {
-  const session = await auth();
+export const getBuylistSession = cache(async () => auth());
+
+export const requireBuylistStaff = cache(async (): Promise<StaffIdentity | null> => {
+  const session = await getBuylistSession();
   if (!session?.user || isMrtGuest(session)) return null;
   const email = session.user.email?.trim().toLowerCase() || "";
   const id = session.user.id || "";
   const userKey = (email || id).replace(/[^a-zA-Z0-9._@-]/g, "_").slice(0, 80);
   if (!userKey) return null;
   return { userKey, label: session.user.email || session.user.name || userKey };
-}
+});
 
-async function loadStore(): Promise<{ staff: StaffIdentity; store: MtgBuylistStore } | null> {
+async function loadStore(
+  runId?: string | null,
+): Promise<{ staff: StaffIdentity; pack: BuylistWorkspacePack; store: MtgBuylistStore } | null> {
   const staff = await requireBuylistStaff();
   if (!staff) return null;
-  return { staff, store: await getMtgBuylistStore(staff.userKey) };
+  const pack = await getMtgBuylistWorkspace(staff.userKey, runId);
+  return { staff, pack, store: pack.store };
 }
 
-async function persist(userKey: string, store: MtgBuylistStore) {
+function withPack(store: MtgBuylistStore, pack?: BuylistWorkspacePack) {
+  return {
+    store,
+    runs: pack?.runs,
+    activeRunId: pack?.activeRunId,
+    archives: pack?.archives,
+  };
+}
+
+async function persist(userKey: string, store: MtgBuylistStore, runId: string) {
   const next = withAllocateResults(store);
-  await saveMtgBuylistStore(userKey, next);
+  const id = await saveMtgBuylistStore(userKey, next, runId);
+  const pack = await getMtgBuylistWorkspace(userKey, id);
   revalidatePath(MTG_BUYLIST_HREF);
   revalidatePath(`${MTG_BUYLIST_HREF}/development`);
-  return next;
+  return { ...pack, activeRunId: id };
 }
 
 /** Harvest mid-slices: write offers only. Allocate + revalidate on the last slice. */
-async function persistPlaymantisOffers(userKey: string, store: MtgBuylistStore) {
-  await saveMtgBuylistStore(userKey, store);
-  return store;
+async function persistPlaymantisOffers(userKey: string, store: MtgBuylistStore, runId: string) {
+  const id = await saveMtgBuylistStore(userKey, store, runId);
+  return getMtgBuylistWorkspace(userKey, id);
 }
 
 /**
@@ -107,8 +134,8 @@ async function persistPlaymantisOffers(userKey: string, store: MtgBuylistStore) 
  * Keeps Mate/Playmantis harvests. Drops Mate confirmations that treatment can
  * now auto-resolve (unlike a full CSV re-upload, which clears Playmantis).
  */
-export async function enrichCsvTreatmentsAction() {
-  const loaded = await loadStore();
+export async function enrichCsvTreatmentsAction(runId?: string) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
   try {
@@ -134,15 +161,19 @@ export async function enrichCsvTreatmentsAction() {
         prunedConfirms += 1;
       }
     }
-    const store = await persist(loaded.staff.userKey, {
-      ...loaded.store,
-      csv: { ...loaded.store.csv, rows },
-      mateConfirmations: nextConfirm,
-    });
+    const pack = await persist(
+      loaded.staff.userKey,
+      {
+        ...loaded.store,
+        csv: { ...loaded.store.csv, rows },
+        mateConfirmations: nextConfirm,
+      },
+      loaded.pack.activeRunId,
+    );
     return {
       ok: true as const,
-      store,
-      summary: summaryOf(store),
+      ...withPack(pack.store, pack),
+      summary: summaryOf(pack.store),
       withEffects,
       total: rows.length,
       prunedConfirms,
@@ -155,13 +186,40 @@ export async function enrichCsvTreatmentsAction() {
   }
 }
 
+/** Rewrite CSV rows before Mate/Playmantis harvest. Does not re-parse from a file. */
+export async function saveCsvRowsAction(rows: ManaBoxRow[], runId?: string) {
+  const loaded = await loadStore(runId);
+  if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
+  if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
+  if (loaded.store.mate || loaded.store.playmantis) {
+    return {
+      ok: false as const,
+      error: "CSV is locked after harvest. Re-upload the file to start over.",
+    };
+  }
+  const parsed = z.array(manaBoxRowSchema).safeParse(rows);
+  if (!parsed.success) return { ok: false as const, error: "CSV rows are not valid" };
+  const nextRows = parsed.data.filter((row) => row.name.trim() && row.quantity > 0);
+  if (!nextRows.length) return { ok: false as const, error: "No card rows left in this CSV" };
+  const pack = await persist(
+    loaded.staff.userKey,
+    {
+      ...loaded.store,
+      csv: { ...loaded.store.csv, rows: nextRows },
+    },
+    (runId || "").trim() || loaded.pack.activeRunId,
+  );
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
+}
+
 export async function uploadCsvAction(
   csvText: string,
   filename: string,
   priceSource: PriceSource,
   priceCurrency: string,
+  runId?: string,
 ) {
-  const loaded = await loadStore();
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   const sourceParsed = priceSourceSchema.safeParse(priceSource);
   if (!sourceParsed.success) {
@@ -181,19 +239,25 @@ export async function uploadCsvAction(
       // Offline / Scryfall down — still accept the CSV; Mate confirm stays available.
       rows = parsed;
     }
-    const store = await persist(loaded.staff.userKey, {
-      ...loaded.store,
-      csv: {
-        filename,
-        uploadedAt: new Date().toISOString(),
-        rows,
-        priceSource: sourceParsed.data,
-        priceCurrency: currency,
+    const pack = await persist(
+      loaded.staff.userKey,
+      {
+        ...loaded.store,
+        csv: {
+          filename,
+          uploadedAt: new Date().toISOString(),
+          rows,
+          priceSource: sourceParsed.data,
+          priceCurrency: currency,
+        },
+        mateConfirmations: {},
+        resultPm: null,
+        resultMate: null,
+        resultCompare: null,
       },
-      playmantis: null,
-      mateConfirmations: {},
-    });
-    return { ok: true as const, store, summary: summaryOf(store) };
+      (runId || "").trim() || loaded.pack.activeRunId,
+    );
+    return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : "CSV parse failed" };
   }
@@ -201,9 +265,9 @@ export async function uploadCsvAction(
 
 export async function harvestPlaymantisAction(
   skipIds: string[] = [],
-  opts?: { missingOnly?: boolean },
+  opts?: { missingOnly?: boolean; runId?: string },
 ) {
-  const loaded = await loadStore();
+  const loaded = await loadStore(opts?.runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
 
@@ -263,10 +327,10 @@ export async function harvestPlaymantisAction(
       },
     };
     const remaining = Math.max(0, work.length - slice.length);
-    const store =
+    const pack =
       remaining === 0
-        ? await persist(loaded.staff.userKey, nextStore)
-        : await persistPlaymantisOffers(loaded.staff.userKey, nextStore);
+        ? await persist(loaded.staff.userKey, nextStore, loaded.pack.activeRunId)
+        : await persistPlaymantisOffers(loaded.staff.userKey, nextStore, loaded.pack.activeRunId);
     const attempted = new Set([
       ...skipIds.map((id) => id.trim().toLowerCase()),
       ...slice,
@@ -280,8 +344,8 @@ export async function harvestPlaymantisAction(
     }).length;
     return {
       ok: true as const,
-      store,
-      summary: summaryOf(store),
+      ...withPack(pack.store, pack),
+      summary: summaryOf(pack.store),
       done: ids.length - still,
       total: ids.length,
       remaining: still,
@@ -295,8 +359,8 @@ export async function harvestPlaymantisAction(
   }
 }
 
-export async function createMateHarvestAction(clientOrigin?: string) {
-  const loaded = await loadStore();
+export async function createMateHarvestAction(clientOrigin?: string, runId?: string) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
 
@@ -305,6 +369,7 @@ export async function createMateHarvestAction(clientOrigin?: string) {
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   await saveMateHarvestToken(token, {
     userKey: loaded.staff.userKey,
+    runId: loaded.pack.activeRunId,
     setCodes,
     expiresAt,
   });
@@ -346,8 +411,8 @@ function pickHubOrigin(
 }
 
 /** Prefer /api/mtg-buylist/mate-upload for large files. Kept for small fixtures. */
-export async function uploadMateJsonAction(jsonText: string) {
-  const loaded = await loadStore();
+export async function uploadMateJsonAction(jsonText: string, runId?: string) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   try {
     const parsed = parseMateJson(jsonText);
@@ -360,7 +425,7 @@ export async function uploadMateJsonAction(jsonText: string) {
       };
     }
     const keptSets = [...new Set(offers.map((o) => o.setCode).filter(Boolean))].sort();
-    const store = await persist(
+    const pack = await persist(
       loaded.staff.userKey,
       withAllocateResults({
         ...loaded.store,
@@ -372,8 +437,9 @@ export async function uploadMateJsonAction(jsonText: string) {
         },
         mateImageLinks: {},
       }),
+      loaded.pack.activeRunId,
     );
-    return { ok: true as const, store, summary: summaryOf(store) };
+    return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
   } catch (error) {
     return {
       ok: false as const,
@@ -383,43 +449,69 @@ export async function uploadMateJsonAction(jsonText: string) {
 }
 
 /** Re-run Mate↔Scryfall image joins on the current harvest (keeps confirmations). */
-export async function refreshMateImageLinksAction() {
-  const loaded = await loadStore();
+export async function refreshMateImageLinksAction(runId?: string) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   if (!loaded.store.mate || !loaded.store.csv) {
     return { ok: false as const, error: "Need CSV and Mate harvest first" };
   }
   const linked = await attachMateImageLinks(loaded.store);
-  const store = await persist(loaded.staff.userKey, linked);
-  const linkedCount = Object.keys(store.mateImageLinks || {}).length;
+  const pack = await persist(loaded.staff.userKey, linked, loaded.pack.activeRunId);
+  const linkedCount = Object.keys(pack.store.mateImageLinks || {}).length;
   return {
     ok: true as const,
-    store,
-    summary: summaryOf(store),
+    ...withPack(pack.store, pack),
+    summary: summaryOf(pack.store),
     linkedCount,
   };
 }
 
 export async function saveBuylistNotesAction(notes: string) {
-  const loaded = await loadStore();
-  if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
-  const store = await persist(loaded.staff.userKey, { ...loaded.store, notes });
-  return { ok: true as const, store, summary: summaryOf(store) };
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  await saveMtgBuylistNotes(staff.userKey, notes);
+  revalidatePath(`${MTG_BUYLIST_HREF}/development`);
+  const pack = await getMtgBuylistWorkspace(staff.userKey);
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
 }
 
-export async function clearBuylistRunAction() {
-  const loaded = await loadStore();
-  if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
-  const store = await persist(loaded.staff.userKey, {
-    ...emptyMtgBuylistStore(),
-    notes: loaded.store.notes,
-  });
-  return { ok: true as const, store, summary: summaryOf(store) };
+export async function clearBuylistRunAction(runId?: string) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  const pack = await clearMtgBuylistStore(staff.userKey, runId);
+  revalidatePath(MTG_BUYLIST_HREF);
+  revalidatePath(`${MTG_BUYLIST_HREF}/development`);
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
+}
+
+export async function createBuylistRunAction() {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  const pack = await idleMtgBuylistRun(staff.userKey);
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
+}
+
+export async function loadBuylistRunAction(runId?: string) {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required" };
+  const pack = await getMtgBuylistWorkspace(staff.userKey, runId || "");
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
+}
+
+export async function listBuylistArchivesAction() {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false as const, error: "Staff sign-in required", archives: [] as BuylistArchive[] };
+  const archives = await listBuylistArchives(staff.userKey);
+  return { ok: true as const, archives };
 }
 
 /** Confirm (or clear) which Mate printing matches an ambiguous CSV stack. */
-export async function confirmMateVariantAction(rowKey: string, mateUuid: string | null) {
-  const loaded = await loadStore();
+export async function confirmMateVariantAction(
+  rowKey: string,
+  mateUuid: string | null,
+  runId?: string,
+) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   const key = rowKey.trim();
   if (!key) return { ok: false as const, error: "Missing card key" };
@@ -432,28 +524,36 @@ export async function confirmMateVariantAction(rowKey: string, mateUuid: string 
   } else {
     delete next[key];
   }
-  const store = await persist(loaded.staff.userKey, {
-    ...loaded.store,
-    mateConfirmations: next,
-    mateReconfirm: reconfirm,
-  });
-  return { ok: true as const, store, summary: summaryOf(store) };
+  const pack = await persist(
+    loaded.staff.userKey,
+    {
+      ...loaded.store,
+      mateConfirmations: next,
+      mateReconfirm: reconfirm,
+    },
+    loaded.pack.activeRunId,
+  );
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
 }
 
 /** Reject current Mate printing — reopen all variants for Confirm override. */
-export async function rejectMateVariantAction(rowKey: string) {
-  const loaded = await loadStore();
+export async function rejectMateVariantAction(rowKey: string, runId?: string) {
+  const loaded = await loadStore(runId);
   if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
   const key = rowKey.trim();
   if (!key) return { ok: false as const, error: "Missing card key" };
   const nextConfirm = { ...(loaded.store.mateConfirmations || {}) };
   delete nextConfirm[key];
-  const store = await persist(loaded.staff.userKey, {
-    ...loaded.store,
-    mateConfirmations: nextConfirm,
-    mateReconfirm: { ...(loaded.store.mateReconfirm || {}), [key]: true },
-  });
-  return { ok: true as const, store, summary: summaryOf(store) };
+  const pack = await persist(
+    loaded.staff.userKey,
+    {
+      ...loaded.store,
+      mateConfirmations: nextConfirm,
+      mateReconfirm: { ...(loaded.store.mateReconfirm || {}), [key]: true },
+    },
+    loaded.pack.activeRunId,
+  );
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
 }
 
 export async function parserSelfCheckAction() {
@@ -507,14 +607,14 @@ export async function savePlaymantisHarvestDiffAction(input: {
 export async function listPlaymantisHarvestDiffAction() {
   const staff = await requireBuylistStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required", rows: [] };
-  const rows = await listPlaymantisHarvestDiff();
+  const rows = await listPlaymantisHarvestDiff(staff.userKey);
   return { ok: true as const, rows };
 }
 
 export async function clearPlaymantisHarvestDiffAction() {
   const staff = await requireBuylistStaff();
   if (!staff) return { ok: false as const, error: "Staff sign-in required", cleared: 0 };
-  const cleared = await clearPlaymantisHarvestDiff();
+  const cleared = await clearPlaymantisHarvestDiff(staff.userKey);
   return { ok: true as const, cleared };
 }
 

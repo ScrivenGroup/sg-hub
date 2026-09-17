@@ -5,7 +5,8 @@ import {
   clearPlaymantisHarvestDiffAction,
   markPlaymantisHarvestDiffLookedAtAction,
 } from "../actions";
-import type { PlaymantisHarvestDiffRow } from "../schema";
+import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
+import type { BuylistArchive, PlaymantisHarvestDiffRow } from "../schema";
 
 function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -56,7 +57,13 @@ function buildReviewPrompt(rows: PlaymantisHarvestDiffRow[]): string {
   ].join("\n");
 }
 
-export function MtgBuylistLogs({ initialRows }: { initialRows: PlaymantisHarvestDiffRow[] }) {
+export function MtgBuylistLogs({
+  initialRows,
+  archives = [],
+}: {
+  initialRows: PlaymantisHarvestDiffRow[];
+  archives?: BuylistArchive[];
+}) {
   const [rows, setRows] = useState(initialRows);
   const [error, setError] = useState("");
   const [armed, setArmed] = useState(false);
@@ -115,11 +122,27 @@ export function MtgBuylistLogs({ initialRows }: { initialRows: PlaymantisHarvest
 
   return (
     <div className="min-w-0 space-y-3">
+      <MtgBuylistPendingOverlay open={busy} status="Updating logs…" detail="Stay on this page." />
       <div role="tablist" aria-label="Logs" className="flex flex-wrap">
         <button type="button" role="tab" aria-selected className="sg-tab">
           diffs
         </button>
       </div>
+
+      {archives.length ? (
+        <section className="sg-card min-w-0 space-y-2">
+          <h2 className="font-medium">Archived runs</h2>
+          <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
+            {archives.map((row) => (
+              <li key={`${row.id}-${row.archivedAt}`}>
+                {row.name}
+                {row.csvFilename ? ` · ${row.csvFilename}` : ""} ·{" "}
+                {new Date(row.archivedAt).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="sg-card min-w-0 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -127,7 +150,7 @@ export function MtgBuylistLogs({ initialRows }: { initialRows: PlaymantisHarvest
             <h2 className="font-medium">Harvest vs Import Review</h2>
             <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
               <li>
-                App-wide log, not this <strong>run</strong>.
+                Your login only — not other people, not a shared app log.
               </li>
               <li>
                 {openRows.length} open

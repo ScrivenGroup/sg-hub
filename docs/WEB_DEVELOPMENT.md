@@ -53,7 +53,7 @@ Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (B
 ### Page body
 
 - `PageNav` then `<h1 className="text-3xl font-semibold tracking-tight">` + `CodeBadge` + `StatusPill`.
-- Description in `text-[var(--muted)]`.
+- Description in `text-[var(--muted)]`. Reading text may use `max-w-2xl`. The **page** fills the frame (`AppShell` main: padding, no `max-w-5xl`). Wide tools (tables, boards, libraries) use that width.
 - Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` (`--sg-btn-height`, 32px — same as Kanban LAYOUT toggle). Tabs: `sg-tab` (underline, not pills).
 - Inputs: `sg-input`. Long text: `sg-prose`.
 

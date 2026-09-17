@@ -1,4 +1,4 @@
-import { auth, isMrtGuest } from "@/auth";
+import { isMrtGuest } from "@/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hostKindFromHeaders, parseDevTab } from "@/core/kanban/host";
@@ -6,9 +6,9 @@ import { emptyKanbanBoard } from "@/core/kanban/schema";
 import {
   getChangelogsForNode,
   getKanbanBoard,
-  getMtgBuylistStore,
+  getMtgBuylistNotes,
 } from "@/core/store/json-store";
-import { requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { getBuylistSession, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
 import {
   MTG_BUYLIST_HREF,
   MTG_BUYLIST_NODE_ID,
@@ -23,17 +23,21 @@ export default async function MtgBuylistDevelopmentPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await auth();
+  const session = await getBuylistSession();
   if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
 
   const params = await searchParams;
-  const changelogs = await getChangelogsForNode(MTG_BUYLIST_NODE_ID);
-  const staff = await requireBuylistStaff();
-  const notes = staff ? (await getMtgBuylistStore(staff.userKey)).notes || "" : "";
-  const board = staff
-    ? await getKanbanBoard(MTG_BUYLIST_NODE_ID)
-    : emptyKanbanBoard(MTG_BUYLIST_NODE_ID);
-  const { kind, host } = hostKindFromHeaders(await headers());
+  const [changelogs, staff, { kind, host }] = await Promise.all([
+    getChangelogsForNode(MTG_BUYLIST_NODE_ID),
+    requireBuylistStaff(),
+    headers().then((h) => hostKindFromHeaders(h)),
+  ]);
+  const [notes, board] = staff
+    ? await Promise.all([
+        getMtgBuylistNotes(staff.userKey),
+        getKanbanBoard(MTG_BUYLIST_NODE_ID),
+      ])
+    : ["", emptyKanbanBoard(MTG_BUYLIST_NODE_ID)] as const;
 
   return (
     <MtgBuylistChrome
@@ -46,7 +50,7 @@ export default async function MtgBuylistDevelopmentPage({
     >
       <MtgBuylistDevelopment
         changelogs={changelogs}
-        notes={notes}
+        notes={notes || ""}
         board={board}
         hostKind={kind}
         host={host}

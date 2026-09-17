@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { DevHostKind } from "@/core/kanban/host";
 import { RaiseIdeaButton } from "@/core/kanban/ui/RaiseIdeaButton";
 import { DevHostStrip } from "@/core/kanban/ui/DevHostStrip";
@@ -27,6 +28,9 @@ export function MtgBuylistNav({
   hostKind?: DevHostKind;
   host?: string;
 }) {
+  const pathname = usePathname();
+  const currentPath = currentHref.split("?")[0] || pathname;
+
   return (
     <nav
       className="mb-2 flex shrink-0 flex-wrap items-center gap-2"
@@ -34,7 +38,7 @@ export function MtgBuylistNav({
     >
       <div role="tablist" className="flex min-w-0 flex-wrap items-center">
         {LINKS.map((link) => {
-          const current = currentHref === link.href;
+          const current = currentPath === link.href;
           return (
             <Link
               key={link.href}
