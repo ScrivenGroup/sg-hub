@@ -6,7 +6,12 @@ import { PageNav } from "@/core/shell/PageNav";
 import { hostKindFromHeaders } from "@/core/kanban/host";
 import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { KanbanOnlineHost } from "@/core/kanban/ui/KanbanOnlineHost";
-import { getChangelogsForNode, getKanbanBoard, getKanbanLeafNotes } from "@/core/store/json-store";
+import {
+  getChangelogsForNode,
+  getKanbanBoard,
+  getKanbanLeafNotes,
+  getStandardsDrops,
+} from "@/core/store/json-store";
 import { getNodeByHref } from "@/core/registry";
 import { CodeBadge } from "@/core/ui/CodeBadge";
 import { StatusPill } from "@/core/ui/StatusPill";
@@ -15,7 +20,12 @@ import {
   STANDARDS_NODE_ID,
   isStandardsDevelopmentQuery,
   standardsKanbanStart,
+  standardsMode,
 } from "@/modules/standards/schema";
+import { BehavioursTab } from "@/modules/standards/ui/BehavioursTab";
+import { DesignLibraryTab } from "@/modules/standards/ui/DesignLibraryTab";
+import { DropTab } from "@/modules/standards/ui/DropTab";
+import { HomeTab } from "@/modules/standards/ui/HomeTab";
 import { ProcessTab } from "@/modules/standards/ui/ProcessTab";
 import { StandardsNav } from "@/modules/standards/ui/StandardsNav";
 
@@ -32,26 +42,36 @@ export default async function StandardsPage({
   const params = await searchParams;
   const development = isStandardsDevelopmentQuery(params.tab);
   const node = getNodeByHref(STANDARDS_HREF);
-  const mode = development ? "development" : "process";
+  const mode = standardsMode(params.tab);
+  const drops = development ? [] : await getStandardsDrops();
+
+  const title = (
+    <>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight">Standards</h1>
+        {node ? <CodeBadge node={node} /> : null}
+        {node ? <StatusPill status={node.status} /> : null}
+      </div>
+      <p className="max-w-2xl text-[var(--muted)]">
+        Hub home for design and process. Drop pile for live notes from other
+        sittings.
+      </p>
+    </>
+  );
 
   if (!development) {
     return (
       <AppShell currentHref={STANDARDS_HREF}>
         <PageNav href={STANDARDS_HREF} />
-        <header className="mb-6">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-semibold tracking-tight">Standards</h1>
-            {node ? <CodeBadge node={node} /> : null}
-            {node ? <StatusPill status={node.status} /> : null}
-          </div>
-          <p className="max-w-2xl text-[var(--muted)]">
-            How we develop on this hub: desks, station, and make it live.
-          </p>
-        </header>
+        <header className="mb-6">{title}</header>
         <div className="mb-6">
           <StandardsNav mode={mode} />
         </div>
-        <ProcessTab />
+        {mode === "drop" ? <DropTab items={drops} /> : null}
+        {mode === "design" ? <DesignLibraryTab /> : null}
+        {mode === "behaviours" ? <BehavioursTab /> : null}
+        {mode === "process" ? <ProcessTab /> : null}
+        {mode === "home" ? <HomeTab drops={drops} /> : null}
       </AppShell>
     );
   }

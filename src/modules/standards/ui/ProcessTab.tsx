@@ -62,11 +62,11 @@ export function ProcessTab() {
           Development choices
         </Link>{" "}
         and the board at{" "}
-        <Link href="/i/kanban" className="underline underline-offset-2">
-          Kanban Online
+        <Link href="/d" className="underline underline-offset-2">
+          Development
         </Link>
         . This page teaches the process; those pages stay the register and the
-        global board.
+        global board. Drop live design notes on this leaf’s Drop tab — not here.
       </p>
 
       <section aria-labelledby="lanes-heading">

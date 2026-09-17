@@ -57,6 +57,7 @@ import {
   type MtgBuylistStore,
   type PlaymantisHarvestDiffRow,
 } from "@/modules/mtg-buylist/schema";
+import type { StandardsDropRecord } from "@/modules/standards/schema";
 import {
   dualWriteJson,
   pgGetChangelogs,
@@ -391,6 +392,24 @@ export async function getDevChoices(): Promise<DevChoiceRecord[]> {
     await persistSimpleJson("dev-choices.json", out);
   }
   return out;
+}
+
+export async function getStandardsDrops(): Promise<StandardsDropRecord[]> {
+  return readJson("standards-drop.json", [] as StandardsDropRecord[]);
+}
+
+export async function addStandardsDrop(
+  entry: Omit<StandardsDropRecord, "id" | "createdAt">,
+): Promise<StandardsDropRecord> {
+  const all = await getStandardsDrops();
+  const record: StandardsDropRecord = {
+    ...entry,
+    id: `sd-${Date.now().toString(36)}`,
+    createdAt: new Date().toISOString(),
+  };
+  all.unshift(record);
+  await writeJson("standards-drop.json", all);
+  return record;
 }
 
 export async function addDevChoice(
