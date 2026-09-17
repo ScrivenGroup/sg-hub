@@ -1,5 +1,5 @@
-import { MtgBuylistRouteLoading } from "@/modules/mtg-buylist/ui/MtgBuylistPending";
+import { UiLoadingScreen } from "@/core/shell/UiLoading";
 
 export default function MtgBuylistLoading() {
-  return <MtgBuylistRouteLoading status="Loading run…" />;
+  return <UiLoadingScreen />;
 }

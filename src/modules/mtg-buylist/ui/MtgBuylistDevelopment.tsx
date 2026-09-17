@@ -10,6 +10,7 @@ import { type KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
 import { parserSelfCheckAction, saveBuylistNotesAction } from "../actions";
 import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
+import { useUiLoadingGate } from "@/core/shell/UiLoading";
 
 export function MtgBuylistDevelopment({
   changelogs,
@@ -28,6 +29,7 @@ export function MtgBuylistDevelopment({
   const [testing, setTesting] = useState(initialTab === "testing");
   const [check, setCheck] = useState("");
   const [pending, startTransition] = useTransition();
+  const runUi = useUiLoadingGate();
   const devHref = `${MTG_BUYLIST_HREF}/development`;
   const hostTab: KanbanOnlineStart =
     initialTab === "testing" || initialTab === "spec" ? "changelog" : initialTab;
@@ -45,7 +47,10 @@ export function MtgBuylistDevelopment({
           role="tab"
           aria-selected={testing}
           className="sg-tab"
-          onClick={() => setTesting(true)}
+          onClick={() => {
+            if (testing) return;
+            runUi(() => setTesting(true));
+          }}
         >
           Testing
         </button>

@@ -15,6 +15,7 @@ import { HelpTab } from "./HelpTab";
 import { InputsTab, type InputsSub } from "./InputsTab";
 import { ObligationsTab } from "./ObligationsTab";
 import "./mrt-tables.css";
+import { useUiLoadingGate } from "@/core/shell/UiLoading";
 
 const BASE_TABS = [
   "Gantt",
@@ -66,6 +67,7 @@ export function MrtWorkspace({
   const [, startTransition] = useTransition();
   const [resetting, startReset] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runUi = useUiLoadingGate();
 
   function persist(next: ScheduleStore) {
     if (readOnly) return;
@@ -181,8 +183,11 @@ export function MrtWorkspace({
                     : "text-[var(--muted)] hover:text-[var(--ink)]"
                 }`}
                 onClick={() => {
-                  setTab(id);
-                  setFocusPersonId(null);
+                  if (selected) return;
+                  runUi(() => {
+                    setTab(id);
+                    setFocusPersonId(null);
+                  });
                 }}
               >
                 {id}

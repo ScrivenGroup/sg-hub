@@ -930,6 +930,36 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.26",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.26",
+    createdAt: "2026-09-17T04:50:00.000Z",
+    title: "1.5.26 (dev) — CSV rows + row-colour legend",
+    body: `## Publish to localhost (not live)
+
+- Step 1 has a collapsed CSV table. Edit qty / finish / # / Scryfall ID before harvest (or Save if the file is already in the run).
+- Playmantis, Mate, Compare, and Step 5 show a row-colour legend (green sellable / grey at limit / amber not found; leftover / oversold on Step 5). Recovered-% chips are unchanged.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.27",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.27",
+    createdAt: "2026-09-17T05:20:00.000Z",
+    title: "1.5.27 (dev) — Loading veil + confirm pink",
+    body: `## Publish to localhost (not live)
+
+- Filter tabs and in-app links show an opaque loading spinner (not the harvest processing card).
+- Confirm printing rows are pink so they are distinct from amber Not found.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

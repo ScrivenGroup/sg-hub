@@ -160,6 +160,22 @@ body {
   font-size: 0.95rem;
 }
 
+@keyframes sg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sg-loading-spin {
+  display: inline-block;
+  height: 3rem;
+  width: 3rem;
+  border-radius: 9999px;
+  border: 3px solid var(--muted);
+  border-top-color: var(--ink);
+  animation: sg-spin 0.7s linear infinite;
+}
+
 @media print {
   .mrt-guide-downloads {
     display: none !important;

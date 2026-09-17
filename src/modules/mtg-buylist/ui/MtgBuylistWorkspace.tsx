@@ -15,6 +15,7 @@ import {
   lookupSetCodesAction,
   refreshMateImageLinksAction,
   rejectMateVariantAction,
+  saveCsvRowsAction,
   savePlaymantisHarvestDiffAction,
   uploadCsvAction,
 } from "../actions";
@@ -71,6 +72,7 @@ import { CardNameCell } from "./CardNameCell";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 import { InfoTip } from "@/core/ui/InfoTip";
 import { ShellModal } from "@/core/shell/ShellModal";
+import { useUiLoadingGate } from "@/core/shell/UiLoading";
 import { runHasStoredData } from "../logic/runs";
 import type { BuylistArchive, BuylistRunMeta } from "../schema";
 
@@ -171,6 +173,56 @@ function CollapsibleSection({
       </button>
       {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
     </section>
+  );
+}
+
+/** Nested table disclosure. Remembers open/closed in this tab. */
+function CollapsibleTableSection({
+  id,
+  title,
+  count,
+  hint,
+  defaultOpen,
+  children,
+}: {
+  id: string;
+  title: string;
+  count?: string;
+  hint?: string;
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
+  const storageKey = `mtg-buylist-section-${id}`;
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return defaultOpen;
+    const saved = sessionStorage.getItem(storageKey);
+    if (saved === "1") return true;
+    if (saved === "0") return false;
+    return defaultOpen;
+  });
+  return (
+    <div className="rounded-lg border border-[var(--border)]">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+        aria-expanded={open}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          sessionStorage.setItem(storageKey, next ? "1" : "0");
+        }}
+      >
+        <span className="text-[var(--muted)]" aria-hidden>
+          {open ? "▾" : "▸"}
+        </span>
+        <span className="font-medium">{title}</span>
+        {count ? <span className="text-[var(--muted)]">({count})</span> : null}
+        {hint ? <span className="text-xs font-normal text-[var(--muted)]">{hint}</span> : null}
+      </button>
+      {open ? (
+        <div className="space-y-2 border-t border-[var(--border)] px-3 py-2">{children}</div>
+      ) : null}
+    </div>
   );
 }
 
@@ -313,20 +365,14 @@ function RecoveryLegend({
         return (
           <li key={chip.band}>
             {onToggle ? (
-              <button
-                type="button"
+              <RecoveryLegendButton
                 className={className}
                 title={title}
-                aria-pressed={active}
-                onClick={() => onToggle(chip.band)}
-              >
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: colorVar[chip.color] }}
-                  aria-hidden
-                />
-                <span className="tabular-nums font-medium">{chip.label}</span>
-              </button>
+                active={active}
+                color={colorVar[chip.color]}
+                label={chip.label}
+                onToggle={() => onToggle(chip.band)}
+              />
             ) : (
               <span className={className} title={title}>
                 <span
@@ -344,6 +390,40 @@ function RecoveryLegend({
   );
 }
 
+function RecoveryLegendButton({
+  className,
+  title,
+  active,
+  color,
+  label,
+  onToggle,
+}: {
+  className: string;
+  title: string;
+  active: boolean;
+  color: string;
+  label: string;
+  onToggle: () => void;
+}) {
+  const runUi = useUiLoadingGate();
+  return (
+    <button
+      type="button"
+      className={className}
+      title={title}
+      aria-pressed={active}
+      onClick={() => runUi(onToggle)}
+    >
+      <span
+        className="inline-block h-2.5 w-2.5 rounded-full"
+        style={{ backgroundColor: color }}
+        aria-hidden
+      />
+      <span className="tabular-nums font-medium">{label}</span>
+    </button>
+  );
+}
+
 function downloadText(filename: string, text: string) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -358,9 +438,33 @@ function toneClass(tone: StreamTone): string {
   if (tone === "sell") return "bg-[color-mix(in_srgb,var(--rag-green)_14%,transparent)]";
   if (tone === "capped") return "bg-[color-mix(in_srgb,var(--muted)_8%,transparent)]";
   if (tone === "ambiguous") {
-    return "bg-[color-mix(in_srgb,var(--rag-amber)_18%,transparent)]";
+    return "bg-[color-mix(in_srgb,#c45b8c_18%,transparent)]";
   }
   return "bg-[color-mix(in_srgb,var(--rag-amber)_10%,transparent)]";
+}
+
+function RowToneLegend({ includeConfirm }: { includeConfirm?: boolean }) {
+  const items: { tone: StreamTone; label: string }[] = [
+    { tone: "sell", label: "Sellable" },
+    { tone: "capped", label: "At limit" },
+    { tone: "skip", label: "Not found" },
+  ];
+  if (includeConfirm) {
+    items.push({ tone: "ambiguous", label: "Confirm printing" });
+  }
+  return (
+    <ul className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-label="Row colours">
+      {items.map((item) => (
+        <li key={item.tone} className="inline-flex items-center gap-1.5">
+          <span
+            className={`inline-block h-3.5 w-5 rounded border border-[var(--border)] ${toneClass(item.tone)}`}
+            aria-hidden
+          />
+          <span className="text-[var(--muted)]">{item.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 type StreamFilter = "all" | "sell" | "capped" | "skip" | "harvest_diff";
@@ -475,6 +579,7 @@ export function MtgBuylistWorkspace({
   const [pendingCsv, setPendingCsv] = useState<{
     text: string;
     filename: string;
+    rows: ManaBoxRow[];
     mixedCurrency: boolean;
     currencyFromFile: string;
     missingCurrency: boolean;
@@ -1024,7 +1129,14 @@ export function MtgBuylistWorkspace({
     const file = pendingCsv;
     setPendingCsv(null);
     run(
-      () => uploadCsvAction(file.text, file.filename, priceSource, currency, activeRunId),
+      () =>
+        uploadCsvAction(
+          manaBoxRowsToCsv(file.rows),
+          file.filename,
+          priceSource,
+          currency,
+          activeRunId,
+        ),
       "Reading CSV…",
     );
   }
@@ -1155,6 +1267,7 @@ export function MtgBuylistWorkspace({
         setPendingCsv({
           text,
           filename: file.name,
+          rows,
           mixedCurrency: detected.mixed,
           currencyFromFile: detected.currency,
           missingCurrency: detected.missing,
@@ -1273,7 +1386,10 @@ export function MtgBuylistWorkspace({
           {pendingCsv ? (
             <div className="space-y-3 rounded border border-[var(--border)] p-3">
               <p className="text-sm">
-                <CsvFilenameLink filename={pendingCsv.filename} csvText={pendingCsv.text} /> ready.
+                <CsvFilenameLink
+                  filename={pendingCsv.filename}
+                  csvText={manaBoxRowsToCsv(pendingCsv.rows)}
+                /> ready.
                 Price source?
               </p>
               <label className="block text-sm">
@@ -1299,6 +1415,11 @@ export function MtgBuylistWorkspace({
                   placeholder="AUD"
                 />
               </label>
+              <CsvRowsPanel
+                rows={pendingCsv.rows}
+                editable
+                onChange={(rows) => setPendingCsv((prev) => (prev ? { ...prev, rows } : prev))}
+              />
               <button
                 type="button"
                 className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
@@ -1352,7 +1473,11 @@ export function MtgBuylistWorkspace({
         {pendingCsv ? (
           <div className="mt-3 space-y-3 rounded border border-[var(--border)] p-3">
             <p className="text-sm">
-              <CsvFilenameLink filename={pendingCsv.filename} csvText={pendingCsv.text} /> ready.
+              <CsvFilenameLink
+                filename={pendingCsv.filename}
+                csvText={manaBoxRowsToCsv(pendingCsv.rows)}
+              />{" "}
+              ready.
               Price source?
             </p>
             <label className="block text-sm">
@@ -1385,6 +1510,11 @@ export function MtgBuylistWorkspace({
                   ? `File has mixed currencies; majority is ${pendingCsv.currencyFromFile}. Confirm the basis for this run.`
                   : `File lists ${pendingCsv.currencyFromFile || "a currency"}. Confirm if that is what ManaBox was set to.`}
             </p>
+            <CsvRowsPanel
+              rows={pendingCsv.rows}
+              editable
+              onChange={(rows) => setPendingCsv((prev) => (prev ? { ...prev, rows } : prev))}
+            />
             <button
               type="button"
               className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
@@ -1425,6 +1555,27 @@ export function MtgBuylistWorkspace({
         ) : (
           <p className="mt-3 text-sm text-[var(--muted)]">No CSV in this run yet.</p>
         )}
+        {pendingCsv ? null : store.csv ? (
+          <div className="mt-3">
+            <CsvRowsPanel
+              rows={store.csv.rows}
+              editable={!store.mate && !store.playmantis}
+              onChange={(rows) =>
+                setStore((prev) => (prev.csv ? { ...prev, csv: { ...prev.csv, rows } } : prev))
+              }
+              onSave={
+                store.mate || store.playmantis
+                  ? undefined
+                  : () =>
+                      run(
+                        () => saveCsvRowsAction(store.csv?.rows || [], activeRunId),
+                        "Saving CSV…",
+                      )
+              }
+              saveDisabled={pending || busy}
+            />
+          </div>
+        ) : null}
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -2106,6 +2257,203 @@ function MetaHead({
   );
 }
 
+const csvEditInput =
+  "h-6 w-full min-h-0 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0 text-[13px] leading-5 text-[var(--ink)]";
+
+function CsvRowsPanel({
+  rows,
+  editable,
+  onChange,
+  onSave,
+  saveDisabled,
+}: {
+  rows: ManaBoxRow[];
+  editable: boolean;
+  onChange?: (rows: ManaBoxRow[]) => void;
+  onSave?: () => void;
+  saveDisabled?: boolean;
+}) {
+  return (
+    <CollapsibleTableSection
+      id="csv-rows"
+      title="CSV rows"
+      count={String(rows.length)}
+      hint={editable ? "edit before harvest" : "locked after harvest"}
+      defaultOpen={false}
+    >
+      <p className="text-xs text-[var(--muted)]">
+        {editable
+          ? "Revise qty, finish, #, and Scryfall ID before adding buylist items."
+          : "Re-upload the CSV to change these rows."}
+      </p>
+      <CsvRowsEditor rows={rows} editable={editable} onChange={onChange} />
+      {editable && onSave ? (
+        <button
+          type="button"
+          className="sg-btn-secondary disabled:opacity-50"
+          disabled={saveDisabled}
+          onClick={onSave}
+        >
+          Save CSV edits
+        </button>
+      ) : null}
+    </CollapsibleTableSection>
+  );
+}
+
+function CsvRowsEditor({
+  rows,
+  editable,
+  onChange,
+}: {
+  rows: ManaBoxRow[];
+  editable: boolean;
+  onChange?: (rows: ManaBoxRow[]) => void;
+}) {
+  function patch(index: number, next: Partial<ManaBoxRow>) {
+    if (!onChange) return;
+    onChange(rows.map((row, i) => (i === index ? { ...row, ...next } : row)));
+  }
+  function remove(index: number) {
+    if (!onChange) return;
+    onChange(rows.filter((_, i) => i !== index));
+  }
+  return (
+    <div className="min-w-0 overflow-x-auto">
+      <table className={runTableClass}>
+        <thead className="bg-[var(--surface)]">
+          <tr className="text-[var(--muted)]">
+            <th className={nameHeadClass}>Name</th>
+            <MetaHead>Set</MetaHead>
+            <MetaHead>#</MetaHead>
+            <MetaHead title="Finish">Fin</MetaHead>
+            <MetaHead>Qty</MetaHead>
+            <MetaHead title="Listed">List</MetaHead>
+            <th className={`${metaHeadClass} min-w-[10rem]`}>Scryfall ID</th>
+            {editable ? <th className={metaHeadClass}> </th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={`${row.scryfallId}-${row.name}-${i}`} className="border-t border-[var(--border)]">
+              <td className={nameCellClass}>
+                {editable ? (
+                  <input
+                    className={csvEditInput}
+                    value={row.name}
+                    aria-label="Name"
+                    onChange={(e) => patch(i, { name: e.target.value })}
+                  />
+                ) : (
+                  row.name
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} w-16`}
+                    value={row.setCode}
+                    aria-label="Set code"
+                    onChange={(e) => patch(i, { setCode: e.target.value })}
+                  />
+                ) : (
+                  row.setCode || "—"
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} w-14`}
+                    value={row.collectorNumber}
+                    aria-label="Collector number"
+                    onChange={(e) => patch(i, { collectorNumber: e.target.value })}
+                  />
+                ) : (
+                  row.collectorNumber || "—"
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} w-16`}
+                    value={row.foil}
+                    aria-label="Finish"
+                    onChange={(e) => patch(i, { foil: e.target.value })}
+                  />
+                ) : (
+                  compactFinish(row.foil).short
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} w-12`}
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    value={row.quantity}
+                    aria-label="Quantity"
+                    onChange={(e) => patch(i, { quantity: Number(e.target.value) || 0 })}
+                  />
+                ) : (
+                  row.quantity
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} w-16`}
+                    inputMode="decimal"
+                    value={
+                      row.purchasePriceCents > 0 ? (row.purchasePriceCents / 100).toFixed(2) : ""
+                    }
+                    aria-label="Listed price"
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      patch(i, {
+                        purchasePriceCents:
+                          Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0,
+                      });
+                    }}
+                  />
+                ) : row.purchasePriceCents > 0 ? (
+                  money(row.purchasePriceCents)
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className={metaCellClass}>
+                {editable ? (
+                  <input
+                    className={`${csvEditInput} min-w-[9rem]`}
+                    value={row.scryfallId}
+                    aria-label="Scryfall ID"
+                    onChange={(e) => patch(i, { scryfallId: e.target.value.trim() })}
+                  />
+                ) : (
+                  row.scryfallId || "—"
+                )}
+              </td>
+              {editable ? (
+                <td className={metaCellClass}>
+                  <button
+                    type="button"
+                    className="sg-btn-ghost px-1 text-xs text-[var(--muted)]"
+                    aria-label={`Remove ${row.name}`}
+                    onClick={() => remove(i)}
+                  >
+                    ×
+                  </button>
+                </td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function compactFinish(finish: string): { short: string; title: string } {
   const title = finish.trim() || "—";
   const key = title.toLowerCase();
@@ -2254,7 +2602,10 @@ function JoinBoard({
         </button>
       </p>
       {visible.length ? (
-        <JoinTable rows={visible} />
+        <>
+          <JoinToneLegend />
+          <JoinTable rows={visible} />
+        </>
       ) : (
         <p className="text-sm text-[var(--muted)]">No printings in this view.</p>
       )}
@@ -2266,6 +2617,34 @@ function joinRowTone(row: OuterJoinRow): string {
   if (row.remaining < 0) return "bg-[color-mix(in_srgb,var(--rag-amber)_16%,transparent)]";
   if (row.remaining > 0) return "bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]";
   return "";
+}
+
+function JoinToneLegend() {
+  return (
+    <ul className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-label="Row colours">
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-block h-3.5 w-5 rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]"
+          aria-hidden
+        />
+        <span className="text-[var(--muted)]">Leftover</span>
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-block h-3.5 w-5 rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--rag-amber)_16%,transparent)]"
+          aria-hidden
+        />
+        <span className="text-[var(--muted)]">Oversold</span>
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-block h-3.5 w-5 rounded border border-[var(--border)] bg-[var(--surface)]"
+          aria-hidden
+        />
+        <span className="text-[var(--muted)]">Even</span>
+      </li>
+    </ul>
+  );
 }
 
 function soldVendorCell(qty: number, allToThis: boolean, store: "mm" | "pm"): string {
@@ -2374,6 +2753,11 @@ function FilterChip({
   onClick: () => void;
   tone?: "default" | "amber";
 }) {
+  const runUi = useUiLoadingGate();
+  function handleClick() {
+    if (active) return;
+    runUi(onClick);
+  }
   if (tone === "amber") {
     return (
       <button
@@ -2381,7 +2765,7 @@ function FilterChip({
         role="tab"
         aria-selected={active}
         className={`sg-tab${active ? " !border-[var(--rag-amber)]" : ""}`}
-        onClick={onClick}
+        onClick={handleClick}
       >
         {label}
       </button>
@@ -2393,7 +2777,7 @@ function FilterChip({
       role="tab"
       aria-selected={active}
       className="sg-tab"
-      onClick={onClick}
+      onClick={handleClick}
     >
       {label}
     </button>
@@ -2447,6 +2831,7 @@ function StreamTable({
   onRejectMate?: (rowKey: string) => void;
   onDownload: () => void;
 }) {
+  const runUi = useUiLoadingGate();
   const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
   const [showHarvestDiffs, setShowHarvestDiffs] = useState(false);
   const harvestDiffCount = rows.filter((row) => row.harvestDiff).length;
@@ -2524,7 +2909,10 @@ function StreamTable({
                   : "text-[var(--muted)]"
               }`}
               aria-pressed={!showHarvestDiffs}
-              onClick={() => setShowHarvestDiffs(false)}
+              onClick={() => {
+                if (!showHarvestDiffs) return;
+                runUi(() => setShowHarvestDiffs(false));
+              }}
             >
               Table
             </button>
@@ -2536,7 +2924,10 @@ function StreamTable({
                   : "text-[var(--muted)]"
               }`}
               aria-pressed={showHarvestDiffs}
-              onClick={() => setShowHarvestDiffs(true)}
+              onClick={() => {
+                if (showHarvestDiffs) return;
+                runUi(() => setShowHarvestDiffs(true));
+              }}
             >
               Show diffs
             </button>
@@ -2547,14 +2938,13 @@ function StreamTable({
         Showing {filterLabel}
         {bandFilter.size > 0 ? " · recovered % filter" : ""} · {visible.length} of {rows.length}
         <InfoTip
-          label={`Green = sellable · grey = at limit · amber = not found${
-            mode === "mate"
-              ? " · amber+ = Confirm the Mate printing · ↻ reopens variants"
-              : ""
-          }. O = owned, S = store.`}
+          label={`${
+            mode === "mate" ? "↻ reopens variants. " : ""
+          }O = owned, S = store.`}
         />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
+      <RowToneLegend includeConfirm={mode === "mate"} />
       <RecoveryLegend
         selected={bandFilter}
         onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
@@ -2921,6 +3311,7 @@ function CompareTable({
         <InfoTip label="Who wins and Sell qty. Confirm Mate printings on the Mate stream. O = owned." />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
+      <RowToneLegend includeConfirm />
       <RecoveryLegend
         selected={bandFilter}
         onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
@@ -3029,15 +3420,15 @@ function CompareRowBlock({
           : 0;
   const gainBand = recoveryBand(winnerCredit, row.listedCents);
   const shortSell = sell > 0 && sell < row.have;
-  const rowTone = row.sellable
-    ? "bg-[color-mix(in_srgb,var(--rag-green)_10%,transparent)]"
+  const rowTone: StreamTone | null = row.sellable
+    ? "sell"
     : row.mateAmbiguous
-      ? "bg-[color-mix(in_srgb,var(--rag-amber)_14%,transparent)]"
+      ? "ambiguous"
       : row.notFound
-        ? "bg-[color-mix(in_srgb,var(--rag-amber)_8%,transparent)]"
+        ? "skip"
         : row.wantFull
-          ? "bg-[color-mix(in_srgb,var(--muted)_8%,transparent)]"
-          : "";
+          ? "capped"
+          : null;
 
   function storeCellClass(isWinner: boolean, wanted: number): string | undefined {
     if (isWinner) return winCell;
@@ -3048,7 +3439,7 @@ function CompareRowBlock({
   }
 
   return (
-    <tr className={`border-t border-[var(--border)] ${rowTone}`}>
+    <tr className={`border-t border-[var(--border)] ${rowTone ? toneClass(rowTone) : ""}`}>
       <td
         className={nameCellClass}
         title={`${row.setCode}${row.collectorNumber ? ` #${row.collectorNumber}` : ""}${

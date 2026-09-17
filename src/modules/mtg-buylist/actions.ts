@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { randomBytes } from "crypto";
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
@@ -31,7 +32,9 @@ import { enrichRowsFromScryfall, lookupScryfallCardIds, lookupScryfallSetCodes, 
 import { runParserSelfCheck } from "./logic/self-check";
 import {
   MTG_BUYLIST_HREF,
+  manaBoxRowSchema,
   priceSourceSchema,
+  type ManaBoxRow,
   type MtgBuylistStore,
   type PriceSource,
 } from "./schema";
@@ -181,6 +184,32 @@ export async function enrichCsvTreatmentsAction(runId?: string) {
       error: error instanceof Error ? error.message : "Scryfall enrich failed",
     };
   }
+}
+
+/** Rewrite CSV rows before Mate/Playmantis harvest. Does not re-parse from a file. */
+export async function saveCsvRowsAction(rows: ManaBoxRow[], runId?: string) {
+  const loaded = await loadStore(runId);
+  if (!loaded) return { ok: false as const, error: "Staff sign-in required" };
+  if (!loaded.store.csv) return { ok: false as const, error: "Upload a ManaBox CSV first" };
+  if (loaded.store.mate || loaded.store.playmantis) {
+    return {
+      ok: false as const,
+      error: "CSV is locked after harvest. Re-upload the file to start over.",
+    };
+  }
+  const parsed = z.array(manaBoxRowSchema).safeParse(rows);
+  if (!parsed.success) return { ok: false as const, error: "CSV rows are not valid" };
+  const nextRows = parsed.data.filter((row) => row.name.trim() && row.quantity > 0);
+  if (!nextRows.length) return { ok: false as const, error: "No card rows left in this CSV" };
+  const pack = await persist(
+    loaded.staff.userKey,
+    {
+      ...loaded.store,
+      csv: { ...loaded.store.csv, rows: nextRows },
+    },
+    (runId || "").trim() || loaded.pack.activeRunId,
+  );
+  return { ok: true as const, ...withPack(pack.store, pack), summary: summaryOf(pack.store) };
 }
 
 export async function uploadCsvAction(

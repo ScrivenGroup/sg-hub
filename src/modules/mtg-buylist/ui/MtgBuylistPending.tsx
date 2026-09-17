@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { UiLoadingScreen } from "@/core/shell/UiLoading";
 
-/** Shared wait card — route loading, L1 tab switch, and in-page work. */
+/** Processing card — harvest, uploads, parser checks. Navigation/filter waits use UiLoading. */
 export function MtgBuylistPending({
   status,
   detail,
@@ -53,13 +54,6 @@ export function MtgBuylistPendingOverlay({
   );
 }
 
-export function MtgBuylistRouteLoading({ status }: { status: string }) {
-  return (
-    <div className="flex w-full min-w-0 justify-center px-4 py-16">
-      <MtgBuylistPending
-        status={status}
-        detail="Run, Logs, and Development share this wait state."
-      />
-    </div>
-  );
+export function MtgBuylistRouteLoading({ status: _status }: { status: string }) {
+  return <UiLoadingScreen />;
 }
