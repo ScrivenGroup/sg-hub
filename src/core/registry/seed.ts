@@ -1214,6 +1214,19 @@ Out of this version
 - Localhost PATCH until the next hub train.`,
   },
   {
+    id: "cl-sunwater-mrt-roadmap",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    createdAt: "2026-09-17T06:50:00.000Z",
+    title: "Coming next: Effort Gantt, then the shareable link",
+    body: `Order of work. A flush is a polish pass on something that already works — speed, feedback while it thinks, and the small behaviours that make it feel finished.
+
+1. **Main Gantt — done at 1.5.8, on localhost.** Pan, FY, zoom and dragging a due are now camera moves over a drawn picture.
+2. **Effort Gantt flush — next.** The timeline inside the occurrence popup. Expect the same faults the main Gantt had. Also finishing the reset story so a reset occurrence reads as predicted everywhere.
+3. **Shareable link flush — after that.** The guest door and the personal copy: link handling, what a guest sees, and how a shared copy is reset.
+4. **Future features — on request only.** v1 still leaves out Followups, Assumptions, non-resource costing and any levelling. Grey hour bars under the tails wait for the hours sitting.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",
