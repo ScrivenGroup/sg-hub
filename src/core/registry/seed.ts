@@ -960,6 +960,20 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.28",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.28",
+    createdAt: "2026-09-17T06:30:00.000Z",
+    title: "1.5.28 (dev) — Compare shows set and #",
+    body: `## Publish to localhost (not live)
+
+- Compare (Step 4) lists Set and collector number so same-name lands and reprints are distinguishable.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

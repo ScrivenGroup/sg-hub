@@ -3308,7 +3308,7 @@ function CompareTable({
       </div>
       <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
         {csvFilename}
-        <InfoTip label="Who wins and Sell qty. Confirm Mate printings on the Mate stream. O = owned." />
+        <InfoTip label="Who wins and Sell qty. Set and # identify lands and reprints. Confirm Mate printings on the Mate stream. O = owned." />
       </p>
       <PriceBasisNote source={priceSource} currency={priceCurrency} />
       <RowToneLegend includeConfirm />
@@ -3321,6 +3321,8 @@ function CompareTable({
           <thead className="bg-[var(--surface)]">
             <tr className="text-[var(--muted)]">
               <th className={nameHeadClass}>Card</th>
+              <MetaHead>Set</MetaHead>
+              <MetaHead>#</MetaHead>
               <MetaHead>Have</MetaHead>
               <MetaHead title="Listed">List</MetaHead>
               <MetaHead>Mate</MetaHead>
@@ -3465,6 +3467,8 @@ function CompareRowBlock({
           ) : null}
         </div>
       </td>
+      <td className={metaCellClass}>{row.setCode || "—"}</td>
+      <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
       <td className={metaCellClass}>{row.have}</td>
       <td className={metaCellClass}>{money(row.listedCents)}</td>
       <td className={metaCellClass}>
