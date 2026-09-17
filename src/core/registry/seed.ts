@@ -1159,6 +1159,39 @@ Out of this version
 - Heatmap cells with no hours are not mounted. Localhost PATCH until the next hub train.`,
   },
   {
+    id: "cl-sunwater-mrt-1.5.5",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.5",
+    createdAt: "2026-09-17T00:30:00.000Z",
+    title: "Gantt draws as a picture so pan stays live",
+    body: `- Timeline dots, tails, grid and year ticks are drawn on a canvas. Toolbar, row names, filters, collapse, grouping, drag-to-week-ending and double-click stay the same.
+- Pan, zoom and minimap no longer rebuild thousands of page buttons. Grey hour lines under tails wait for the hours sitting.
+- Localhost PATCH until the next hub train.`,
+  },
+  {
+    id: "cl-sunwater-mrt-1.5.6",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.6",
+    createdAt: "2026-09-17T01:25:00.000Z",
+    title: "Gantt pan no longer rebuilds the page",
+    body: `- Pan and scroll only move the camera and redraw the picture. The page is not rebuilt on every drag.
+- Dev default: this financial year in the window, first dam in the filter. Add more assets from Asset when you want them.
+- Localhost PATCH until the next hub train.`,
+  },
+  {
+    id: "cl-sunwater-mrt-1.5.7",
+    nodeId: "w-sunwater-mrt",
+    kind: "plan",
+    version: "1.5.7",
+    createdAt: "2026-09-17T01:35:00.000Z",
+    title: "Vertical pan works; all-dams stays in the window",
+    body: `- Dragging up/down on the Gantt scrolls rows again. The name column can no longer stretch the chart to the full list height.
+- The picture is the size of the window, not every row at once, so showing all dams should not freeze pan.
+- Localhost PATCH until the next hub train.`,
+  },
+  {
     id: "cl-sunwater-mrt-dev-template",
     nodeId: "w-sunwater-mrt",
     kind: "plan",

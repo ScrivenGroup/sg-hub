@@ -443,12 +443,17 @@ function toMarker(
   };
 }
 
-export function ganttMarkers(store: ScheduleStore): GanttMarker[] {
+export function ganttMarkers(
+  store: ScheduleStore,
+  damIds?: string[],
+): GanttMarker[] {
   const start = storeWindow(store).start;
   const out: GanttMarker[] = [];
   const seen = new Set<string>();
+  const damSet = damIds ? new Set(damIds) : null;
 
   for (const dam of store.dams) {
+    if (damSet && !damSet.has(dam.id)) continue;
     for (const lane of store.lanes) {
       const applies = laneApplies(store.laneApplicability, dam, lane);
       if (!applies) continue;
@@ -470,6 +475,7 @@ export function ganttMarkers(store: ScheduleStore): GanttMarker[] {
     const dam = store.dams.find((d) => d.id === parsed.damId);
     const lane = store.lanes.find((l) => l.code === parsed.laneCode);
     if (!dam || !lane) continue;
+    if (damSet && !damSet.has(dam.id)) continue;
     const applies = laneApplies(store.laneApplicability, dam, lane);
     seen.add(key);
     out.push(toMarker(store, dam, lane, parsed.dueIdx, !applies));

@@ -21,6 +21,11 @@ export function fyStartYm(now = new Date()) {
   return { y: today.y - 1, m: 7 };
 }
 
+/** FY end year for `now` (FY n = 1 Jul n-1 – 30 Jun n). */
+export function currentFyEndYear(now = new Date()) {
+  return fyStartYm(now).y + 1;
+}
+
 /** 30 Jun of the Australian FY that contains y/m. */
 export function fyEndYmContaining(y: number, m: number) {
   if (m >= 7) return { y: y + 1, m: 6 };
