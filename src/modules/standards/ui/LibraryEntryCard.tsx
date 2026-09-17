@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
 import type { LibraryEntry, LibraryStatus } from "../catalog";
 import { currentText } from "../catalog";
+import { LibrarySpecimen } from "./LibrarySpecimen";
 
 const STATUS_LABEL: Record<LibraryStatus, string> = {
   kit: "Kit default",
@@ -11,11 +11,9 @@ const STATUS_LABEL: Record<LibraryStatus, string> = {
 
 export function LibraryEntryCard({
   row,
-  specimen,
   anchor = true,
 }: {
   row: LibraryEntry;
-  specimen?: ReactNode;
   anchor?: boolean;
 }) {
   const decidedAway = Boolean(row.current && row.current !== row.kitDefault);
@@ -32,7 +30,7 @@ export function LibraryEntryCard({
         <span className="font-medium">Use </span>
         <code className="font-mono text-xs">{row.use}</code>
       </p>
-      {specimen ? <div className="flex flex-wrap items-center gap-2">{specimen}</div> : null}
+      <LibrarySpecimen row={row} />
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
@@ -78,7 +76,10 @@ export function LibraryEntryCard({
           {row.conflicts.map((c) => (
             <li key={`${c.leaf}-${c.where}`}>
               <span className="font-medium">{c.leaf}</span>
-              <span className="text-[var(--muted)]"> — {c.where}: {c.instead}</span>
+              <span className="text-[var(--muted)]">
+                {" "}
+                — {c.where}: {c.instead}
+              </span>
             </li>
           ))}
         </ul>

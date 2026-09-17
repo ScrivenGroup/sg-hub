@@ -664,7 +664,100 @@ export const LIBRARY_SEED: LibraryEntry[] = [
     kitDefault: "Ink primary is the one commit action, whatever the label.",
     status: "kit",
   },
+  {
+    id: "beh-page-width",
+    layer: "behaviour",
+    title: "Page width",
+    use: "AppShell main fills the frame",
+    kitDefault: "Padding only. Constrain reading text (max-w-2xl), not the page. Wide tools use the frame.",
+    current: "AppShell main is w-full with horizontal padding. No max-w-5xl on the page.",
+    status: "decided",
+    notes: "MRT and Buylist keep their own chrome widths until a later lock.",
+    decisions: [
+      {
+        at: "2026-09-17T01:00:00.000Z",
+        from: "mx-auto max-w-5xl on every AppShell page",
+        to: "Fill the available width; cap reading text, not the page",
+        why: "Narrow page chrome fought wide content and made Standards tabs look inconsistent.",
+      },
+    ],
+  },
 ];
+
+export type LibraryOption = {
+  id: string;
+  label: string;
+  hint: string;
+  /** True when this option is already the hub kit. */
+  now?: boolean;
+};
+
+export type LibraryQuestion = {
+  id: string;
+  ask: string;
+  why: string;
+  options: LibraryOption[];
+};
+
+/** One current pick per object. `now` = hub kit today. Anything else is off-standard. */
+export const LIBRARY_QUESTIONS: LibraryQuestion[] = [
+  {
+    id: "obj-btn-primary",
+    ask: "Which primary button is the standard?",
+    why: "The hub kit is fill-only. MRT already draws a 1px border on the same action.",
+    options: [
+      { id: "fill", label: "Fill only", hint: "Hub kit today", now: true },
+      { id: "border", label: "Fill + border", hint: "What MRT already draws" },
+    ],
+  },
+  {
+    id: "obj-btn-destructive",
+    ask: "How should destructive actions look?",
+    why: "MRT and Buylist each invented a red button. The hub kit has none.",
+    options: [
+      { id: "later", label: "Leave it", hint: "No kit class", now: true },
+      { id: "named", label: "Named danger button", hint: "Add sg-btn-danger" },
+    ],
+  },
+  {
+    id: "obj-dialog",
+    ask: "One dialog overlay, or two?",
+    why: "PLATFORM is viewport-capped. Chrome still uses a second overlay.",
+    options: [
+      { id: "one", label: "One overlay", hint: "Viewport-capped, everywhere", now: true },
+      { id: "two", label: "Keep both", hint: "Chrome vs MRT as they are" },
+    ],
+  },
+];
+
+export const PARKED_FOR_LATER = [
+  "Card hover vs static",
+  "Loading skeletons",
+  "Named table class",
+  "Chips / type pills",
+  "Toasts",
+  "Custom checkboxes",
+  "Icon set",
+  "Focus ring token",
+];
+
+export function questionFor(entryId: string): LibraryQuestion | undefined {
+  return LIBRARY_QUESTIONS.find((q) => q.id === entryId);
+}
+
+export function optionFor(entryId: string, optionId?: string): LibraryOption | undefined {
+  if (!optionId) return undefined;
+  return questionFor(entryId)?.options.find((o) => o.id === optionId);
+}
+
+export function isOffStandard(choices: Record<string, string>, entryId: string): boolean {
+  const pick = optionFor(entryId, choices[entryId]);
+  return Boolean(pick && !pick.now);
+}
+
+export function offStandardEntries(choices: Record<string, string>): string[] {
+  return LIBRARY_QUESTIONS.map((q) => q.id).filter((id) => isOffStandard(choices, id));
+}
 
 export function libraryByLayer(layer: LibraryLayer): LibraryEntry[] {
   return LIBRARY_SEED.filter((row) => row.layer === layer);

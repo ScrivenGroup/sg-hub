@@ -4,9 +4,15 @@ In-app: System → Standards (`/s/standards`). This file stays the short checkli
 
 See also `src/core/checklist.md` and [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPMENT.md).
 
-## Drop pile (parallel sittings)
+## Design Library
 
-When you find or make a design/behaviour note on another desk, **do not invent a new class**. Dump it on Standards Drop (`/s/standards?tab=drop`): kind note / decision / conflict, optional source leaf, what to remember. Chrome Feedback stays the bug door (`/d?tab=inbox`). Do not restyle other leaves until Bill decides on the library card.
+The in-app Design Library is the definitive visual kit. Do not invent a new class. If Bill picks something other than the hub standard, that object is flagged on the card (one current choice). Chrome Feedback stays the bug door (`/d?tab=inbox`). Do not restyle other leaves until that object is locked.
+
+## Holding pile
+
+Standards Home (`/s/standards`) has **Hold**: a dumping ground to file later. Leaf / WIP desks **follow the kit**. If you notice a gap or cannot follow it (example: a button with no border that should always have one), **do not rewrite the Design Library**. Drop a note on Hold (kind note / conflict / idea, optional source leaf, what to remember). Conflicts may exist for good reason — that is why updates are deliberate, on the Standards desk, not from a random leaf sitting.
+
+When Bill says “refer standards; if it isn’t the default, drop a note to be filed later,” that note lands here.
 
 ## Kit
 

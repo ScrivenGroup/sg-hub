@@ -3,7 +3,7 @@
 1. Correct Hub (Work / Projects / Development / Internal / System)?  
 2. Sub-hub registered (slug + 6-hex code + access)? Cycle: dummy → `sketched` shell → `building` skeleton → `live`?  
 3. Home + Site network + Feedback + Profile intact?  
-4. Theme tokens; hex on badge only unless ThemeContract? Starting classes `sg-card` / `sg-btn-*`?  
+4. Theme tokens; hex on badge only unless ThemeContract? Starting classes `sg-card` / `sg-btn-*`? Can’t follow the kit → Hold note on `/s/standards`, do not rewrite the library.  
 5. Site / Hub map updated (registry → Site network)?  
 6. Leaf Development: changelog (+ notes when not sketched)? Shipping version number + datetime?  
 7. Deps touched → Definition + RAG + externalUrl?  

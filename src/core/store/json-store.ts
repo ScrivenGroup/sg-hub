@@ -57,7 +57,10 @@ import {
   type MtgBuylistStore,
   type PlaymantisHarvestDiffRow,
 } from "@/modules/mtg-buylist/schema";
-import type { StandardsDropRecord } from "@/modules/standards/schema";
+import type {
+  StandardsChoices,
+  StandardsHoldRecord,
+} from "@/modules/standards/schema";
 import {
   dualWriteJson,
   pgGetChangelogs,
@@ -394,22 +397,43 @@ export async function getDevChoices(): Promise<DevChoiceRecord[]> {
   return out;
 }
 
-export async function getStandardsDrops(): Promise<StandardsDropRecord[]> {
-  return readJson("standards-drop.json", [] as StandardsDropRecord[]);
+export async function getStandardsChoices(): Promise<StandardsChoices> {
+  const rows = await readJson("standards-choices.json", {} as StandardsChoices);
+  if (!rows || typeof rows !== "object" || Array.isArray(rows)) return {};
+  return rows;
 }
 
-export async function addStandardsDrop(
-  entry: Omit<StandardsDropRecord, "id" | "createdAt">,
-): Promise<StandardsDropRecord> {
-  const all = await getStandardsDrops();
-  const record: StandardsDropRecord = {
+export async function setStandardsChoice(entryId: string, optionId: string): Promise<void> {
+  const all = await getStandardsChoices();
+  all[entryId] = optionId;
+  await writeJson("standards-choices.json", all);
+}
+
+export async function getStandardsHolds(): Promise<StandardsHoldRecord[]> {
+  const rows = await readJson("standards-hold.json", [] as StandardsHoldRecord[]);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function addStandardsHold(
+  entry: Omit<StandardsHoldRecord, "id" | "createdAt">,
+): Promise<StandardsHoldRecord> {
+  const all = await getStandardsHolds();
+  const record: StandardsHoldRecord = {
     ...entry,
-    id: `sd-${Date.now().toString(36)}`,
+    id: `sh-${Date.now().toString(36)}`,
     createdAt: new Date().toISOString(),
   };
   all.unshift(record);
-  await writeJson("standards-drop.json", all);
+  await writeJson("standards-hold.json", all);
   return record;
+}
+
+export async function removeStandardsHold(id: string): Promise<void> {
+  const all = await getStandardsHolds();
+  await writeJson(
+    "standards-hold.json",
+    all.filter((row) => row.id !== id),
+  );
 }
 
 export async function addDevChoice(

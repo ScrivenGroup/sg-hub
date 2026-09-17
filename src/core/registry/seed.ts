@@ -228,7 +228,7 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "building",
     hasNetworkMap: false,
-    description: "Design library, behaviours, process, and a drop pile for live notes.",
+    description: "Design library, behaviours, process, and a holding pile for later.",
     order: 3,
   },
 ];

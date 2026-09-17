@@ -23,9 +23,12 @@ export default function AppearancePage() {
       <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Appearance</h1>
         <p className="mt-2 max-w-xl text-[var(--muted)]">
-          ThemeContract tokens for the global SG theme. Sub-hub hex codes colour
-          badges only — not the page theme. Opt-in ThemeContract overrides (e.g.
-          Fuel Tracker dark/car) are planned per sub-hub on desktop.
+          Token values for the global SG theme. Live swatches, type ramp, and
+          pickers live on{" "}
+          <a href="/s/standards?tab=design" className="underline underline-offset-2">
+            Standards → Design Library
+          </a>
+          . Sub-hub hex codes colour badges only — not the page theme.
         </p>
       </header>
       <ul className="grid gap-3 sm:grid-cols-2">
