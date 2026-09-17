@@ -47,7 +47,8 @@ export async function POST(request: Request) {
 
   try {
     const parsed = parseMateJson(jsonText);
-    const store = await getMtgBuylistStore(staff.userKey);
+    const runId = new URL(request.url).searchParams.get("run");
+    const store = await getMtgBuylistStore(staff.userKey, runId);
     if (!store.csv) {
       return NextResponse.json(
         { ok: false, error: "Upload a ManaBox CSV first" },
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
       },
       mateImageLinks: {},
     });
-    await saveMtgBuylistStore(staff.userKey, next);
+    await saveMtgBuylistStore(staff.userKey, next, runId);
     revalidatePath(MTG_BUYLIST_HREF);
     revalidatePath(`${MTG_BUYLIST_HREF}/development`);
     return NextResponse.json({

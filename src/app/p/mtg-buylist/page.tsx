@@ -1,9 +1,9 @@
-import { auth, isMrtGuest } from "@/auth";
+import { isMrtGuest } from "@/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hostKindFromHeaders } from "@/core/kanban/host";
-import { getMtgBuylistStore } from "@/core/store/json-store";
-import { requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { getMtgBuylistWorkspace } from "@/core/store/json-store";
+import { getBuylistSession, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
 import { MTG_BUYLIST_HREF } from "@/modules/mtg-buylist/schema";
 import { MtgBuylistChrome } from "@/modules/mtg-buylist/ui/MtgBuylistChrome";
 import { MtgBuylistWorkspace } from "@/modules/mtg-buylist/ui/MtgBuylistWorkspace";
@@ -11,10 +11,15 @@ import { MtgBuylistWorkspace } from "@/modules/mtg-buylist/ui/MtgBuylistWorkspac
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-export default async function MtgBuylistPage() {
-  const session = await auth();
+export default async function MtgBuylistPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ run?: string }>;
+}) {
+  const session = await getBuylistSession();
   if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
 
+  const params = await searchParams;
   const { kind, host } = hostKindFromHeaders(await headers());
   const staff = await requireBuylistStaff();
   if (!staff) {
@@ -35,7 +40,7 @@ export default async function MtgBuylistPage() {
     );
   }
 
-  const store = await getMtgBuylistStore(staff.userKey);
+  const pack = await getMtgBuylistWorkspace(staff.userKey, params.run);
 
   return (
     <MtgBuylistChrome
@@ -46,7 +51,12 @@ export default async function MtgBuylistPage() {
       hostKind={kind}
       host={host}
     >
-      <MtgBuylistWorkspace initialStore={store} />
+      <MtgBuylistWorkspace
+        initialStore={pack.store}
+        initialRuns={pack.runs}
+        initialRunId={pack.activeRunId}
+        initialArchives={pack.archives}
+      />
     </MtgBuylistChrome>
   );
 }

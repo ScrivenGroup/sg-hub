@@ -49,8 +49,31 @@ import { normalizeScheduleStore } from "@/modules/sunwater-mrt/logic/normalize-s
 import type { MrtGuestActivity } from "@/modules/sunwater-mrt/share-public";
 import { withAllocateResults } from "@/modules/mtg-buylist/logic/allocate";
 import {
-  emptyMtgBuylistStore,
+  assembleBuylistStore,
+  archiveFromMeta,
+  emptyBuylistHarvest,
+  emptyBuylistOwnerIndex,
+  emptyBuylistRunFile,
+  harvestHasStoredData,
+  metaFromRun,
+  newBuylistRunId,
+  pickArchiveVictim,
+  runHasStoredData,
+  runNeedsAllocate,
+  shouldArchiveForNewRun,
+  splitBuylistStore,
+  splitLegacyStore,
+} from "@/modules/mtg-buylist/logic/runs";
+import {
+  buylistHarvestSchema,
+  buylistOwnerIndexSchema,
+  buylistRunFileSchema,
   mtgBuylistStoreSchema,
+  type BuylistArchive,
+  type BuylistHarvest,
+  type BuylistOwnerIndex,
+  type BuylistRunFile,
+  type BuylistRunMeta,
   type MtgBuylistStore,
   type PlaymantisHarvestDiffRow,
 } from "@/modules/mtg-buylist/schema";
@@ -474,19 +497,37 @@ export async function saveSunwaterMrtStore(
   await writeJson("sunwater-mrt.json", parsed);
 }
 
-function mtgBuylistFile(userKey: string) {
-  const key = userKey.replace(/[^a-zA-Z0-9._@-]/g, "_").slice(0, 80) || "user";
-  return path.join("mtg-buylist", `${key}.json`);
+function mtgBuylistOwnerKey(userKey: string) {
+  return userKey.replace(/[^a-zA-Z0-9._@-]/g, "_").slice(0, 80) || "user";
 }
 
-export async function getMtgBuylistStore(userKey: string): Promise<MtgBuylistStore> {
-  const fallback = emptyMtgBuylistStore();
-  const raw = await readJson(mtgBuylistFile(userKey), fallback);
-  const migrated = migrateMtgBuylistStore(raw);
-  const parsed = mtgBuylistStoreSchema.safeParse(migrated);
-  if (!parsed.success) return fallback;
-  // Recompute stream results so legacy `result` / stale Compare cannot outlive harvests.
-  return withAllocateResults(parsed.data);
+function mtgBuylistLegacyFile(userKey: string) {
+  return path.join("mtg-buylist", `${mtgBuylistOwnerKey(userKey)}.json`);
+}
+
+function mtgBuylistOwnerDir(userKey: string) {
+  return path.join("mtg-buylist", mtgBuylistOwnerKey(userKey));
+}
+
+function mtgBuylistIndexFile(userKey: string) {
+  return path.join(mtgBuylistOwnerDir(userKey), "index.json");
+}
+
+function mtgBuylistHarvestFile(userKey: string) {
+  return path.join(mtgBuylistOwnerDir(userKey), "harvest.json");
+}
+
+function mtgBuylistRunFile(userKey: string, runId: string) {
+  const id = runId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "this";
+  return path.join(mtgBuylistOwnerDir(userKey), `${id}.json`);
+}
+
+async function removeJson(file: string) {
+  try {
+    await fs.unlink(path.join(dataDir, file));
+  } catch {
+    /* missing is fine */
+  }
 }
 
 /** Drop legacy `result`; fill null stream results if missing. */
@@ -512,30 +553,242 @@ function migrateMtgBuylistStore(raw: unknown): unknown {
   return obj;
 }
 
+async function writeOwnerIndex(userKey: string, index: BuylistOwnerIndex) {
+  const parsed = buylistOwnerIndexSchema.parse(index);
+  await writeJson(mtgBuylistIndexFile(userKey), parsed);
+}
+
+async function writeOwnerHarvest(userKey: string, harvest: BuylistHarvest) {
+  const parsed = buylistHarvestSchema.parse(harvest);
+  await writeJson(mtgBuylistHarvestFile(userKey), parsed);
+}
+
+async function writeOwnerRun(userKey: string, run: BuylistRunFile) {
+  const parsed = buylistRunFileSchema.parse({
+    ...run,
+    updatedAt: new Date().toISOString(),
+  });
+  await writeJson(mtgBuylistRunFile(userKey, parsed.id), parsed);
+  return parsed;
+}
+
+async function readOwnerHarvest(userKey: string): Promise<BuylistHarvest> {
+  const raw = await readJsonIfExists<unknown>(mtgBuylistHarvestFile(userKey));
+  const parsed = buylistHarvestSchema.safeParse(raw ?? emptyBuylistHarvest());
+  return parsed.success ? parsed.data : emptyBuylistHarvest();
+}
+
+async function readOwnerRun(userKey: string, runId: string): Promise<BuylistRunFile> {
+  const raw = await readJsonIfExists<unknown>(mtgBuylistRunFile(userKey, runId));
+  const parsed = buylistRunFileSchema.safeParse(raw ?? emptyBuylistRunFile(runId));
+  if (parsed.success) return parsed.data;
+  return emptyBuylistRunFile(runId);
+}
+
+async function foldSharedHarvestIntoRun(
+  userKey: string,
+  index: BuylistOwnerIndex,
+): Promise<BuylistOwnerIndex> {
+  if (index.harvestFolded) return index;
+  const harvest = await readOwnerHarvest(userKey);
+  if (!harvestHasStoredData(harvest)) {
+    const next = { ...index, harvestFolded: true };
+    await writeOwnerIndex(userKey, next);
+    return next;
+  }
+  const targetId =
+    (index.activeRunId && index.runs.some((run) => run.id === index.activeRunId)
+      ? index.activeRunId
+      : index.runs[0]?.id) || "";
+  if (!targetId) {
+    await writeOwnerHarvest(userKey, emptyBuylistHarvest());
+    const next = { ...index, harvestFolded: true };
+    await writeOwnerIndex(userKey, next);
+    return next;
+  }
+  const run = await readOwnerRun(userKey, targetId);
+  const folded = {
+    ...run,
+    mate: run.mate ?? harvest.mate,
+    playmantis: run.playmantis ?? harvest.playmantis,
+    mateImageLinks: Object.keys(run.mateImageLinks || {}).length
+      ? run.mateImageLinks
+      : harvest.mateImageLinks || {},
+  };
+  await writeOwnerRun(userKey, folded);
+  await writeOwnerHarvest(userKey, emptyBuylistHarvest());
+  const next = {
+    ...index,
+    harvestFolded: true,
+    runs: index.runs.map((meta) =>
+      meta.id === targetId ? metaFromRun(folded, meta.name) : meta,
+    ),
+  };
+  await writeOwnerIndex(userKey, next);
+  return next;
+}
+
+async function ensureBuylistOwner(userKey: string): Promise<BuylistOwnerIndex> {
+  const existing = await readJsonIfExists<unknown>(mtgBuylistIndexFile(userKey));
+  const parsedIndex = buylistOwnerIndexSchema.safeParse(existing);
+  if (parsedIndex.success) {
+    if (parsedIndex.data.harvestFolded) return parsedIndex.data;
+    return foldSharedHarvestIntoRun(userKey, parsedIndex.data);
+  }
+
+  const legacyRaw = await readJsonIfExists<unknown>(mtgBuylistLegacyFile(userKey));
+  if (legacyRaw && typeof legacyRaw === "object") {
+    const migrated = migrateMtgBuylistStore(legacyRaw);
+    const parsed = mtgBuylistStoreSchema.safeParse(migrated);
+    if (parsed.success) {
+      const split = splitLegacyStore(parsed.data);
+      await writeOwnerIndex(userKey, split.index);
+      await writeOwnerHarvest(userKey, emptyBuylistHarvest());
+      if (split.index.runs.length) await writeOwnerRun(userKey, split.run);
+      await removeJson(mtgBuylistLegacyFile(userKey));
+      return split.index;
+    }
+  }
+
+  const index = emptyBuylistOwnerIndex();
+  await writeOwnerIndex(userKey, index);
+  await writeOwnerHarvest(userKey, emptyBuylistHarvest());
+  return index;
+}
+
+export type BuylistWorkspacePack = {
+  store: MtgBuylistStore;
+  runs: BuylistRunMeta[];
+  activeRunId: string;
+  archives: BuylistArchive[];
+};
+
+async function loadBuylistPack(userKey: string, runId?: string | null): Promise<BuylistWorkspacePack> {
+  const index = await ensureBuylistOwner(userKey);
+  const wanted = (runId || "").trim();
+  const active = wanted && index.runs.some((run) => run.id === wanted) ? wanted : "";
+  if (!active) {
+    const idleRun = emptyBuylistRunFile("");
+    idleRun.updatedAt = "idle";
+    return {
+      store: assembleBuylistStore(index, idleRun),
+      runs: index.runs,
+      activeRunId: "",
+      archives: index.archives || [],
+    };
+  }
+  const run = await readOwnerRun(userKey, active);
+  const assembled = assembleBuylistStore(index, { ...run, id: active });
+  return {
+    store: runNeedsAllocate(assembled) ? withAllocateResults(assembled) : assembled,
+    runs: index.runs,
+    activeRunId: active,
+    archives: index.archives || [],
+  };
+}
+
+export async function getMtgBuylistWorkspace(
+  userKey: string,
+  runId?: string | null,
+): Promise<BuylistWorkspacePack> {
+  return loadBuylistPack(userKey, runId);
+}
+
+export async function getMtgBuylistStore(
+  userKey: string,
+  runId?: string | null,
+): Promise<MtgBuylistStore> {
+  return (await loadBuylistPack(userKey, runId)).store;
+}
+
+export async function getMtgBuylistNotes(userKey: string): Promise<string> {
+  const index = await ensureBuylistOwner(userKey);
+  return index.notes || "";
+}
+
+export async function listBuylistArchives(userKey: string): Promise<BuylistArchive[]> {
+  const index = await ensureBuylistOwner(userKey);
+  return index.archives || [];
+}
+
+export async function saveMtgBuylistNotes(userKey: string, notes: string): Promise<void> {
+  const index = await ensureBuylistOwner(userKey);
+  index.notes = notes;
+  await writeOwnerIndex(userKey, index);
+}
+
 export async function saveMtgBuylistStore(
   userKey: string,
   store: MtgBuylistStore,
-): Promise<void> {
+  runId?: string | null,
+): Promise<string> {
+  const index = await ensureBuylistOwner(userKey);
+  let archives = [...(index.archives || [])];
+  let runs = [...index.runs];
+  let id = (runId || "").trim();
+  if (!id) {
+    if (shouldArchiveForNewRun(runs.length)) {
+      const victim = pickArchiveVictim(runs) || runs[0];
+      if (victim) {
+        archives = [archiveFromMeta(victim), ...archives].slice(0, 40);
+        runs = runs.filter((run) => run.id !== victim.id);
+        await removeJson(mtgBuylistRunFile(userKey, victim.id));
+      }
+    }
+    id = newBuylistRunId();
+  }
   const parsed = mtgBuylistStoreSchema.parse({
     ...store,
     updatedAt: new Date().toISOString(),
   });
-  await writeJson(mtgBuylistFile(userKey), parsed);
+  const split = splitBuylistStore(parsed, id);
+  const savedRun = await writeOwnerRun(userKey, split.run);
+  const nextRuns = runs.some((run) => run.id === id)
+    ? runs.map((run) => (run.id === id ? metaFromRun(savedRun, run.name) : run))
+    : [...runs, metaFromRun(savedRun)];
+  await writeOwnerIndex(userKey, {
+    ...index,
+    notes: parsed.notes || index.notes,
+    activeRunId: id,
+    runs: nextRuns,
+    archives,
+  });
+  return id;
 }
 
-/** Wipe this user’s run without Zod-parsing a multi-MB harvest. Keeps Development notes. */
-export async function clearMtgBuylistStore(userKey: string): Promise<MtgBuylistStore> {
-  const fallback = emptyMtgBuylistStore();
-  let notes = "";
-  try {
-    const raw = await readJson<Record<string, unknown>>(mtgBuylistFile(userKey), fallback);
-    if (typeof raw.notes === "string") notes = raw.notes;
-  } catch {
-    /* empty is fine */
+/** Leave no run selected. Does not create a blank folder. */
+export async function idleMtgBuylistRun(userKey: string): Promise<BuylistWorkspacePack> {
+  const index = await ensureBuylistOwner(userKey);
+  if (index.activeRunId) {
+    await writeOwnerIndex(userKey, { ...index, activeRunId: "" });
   }
-  const next: MtgBuylistStore = { ...emptyMtgBuylistStore(), notes };
-  await writeJson(mtgBuylistFile(userKey), next);
-  return next;
+  return loadBuylistPack(userKey, "");
+}
+
+export async function createMtgBuylistRun(userKey: string): Promise<BuylistWorkspacePack> {
+  return idleMtgBuylistRun(userKey);
+}
+
+/** Wipe this run’s CSV, Mate, Playmantis, and results. Other tabs keep theirs. Zero runs is allowed. */
+export async function clearMtgBuylistStore(
+  userKey: string,
+  runId?: string | null,
+): Promise<BuylistWorkspacePack> {
+  const index = await ensureBuylistOwner(userKey);
+  const id = (runId || "").trim() || index.activeRunId;
+  if (!id) return loadBuylistPack(userKey, "");
+  const remaining = index.runs.filter((run) => run.id !== id);
+  await removeJson(mtgBuylistRunFile(userKey, id));
+  const stay =
+    remaining.some((run) => run.id === index.activeRunId) && index.activeRunId !== id
+      ? index.activeRunId
+      : "";
+  await writeOwnerIndex(userKey, {
+    ...index,
+    activeRunId: stay,
+    runs: remaining,
+  });
+  return loadBuylistPack(userKey, stay);
 }
 
 const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");
@@ -551,22 +804,35 @@ export async function savePlaymantisHarvestDiff(
   return rows.length;
 }
 
-export async function listPlaymantisHarvestDiff(): Promise<PlaymantisHarvestDiffRow[]> {
+export async function listPlaymantisHarvestDiff(
+  userKey?: string,
+): Promise<PlaymantisHarvestDiffRow[]> {
   const raw = postgresEnabled()
-    ? await pgListPlaymantisHarvestDiff()
-    : [...(await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []))].reverse().slice(0, 200);
+    ? await pgListPlaymantisHarvestDiff(200, userKey)
+    : [...(await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []))]
+        .filter((row) => !userKey || row.userKey === userKey)
+        .reverse()
+        .slice(0, 200);
   return raw.map((row) => ({ ...row, lookedAt: row.lookedAt || "" }));
 }
 
-export async function clearPlaymantisHarvestDiff(): Promise<number> {
-  let cleared = 0;
+export async function clearPlaymantisHarvestDiff(userKey?: string): Promise<number> {
   if (postgresEnabled()) {
-    cleared = await pgClearPlaymantisHarvestDiff();
-  } else {
-    const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
-    cleared = existing.length;
+    const cleared = await pgClearPlaymantisHarvestDiff(userKey);
+    if (!userKey) await persistSimpleJson(HARVEST_DIFF_FILE, []);
+    else {
+      const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+      await persistSimpleJson(
+        HARVEST_DIFF_FILE,
+        existing.filter((row) => row.userKey !== userKey),
+      );
+    }
+    return cleared;
   }
-  await persistSimpleJson(HARVEST_DIFF_FILE, []);
+  const existing = await readJson<PlaymantisHarvestDiffRow[]>(HARVEST_DIFF_FILE, []);
+  const keep = userKey ? existing.filter((row) => row.userKey !== userKey) : [];
+  const cleared = existing.length - keep.length;
+  await persistSimpleJson(HARVEST_DIFF_FILE, keep);
   return cleared;
 }
 
@@ -1065,6 +1331,7 @@ export async function upsertChangelogEntries(
 
 export type MateHarvestToken = {
   userKey: string;
+  runId?: string;
   setCodes: string[];
   expiresAt: string;
 };

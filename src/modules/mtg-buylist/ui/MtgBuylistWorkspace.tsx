@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   clearBuylistRunAction,
   confirmMateVariantAction,
+  createBuylistRunAction,
   createMateHarvestAction,
   enrichCsvTreatmentsAction,
   harvestPlaymantisAction,
+  loadBuylistRunAction,
   lookupCardIdsAction,
   lookupSetCodesAction,
   refreshMateImageLinksAction,
@@ -67,7 +68,11 @@ import {
   type PriceSource,
 } from "../schema";
 import { CardNameCell } from "./CardNameCell";
+import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 import { InfoTip } from "@/core/ui/InfoTip";
+import { ShellModal } from "@/core/shell/ShellModal";
+import { runHasStoredData } from "../logic/runs";
+import type { BuylistArchive, BuylistRunMeta } from "../schema";
 
 function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -245,36 +250,17 @@ function LoadingBanner({ status, pending }: { status: string; pending: boolean }
 }
 
 function BusyOverlay({ status }: { status: string }) {
-  const [mounted, setMounted] = useState(false);
   const [secs, setSecs] = useState(0);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setSecs((n) => n + 1), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  if (!mounted) return null;
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[2147483000] flex items-center justify-center bg-[color-mix(in_srgb,var(--ink)_40%,transparent)] p-4"
-      role="alertdialog"
-      aria-busy="true"
-      aria-live="assertive"
-      aria-label={status || "Working"}
-    >
-      <div className="sg-card max-w-md space-y-3 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <span
-            className="inline-block h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--ink)]"
-            aria-hidden
-          />
-          <p className="font-medium">{status || "Working…"}</p>
-        </div>
-        <p className="text-sm text-[var(--muted)]">Leave this page open. {secs}s elapsed.</p>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <MtgBuylistPendingOverlay
+      open
+      status={status || "Working…"}
+      detail={`Leave this page open. ${secs}s elapsed.`}
+    />
   );
 }
 
@@ -458,9 +444,21 @@ function filterCompareRows(rows: CompareRow[], filter: CompareFilter): CompareRo
   return rows;
 }
 
-export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylistStore }) {
+export function MtgBuylistWorkspace({
+  initialStore,
+  initialRuns,
+  initialRunId,
+}: {
+  initialStore: MtgBuylistStore;
+  initialRuns: BuylistRunMeta[];
+  initialRunId: string;
+  initialArchives?: BuylistArchive[];
+}) {
   const router = useRouter();
   const [store, setStore] = useState(initialStore);
+  const [runs, setRuns] = useState(initialRuns);
+  const [activeRunId, setActiveRunId] = useState(initialRunId);
+  const [closeTarget, setCloseTarget] = useState<BuylistRunMeta | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [bookmarklet, setBookmarklet] = useState("");
@@ -503,9 +501,14 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   const [savingDeltas, setSavingDeltas] = useState(false);
   const importReviewBookmarklet = useMemo(() => buildPlaymantisImportReviewBookmarklet(), []);
 
+  const busyRef = useRef(false);
+  busyRef.current = busy;
   useEffect(() => {
+    if (busyRef.current) return;
     setStore(initialStore);
-  }, [initialStore.updatedAt]);
+    setRuns(initialRuns);
+    setActiveRunId(initialRunId);
+  }, [initialStore.updatedAt, initialRunId, initialRuns]);
 
   const csvSets = useMemo(
     () => (store.csv ? uniqueSetCodes(store.csv.rows) : []),
@@ -533,7 +536,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     setImportReview(null);
     setDeltaSave(null);
     savedHarvestDiffKey.current = "";
-  }, [store.csv?.uploadedAt, store.csv?.filename]);
+  }, [store.csv?.uploadedAt, store.csv?.filename, activeRunId]);
 
   useEffect(() => {
     if (joinView === "mate" && !mateSubmission) setJoinView("master");
@@ -691,6 +694,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       const result = await confirmMateVariantAction(
         rowKey,
         currentlyConfirmed ? null : mateUuid,
+        activeRunId,
       );
       if (!result.ok) {
         setError(result.error || "Could not save Mate confirmation");
@@ -712,7 +716,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     });
     setError("");
     startTransition(async () => {
-      const result = await rejectMateVariantAction(rowKey);
+      const result = await rejectMateVariantAction(rowKey, activeRunId);
       if (!result.ok) {
         setError(result.error || "Could not reopen Mate printings");
         return;
@@ -747,6 +751,128 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     });
   }
 
+  function applyPack(result: {
+    store?: MtgBuylistStore;
+    runs?: BuylistRunMeta[];
+    activeRunId?: string;
+  }) {
+    if (result.store) setStore(result.store);
+    if (result.runs) setRuns(result.runs);
+    if (typeof result.activeRunId === "string") setActiveRunId(result.activeRunId);
+  }
+
+  function runHasClientData() {
+    return (
+      runHasStoredData(store) ||
+      Boolean(pmSubmission || mateSubmission || importReview || pendingCsv)
+    );
+  }
+
+  function openRunTab(runId: string) {
+    if (runId === activeRunId) return;
+    setError("");
+    setActiveRunId(runId);
+    setPmSubmission(null);
+    setMateSubmission(null);
+    setImportReview(null);
+    setSubmissionError("");
+    setStore((prev) => ({
+      ...prev,
+      csv: null,
+      mate: null,
+      playmantis: null,
+      resultPm: null,
+      resultMate: null,
+      resultCompare: null,
+      mateConfirmations: {},
+      mateReconfirm: {},
+      mateImageLinks: {},
+    }));
+    setBusy(true);
+    setStatus(runId ? "Opening run…" : "New Run…");
+    void loadBuylistRunAction(runId).then((result) => {
+      setBusy(false);
+      setStatus("");
+      if (!result.ok) {
+        setError(result.error || "Could not open run");
+        return;
+      }
+      applyPack(result);
+      const href = runId
+        ? `${MTG_BUYLIST_HREF}?run=${encodeURIComponent(runId)}`
+        : MTG_BUYLIST_HREF;
+      window.history.replaceState(window.history.state, "", href);
+    });
+  }
+
+  function goToRun(runId: string) {
+    setActiveRunId(runId);
+    if (runId) {
+      setPmSubmission(null);
+      setMateSubmission(null);
+      setImportReview(null);
+      setSubmissionError("");
+    }
+    router.replace(
+      runId ? `${MTG_BUYLIST_HREF}?run=${encodeURIComponent(runId)}` : MTG_BUYLIST_HREF,
+      { scroll: false },
+    );
+  }
+
+  function finishClose(pack: {
+    store?: MtgBuylistStore;
+    runs?: BuylistRunMeta[];
+    activeRunId?: string;
+  }) {
+    applyPack(pack);
+    setPmSubmission(null);
+    setMateSubmission(null);
+    setImportReview(null);
+    setPendingCsv(null);
+    setSubmissionError("");
+    setCloseTarget(null);
+    goToRun(pack.activeRunId || "");
+  }
+
+  function requestCloseRun(meta: BuylistRunMeta | "current") {
+    const target =
+      meta === "current"
+        ? runs.find((run) => run.id === activeRunId) || {
+            id: activeRunId,
+            name: store.csv?.filename || "This run",
+            csvFilename: store.csv?.filename || "",
+            updatedAt: store.updatedAt,
+            hasData: runHasStoredData(store),
+          }
+        : meta;
+    const isCurrent = target.id === activeRunId;
+    const hasData = isCurrent
+      ? runHasClientData()
+      : target.hasData;
+    if (!hasData) {
+      run(() => clearBuylistRunAction(target.id), "Clearing run…");
+      return;
+    }
+    setCloseTarget(target);
+  }
+
+  function confirmCloseRun() {
+    if (!closeTarget) return;
+    const id = closeTarget.id;
+    setCloseTarget(null);
+    setBusy(true);
+    setStatus("Clearing run…");
+    void clearBuylistRunAction(id).then((result) => {
+      setBusy(false);
+      setStatus("");
+      if (!result.ok) {
+        setError(result.error || "Could not clear run");
+        return;
+      }
+      finishClose(result);
+    });
+  }
+
   function copyText(label: string, text: string) {
     void navigator.clipboard.writeText(text).then(
       () => {
@@ -772,9 +898,13 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           setStatus("");
           return;
         }
-        if (result.store) setStore(result.store);
+        applyPack(result);
+        if ("activeRunId" in result && typeof result.activeRunId === "string") {
+          goToRun(result.activeRunId);
+        } else {
+          router.refresh();
+        }
         setStatus("");
-        router.refresh();
       } finally {
         setBusy(false);
       }
@@ -799,6 +929,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     while (true) {
       const result = await harvestPlaymantisAction(skipIds, {
         missingOnly: opts.missingOnly,
+        runId: activeRunId,
       });
       if (!result.ok) {
         setError(result.error);
@@ -893,7 +1024,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
     const file = pendingCsv;
     setPendingCsv(null);
     run(
-      () => uploadCsvAction(file.text, file.filename, priceSource, currency),
+      () => uploadCsvAction(file.text, file.filename, priceSource, currency, activeRunId),
       "Reading CSV…",
     );
   }
@@ -927,7 +1058,10 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           text: string;
         }>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open("POST", "/api/mtg-buylist/mate-upload");
+          xhr.open(
+            "POST",
+            `/api/mtg-buylist/mate-upload?run=${encodeURIComponent(activeRunId)}`,
+          );
           xhr.upload.onprogress = (event) => {
             if (!event.lengthComputable) return;
             const loaded = (event.loaded / (1024 * 1024)).toFixed(1);
@@ -984,7 +1118,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
         setStatus(
           `Parsed ${kept} / ${source} cards · joining images…`,
         );
-        const joined = await refreshMateImageLinksAction();
+        const joined = await refreshMateImageLinksAction(activeRunId);
         if (!joined.ok) {
           setError(joined.error || "Harvest saved; image joins failed");
           setStatus(`Mate ${kept} / ${source} cards · image joins failed`);
@@ -1006,15 +1140,17 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   }
 
   function acceptCsvFile(file: File) {
+    setError("");
+    setStatus("Reading CSV…");
     void readFileText(file).then((text) => {
       try {
         const rows = parseManaBoxCsv(text);
         if (!rows.length) {
+          setPendingCsv(null);
           setError("No card rows in that CSV");
           return;
         }
         const detected = majorityPurchaseCurrency(rows);
-        setError("");
         setPriceCurrency(detected.currency || "AUD");
         setPendingCsv({
           text,
@@ -1026,6 +1162,8 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       } catch (err) {
         setPendingCsv(null);
         setError(err instanceof Error ? err.message : "CSV parse failed");
+      } finally {
+        setStatus("");
       }
     });
   }
@@ -1033,12 +1171,83 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
   return (
     <div className="min-w-0 space-y-4" aria-busy={busy}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <div role="tablist" aria-label="Runs" className="flex flex-wrap">
-          <button type="button" role="tab" aria-selected className="sg-tab">
-            This run
+        <div role="tablist" aria-label="Runs" className="flex flex-wrap items-center">
+          <Link
+            href={MTG_BUYLIST_HREF}
+            role="tab"
+            className="sg-tab rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]"
+            aria-selected={!activeRunId}
+            aria-current={!activeRunId ? "page" : undefined}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+                return;
+              }
+              event.preventDefault();
+              openRunTab("");
+            }}
+          >
+            New Run
+          </Link>
+          {runs.map((runTab) => {
+            const selected = runTab.id === activeRunId;
+            return (
+              <div
+                key={runTab.id}
+                role="tab"
+                aria-selected={selected}
+                className="sg-tab group gap-0.5 pr-1.5"
+              >
+                <Link
+                  href={`${MTG_BUYLIST_HREF}?run=${encodeURIComponent(runTab.id)}`}
+                  className="min-w-0 max-w-[14rem] truncate"
+                  aria-current={selected ? "page" : undefined}
+                  onClick={(event) => {
+                    if (
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey ||
+                      event.button !== 0
+                    ) {
+                      return;
+                    }
+                    event.preventDefault();
+                    openRunTab(runTab.id);
+                  }}
+                >
+                  {runTab.name}
+                </Link>
+                <button
+                  type="button"
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[13px] leading-none text-[var(--muted)] opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-[color-mix(in_srgb,var(--rag-red)_18%,transparent)] hover:text-[var(--rag-red)] focus-visible:opacity-100"
+                  aria-label={`Close ${runTab.name}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    requestCloseRun(runTab);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            className="sg-tab min-w-8 rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] hover:text-[var(--ink)]"
+            aria-label="New Run"
+            disabled={pending || busy}
+            onClick={() => {
+              run(async () => {
+                const result = await createBuylistRunAction();
+                return result;
+              }, "New Run…");
+            }}
+          >
+            +
           </button>
         </div>
-        <InfoTip label="One run slot. Parallel runs are an Inbox idea." />
+        <InfoTip label="Each tab is one run folder with its own CSV, Mate, and Playmantis. Hover a name to show × and close it. + or New Run leaves none selected — drop a CSV to open a folder." />
       </div>
       {busy ? <BusyOverlay status={status} /> : null}
       {error ? (
@@ -1048,6 +1257,61 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
       ) : null}
       {!busy ? <LoadingBanner status={status} pending={pending} /> : null}
 
+      {!activeRunId ? (
+        <div className="sg-card space-y-3">
+          <h2 className="font-medium">New Run</h2>
+          <p className="text-sm text-[var(--muted)]">
+            No run folder is open. Drop a ManaBox CSV to start one. Existing tabs stay as they are.
+          </p>
+          <FileDropZone
+            accept=".csv,text/csv"
+            disabled={pending || busy}
+            label="ManaBox CSV"
+            hint="Drop or click · up to ~1000 cards"
+            onFile={acceptCsvFile}
+          />
+          {pendingCsv ? (
+            <div className="space-y-3 rounded border border-[var(--border)] p-3">
+              <p className="text-sm">
+                <CsvFilenameLink filename={pendingCsv.filename} csvText={pendingCsv.text} /> ready.
+                Price source?
+              </p>
+              <label className="block text-sm">
+                Price source
+                <select
+                  className="sg-input mt-1"
+                  value={priceSource}
+                  onChange={(e) => setPriceSource(e.target.value as PriceSource)}
+                >
+                  {PRICE_SOURCES.map((src) => (
+                    <option key={src} value={src}>
+                      {PRICE_SOURCE_LABELS[src]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                Listed currency
+                <input
+                  className="sg-input mt-1"
+                  value={priceCurrency}
+                  onChange={(e) => setPriceCurrency(e.target.value.toUpperCase())}
+                  placeholder="AUD"
+                />
+              </label>
+              <button
+                type="button"
+                className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+                disabled={pending || busy}
+                onClick={() => confirmCsvUpload()}
+              >
+                Open this run
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+      <>
       <CollapsibleSection
         id="csv"
         title="1. ManaBox CSV"
@@ -1073,15 +1337,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
             className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
             style={{ minHeight: "var(--sg-btn-height)" }}
             disabled={pending}
-            onClick={() => {
-              setBusy(false);
-              setPmSubmission(null);
-              setMateSubmission(null);
-              setImportReview(null);
-              setPendingCsv(null);
-              setSubmissionError("");
-              run(() => clearBuylistRunAction(), "Clearing run…");
-            }}
+            onClick={() => requestCloseRun("current")}
           >
             Clear this run
           </button>
@@ -1160,7 +1416,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
               className="sg-btn-secondary shrink-0 text-sm"
               disabled={pending || busy}
               onClick={() =>
-                run(() => enrichCsvTreatmentsAction(), "Asking Scryfall for treatments…")
+                run(() => enrichCsvTreatmentsAction(activeRunId), "Asking Scryfall for treatments…")
               }
             >
               Refresh Scryfall treatments
@@ -1472,7 +1728,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
               setBusy(true);
               void (async () => {
                 try {
-                  const result = await createMateHarvestAction(window.location.origin);
+                  const result = await createMateHarvestAction(window.location.origin, activeRunId);
                   if (!result.ok) {
                     setError(result.error);
                     setStatus("");
@@ -1568,7 +1824,7 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
                 setError("");
                 setStatus("Joining images to Scryfall…");
                 setBusy(true);
-                void refreshMateImageLinksAction().then((result) => {
+                void refreshMateImageLinksAction(activeRunId).then((result) => {
                   setBusy(false);
                   if (!result.ok) {
                     setError(result.error || "Could not join images");
@@ -1776,6 +2032,37 @@ export function MtgBuylistWorkspace({ initialStore }: { initialStore: MtgBuylist
           </div>
         )}
       </CollapsibleSection>
+      </>
+      )}
+      <ShellModal
+        open={Boolean(closeTarget)}
+        titleId="clear-buylist-run"
+        onClose={() => setCloseTarget(null)}
+        panelClassName="max-w-md"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" className="sg-btn-secondary" onClick={() => setCloseTarget(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))]"
+              style={{ minHeight: "var(--sg-btn-height)" }}
+              onClick={confirmCloseRun}
+            >
+              Clear run
+            </button>
+          </div>
+        }
+      >
+        <h2 id="clear-buylist-run" className="text-base font-medium">
+          Clear this run?
+        </h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          {closeTarget?.csvFilename || closeTarget?.name || "This run"} will be removed, including
+          its Mate and Playmantis harvests. Other tabs keep theirs.
+        </p>
+      </ShellModal>
     </div>
   );
 }

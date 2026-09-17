@@ -749,8 +749,16 @@ export async function pgInsertPlaymantisHarvestDiff(
   await db.insert(playmantisHarvestDiff).values(rows);
 }
 
-export async function pgListPlaymantisHarvestDiff(limit = 200) {
+export async function pgListPlaymantisHarvestDiff(limit = 200, userKey?: string) {
   const db = await getDb();
+  if (userKey) {
+    return db
+      .select()
+      .from(playmantisHarvestDiff)
+      .where(eq(playmantisHarvestDiff.userKey, userKey))
+      .orderBy(desc(playmantisHarvestDiff.createdAt))
+      .limit(limit);
+  }
   return db
     .select()
     .from(playmantisHarvestDiff)
@@ -758,11 +766,16 @@ export async function pgListPlaymantisHarvestDiff(limit = 200) {
     .limit(limit);
 }
 
-export async function pgClearPlaymantisHarvestDiff(): Promise<number> {
+export async function pgClearPlaymantisHarvestDiff(userKey?: string): Promise<number> {
   const db = await getDb();
-  const removed = await db.delete(playmantisHarvestDiff).returning({
-    id: playmantisHarvestDiff.id,
-  });
+  const removed = userKey
+    ? await db
+        .delete(playmantisHarvestDiff)
+        .where(eq(playmantisHarvestDiff.userKey, userKey))
+        .returning({ id: playmantisHarvestDiff.id })
+    : await db.delete(playmantisHarvestDiff).returning({
+        id: playmantisHarvestDiff.id,
+      });
   return removed.length;
 }
 

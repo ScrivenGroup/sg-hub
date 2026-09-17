@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { DevHostKind } from "@/core/kanban/host";
 import { RaiseIdeaButton } from "@/core/kanban/ui/RaiseIdeaButton";
 import { DevHostStrip } from "@/core/kanban/ui/DevHostStrip";
 import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
+import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 
 const LINKS = [
   { href: MTG_BUYLIST_HREF, label: "Run" },
@@ -27,11 +30,23 @@ export function MtgBuylistNav({
   hostKind?: DevHostKind;
   host?: string;
 }) {
+  const pathname = usePathname();
+  const [leavingTo, setLeavingTo] = useState<string | null>(null);
+  useEffect(() => {
+    setLeavingTo(null);
+  }, [pathname]);
+
+  const leaving = LINKS.find((link) => link.href === leavingTo);
   return (
     <nav
       className="mb-2 flex shrink-0 flex-wrap items-center gap-2"
       aria-label="MTG Buylist"
     >
+      <MtgBuylistPendingOverlay
+        open={Boolean(leaving) && pathname !== leavingTo}
+        status={leaving ? `Opening ${leaving.label}…` : "Loading…"}
+        detail="Stay on this page."
+      />
       <div role="tablist" className="flex min-w-0 flex-wrap items-center">
         {LINKS.map((link) => {
           const current = currentHref === link.href;
@@ -43,6 +58,10 @@ export function MtgBuylistNav({
               className="sg-tab"
               aria-selected={current}
               aria-current={current ? "page" : undefined}
+              onClick={() => {
+                if (current) return;
+                setLeavingTo(link.href);
+              }}
             >
               {link.label}
             </Link>

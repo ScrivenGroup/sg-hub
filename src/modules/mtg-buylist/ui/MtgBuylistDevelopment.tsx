@@ -9,6 +9,7 @@ import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { type KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
 import { parserSelfCheckAction, saveBuylistNotesAction } from "../actions";
 import { MTG_BUYLIST_HREF, MTG_BUYLIST_NODE_ID } from "../schema";
+import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 
 export function MtgBuylistDevelopment({
   changelogs,
@@ -33,6 +34,11 @@ export function MtgBuylistDevelopment({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <MtgBuylistPendingOverlay
+        open={pending}
+        status="Running parser check…"
+        detail="Stay on this page."
+      />
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
           type="button"

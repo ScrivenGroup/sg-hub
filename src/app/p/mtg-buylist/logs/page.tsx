@@ -1,9 +1,9 @@
-import { auth, isMrtGuest } from "@/auth";
+import { isMrtGuest } from "@/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hostKindFromHeaders } from "@/core/kanban/host";
-import { listPlaymantisHarvestDiff } from "@/core/store/json-store";
-import { requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { listBuylistArchives, listPlaymantisHarvestDiff } from "@/core/store/json-store";
+import { getBuylistSession, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
 import { MTG_BUYLIST_HREF } from "@/modules/mtg-buylist/schema";
 import { MtgBuylistChrome } from "@/modules/mtg-buylist/ui/MtgBuylistChrome";
 import { MtgBuylistLogs } from "@/modules/mtg-buylist/ui/MtgBuylistLogs";
@@ -11,7 +11,7 @@ import { MtgBuylistLogs } from "@/modules/mtg-buylist/ui/MtgBuylistLogs";
 export const dynamic = "force-dynamic";
 
 export default async function MtgBuylistLogsPage() {
-  const session = await auth();
+  const session = await getBuylistSession();
   if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
 
   const { kind, host } = hostKindFromHeaders(await headers());
@@ -22,7 +22,7 @@ export default async function MtgBuylistLogsPage() {
       <MtgBuylistChrome
         href={href}
         title="Logs"
-        intent="Staff Microsoft sign-in required. Harvest diffs are app-wide, not per run."
+        intent="Staff Microsoft sign-in required. Harvest diffs are yours only."
         page
         canRaise={false}
         hostKind={kind}
@@ -35,18 +35,21 @@ export default async function MtgBuylistLogsPage() {
     );
   }
 
-  const rows = await listPlaymantisHarvestDiff();
+  const [rows, archives] = await Promise.all([
+    listPlaymantisHarvestDiff(staff.userKey),
+    listBuylistArchives(staff.userKey),
+  ]);
 
   return (
     <MtgBuylistChrome
       href={href}
       title="Logs"
-      intent="App-wide harvest vs Import Review diffs. Not tied to the current Run."
+      intent="Your harvest vs Import Review diffs, plus archived runs. Not shared with other logins."
       page
       hostKind={kind}
       host={host}
     >
-      <MtgBuylistLogs initialRows={rows} />
+      <MtgBuylistLogs initialRows={rows} archives={archives} />
     </MtgBuylistChrome>
   );
 }

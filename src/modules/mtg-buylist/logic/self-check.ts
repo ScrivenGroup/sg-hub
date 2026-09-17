@@ -8,7 +8,7 @@ import {
   scryfallIdsNeedingPlaymantisFetch,
 } from "./playmantis";
 import { csvJoinKeys, mateCollectorFromName, normalizeCardName, playmantisCardName } from "./names";
-import { emptyMtgBuylistStore } from "../schema";
+import { MAX_LIVE_BUYLIST_RUNS, emptyMtgBuylistStore } from "../schema";
 import {
   buildCompareRows,
   buildMateStreamRows,
@@ -18,6 +18,16 @@ import {
   recoveryBand,
 } from "./tables";
 import { buildOuterJoin, filterJoinRows, parseSubmissionCsv, subtractSoldFromManaBox } from "./reprepare";
+import {
+  assembleBuylistStore,
+  emptyBuylistOwnerIndex,
+  emptyBuylistRunFile,
+  pickArchiveVictim,
+  runHasStoredData,
+  shouldArchiveForNewRun,
+  splitBuylistStore,
+  splitLegacyStore,
+} from "./runs";
 import { cardLookupKey } from "./scryfall";
 import { parseMateOrderHtml, parsePlaymantisSubmission } from "./parse-submissions";
 import {
@@ -1259,6 +1269,66 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
   }
   if (hinted.join.find((r) => r.name === "Searing Meditation")?.imageAmbiguous) {
     messages.push("CSV Scryfall ID preview must not be marked ambiguous");
+  }
+
+  if (runHasStoredData(emptyBuylistRunFile())) {
+    messages.push("Empty run file must not count as having data");
+  }
+  if (emptyBuylistOwnerIndex().runs.length || emptyBuylistOwnerIndex().activeRunId) {
+    messages.push("A new owner should start with no run folders");
+  }
+  const emptyLegacy = splitLegacyStore(emptyMtgBuylistStore());
+  if (emptyLegacy.index.runs.length) {
+    messages.push("Empty legacy store should not become a blank run folder");
+  }
+  const legacy = splitLegacyStore({
+    ...emptyMtgBuylistStore(),
+    notes: "keep-notes",
+    csv: {
+      filename: "box.csv",
+      uploadedAt: "2026-09-17T00:00:00.000Z",
+      rows: csv,
+      priceSource: "other",
+      priceCurrency: "AUD",
+    },
+  });
+  if (legacy.index.notes !== "keep-notes" || !runHasStoredData(legacy.run)) {
+    messages.push("Legacy split should keep notes on the owner index and data on the run");
+  }
+  const assembled = assembleBuylistStore(
+    { ...emptyBuylistOwnerIndex(), notes: "keep-notes" },
+    legacy.run,
+  );
+  if (assembled.notes !== "keep-notes" || assembled.mate || assembled.csv?.filename !== "box.csv") {
+    messages.push("Assemble should attach owner notes and leave harvest off an empty catalog");
+  }
+  const mateOnRun = splitBuylistStore(
+    {
+      ...emptyMtgBuylistStore(),
+      mate: {
+        harvestedAt: "2026-09-17T00:00:00.000Z",
+        source: "upload",
+        sets: ["mh3"],
+        offers: [],
+      },
+    },
+    "run-a",
+  );
+  if (mateOnRun.harvest.mate || !mateOnRun.run.mate) {
+    messages.push("Mate belongs on the run folder, not the shared harvest");
+  }
+  if (!shouldArchiveForNewRun(MAX_LIVE_BUYLIST_RUNS) || shouldArchiveForNewRun(MAX_LIVE_BUYLIST_RUNS - 1)) {
+    messages.push("A 9th live run should archive; eight should not");
+  }
+  const victim = pickArchiveVictim(
+    [
+      { id: "keep", name: "New", csvFilename: "", updatedAt: "2026-09-17T02:00:00.000Z", hasData: false },
+      { id: "old", name: "Old", csvFilename: "old.csv", updatedAt: "2026-09-17T01:00:00.000Z", hasData: true },
+    ],
+    "keep",
+  );
+  if (victim?.id !== "old") {
+    messages.push("Archive victim should be the oldest run that is not the kept tab");
   }
 
   return { ok: messages.length === 0, messages };

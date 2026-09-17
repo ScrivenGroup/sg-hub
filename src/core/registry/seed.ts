@@ -856,6 +856,80 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.21",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.21",
+    createdAt: "2026-09-17T00:15:00.000Z",
+    title: "1.5.21 (dev) — Parallel runs as owned documents",
+    body: `## Publish to localhost (not live)
+
+- Each login owns a harvest plus separate run tabs (CSV / Compare). **+** opens a new run; **×** clears that tab (confirm if it has data). The last tab always remains, empty if needed.
+- A ninth live run archives the oldest to Logs. Harvest diffs are scoped to your login.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.22",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.22",
+    createdAt: "2026-09-17T00:40:00.000Z",
+    title: "1.5.22 (dev) — Idle New Run, hover close",
+    body: `## Publish to localhost (not live)
+
+- **×** sits in the run-tab name and appears on hover; **+** and **×** have hover wash.
+- None selected is allowed. **New Run** shows an empty screen — no dummy blank folder. Drop a CSV to open one.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.23",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.23",
+    createdAt: "2026-09-17T01:10:00.000Z",
+    title: "1.5.23 (dev) — New Run CSV opens a folder",
+    body: `## Publish to localhost (not live)
+
+- Dropping a ManaBox CSV on **New Run** keeps the file and opens a run folder after confirm. Idle refresh no longer swallows the upload.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.24",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.24",
+    createdAt: "2026-09-17T01:30:00.000Z",
+    title: "1.5.24 (dev) — Isolated run tabs",
+    body: `## Publish to localhost (not live)
+
+- Each tab keeps its own Mate and Playmantis harvest (not a shared login dump). Closing a tab removes that harvest.
+- Switching tabs loads that folder only — no full-page “Loading MTG Buylist” skeleton.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.25",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.25",
+    createdAt: "2026-09-17T03:40:00.000Z",
+    title: "1.5.25 (dev) — Buylist loading waits",
+    body: `## Publish to localhost (not live)
+
+- Run, Logs, and Development share one spinner overlay (route wait, L1 tab click, and in-page work).
+- Pages were waiting on a second auth decrypt, a leftover harvest.json read, and re-allocating a run that already had results. Those are skipped; Logs and Development fetch in parallel.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
