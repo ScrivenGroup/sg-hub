@@ -10,6 +10,7 @@ import type {
 export const HUB_LABELS: Record<string, string> = {
   w: "Work",
   p: "Projects",
+  d: "Development",
   i: "Internal",
   s: "System",
 };
@@ -46,6 +47,22 @@ export const seedNodes: RegistryNode[] = [
     order: 2,
   },
   {
+    id: "hub-development",
+    hubPrefix: "d",
+    slug: "",
+    title: "Development",
+    code: "C45C26",
+    kind: "hub",
+    parentId: null,
+    href: "/d",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Inbox, board, changelog, notes, and design spec. Chrome Feedback lands in Inbox. Filter by leaf.",
+    order: 3,
+  },
+  {
     id: "hub-internal",
     hubPrefix: "i",
     slug: "",
@@ -57,8 +74,8 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "ScrivenGroup capture and tools.",
-    order: 3,
+    description: "ScrivenGroup tools.",
+    order: 4,
   },
   {
     id: "hub-system",
@@ -72,8 +89,8 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "Definition and Appearance of this site.",
-    order: 4,
+    description: "Definition, Appearance, and Standards of this site.",
+    order: 5,
   },
   {
     id: "w-sunwater-mrt",
@@ -140,67 +157,6 @@ export const seedNodes: RegistryNode[] = [
     order: 3,
   },
   {
-    id: "i-kanban",
-    hubPrefix: "i",
-    slug: "kanban",
-    title: "Kanban Online",
-    code: "6BA4E3",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/kanban",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description:
-      "Global Inbox + KanBan. Same columns as a leaf. Filter by leaf tag. Raise defaults to Global.",
-    order: 0,
-  },
-  {
-    id: "i-ideas",
-    hubPrefix: "i",
-    slug: "ideas",
-    title: "Ideas",
-    code: "7EB6E8",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/ideas",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Domain-wide idea register.",
-    order: 1,
-  },
-  {
-    id: "i-notes",
-    hubPrefix: "i",
-    slug: "notes",
-    title: "Notes",
-    code: "5BB8C9",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/notes",
-    accessMode: "per_user",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Less formal capture.",
-    order: 2,
-  },
-  {
-    id: "i-feedback",
-    hubPrefix: "i",
-    slug: "feedback",
-    title: "Feedback",
-    code: "6B7FD4",
-    kind: "tool",
-    parentId: "hub-internal",
-    href: "/i/feedback",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description: "Site-wide feedback register for bugs, ideas, and housekeeping.",
-    order: 3,
-  },
-  {
     id: "i-testing",
     hubPrefix: "i",
     slug: "testing",
@@ -213,7 +169,7 @@ export const seedNodes: RegistryNode[] = [
     status: "sketched",
     hasNetworkMap: false,
     description: "Small web test pages.",
-    order: 4,
+    order: 1,
   },
   {
     id: "i-dev-choices",
@@ -228,7 +184,7 @@ export const seedNodes: RegistryNode[] = [
     status: "building",
     hasNetworkMap: false,
     description: "Locked development standards for humans and Cursor chats.",
-    order: 5,
+    order: 2,
   },
   {
     id: "s-definition",
@@ -259,6 +215,21 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description: "Theme tokens, templates, icons.",
     order: 2,
+  },
+  {
+    id: "s-standards",
+    hubPrefix: "s",
+    slug: "standards",
+    title: "Standards",
+    code: "9A74C8",
+    kind: "tool",
+    parentId: "hub-system",
+    href: "/s/standards",
+    accessMode: "shared",
+    status: "building",
+    hasNetworkMap: false,
+    description: "Design library, behaviours, process, and a holding pile for later.",
+    order: 3,
   },
 ];
 
@@ -1447,6 +1418,59 @@ Out of this version
 - Feedback Bug stays on /i/feedback; Idea copies to Kanban; Raise is Kanban only.
 - Leaf tag on /i/kanban and /i/feedback defaults to Global (not the Kanban Online tool id).
 - Live proof of zip + restage remains kt-db-make-live.`,
+  },
+  {
+    id: "cl-kanban-online-0.2.2",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.2",
+    createdAt: "2026-09-09T06:50:00.000Z",
+    title: "0.2.2 — One inbox for Feedback and Ideas (localhost)",
+    body: `Kanban Online 0.2.2. Localhost until the next hub train. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
+
+- One Neon table (kanban_ideas) for Feedback and Ideas. Kind + leaf tag + optional page breadcrumb.
+- Chrome Feedback is the bug/help door (Idea allowed, not advertised). Raise is the idea door.
+- /i/feedback and /i/ideas are views of the same rows. Bugs are not auto-ticketed.
+- Guest Feedback write is later (kt-inbox-guest-write / IN-20260908-04).`,
+  },
+  {
+    id: "cl-kanban-online-0.2.3",
+    nodeId: "i-kanban",
+    kind: "release",
+    version: "0.2.3",
+    createdAt: "2026-09-09T08:20:00.000Z",
+    title: "0.2.3 — Kanban is the Internal register (localhost)",
+    body: `Kanban 0.2.3. Localhost until the next hub train.
+
+- Dropped Internal cards for Feedback, Ideas, and Notes. Chrome Feedback and Raise stay as doors. Notes live on the Kanban Notes tab.
+- Card title is Kanban. Old URLs /i/feedback, /i/ideas, /i/notes redirect here.`,
+  },
+  {
+    id: "cl-kanban-online-0.2.4",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.4",
+    createdAt: "2026-09-09T08:48:00.000Z",
+    title: "0.2.4 — Development hub and one capture door (localhost)",
+    body: `Development 0.2.4. Localhost until the next hub train.
+
+- Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
+- /i/kanban redirects here. Internal keeps Testing and Development choices.
+- Chrome Feedback is the only capture door (Raise-style popup). Leaf Development tabs no longer show Raise.`,
+  },
+  {
+    id: "cl-s-standards-plan",
+    nodeId: "s-standards",
+    kind: "plan",
+    createdAt: "2026-09-09T01:00:00.000Z",
+    title: "Process tab + Kanban Development (building)",
+    body: `System card beside Appearance. Home + Drop pile are the minimum bar; Design Library and Behaviours fill in on this desk.
+
+- Process teaches the live yard: wip/<leaf> desks → merge to station (dev_main :3000) → you say make it live → main + Azure zip.
+- Drop is the pile for live notes from parallel desks (not chrome Feedback, not a Kanban ticket).
+- Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes). Design spec stays on /d. Chrome Feedback is the capture door; no in-tab Raise.
+- Does not replace Internal → Development choices or the Development hub.
+- One locker: ScrivenGroup/sg-hub. Never zip from a wip desk.`,
   },
 ];
 

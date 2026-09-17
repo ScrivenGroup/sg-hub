@@ -363,6 +363,11 @@ export const kanbanIdeas = pgTable("kanban_ideas", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   copiedAt: text("copied_at"),
+  kind: text("kind").notNull().default("idea"),
+  source: text("source").notNull().default("raise"),
+  pageHref: text("page_href"),
+  pageTitle: text("page_title"),
+  submittedBy: text("submitted_by"),
 });
 
 export const kanbanTickets = pgTable("kanban_tickets", {
@@ -402,6 +407,22 @@ export const kanbanLeafNotes = pgTable("kanban_leaf_notes", {
   nodeId: text("node_id").primaryKey(),
   body: text("body").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+/** Shared Design Library picks. Same DATABASE_URL as Kanban — not laptop JSON. */
+export const standardsChoices = pgTable("standards_choices", {
+  entryId: text("entry_id").primaryKey(),
+  optionId: text("option_id").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const standardsHolds = pgTable("standards_holds", {
+  id: text("id").primaryKey(),
+  createdAt: text("created_at").notNull(),
+  kind: text("kind").notNull(),
+  body: text("body").notNull(),
+  source: text("source"),
+  submittedBy: text("submitted_by").notNull(),
 });
 
 /** Harvest vs Playmantis Import Review — training rows for improving the harvest. */

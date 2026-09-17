@@ -25,6 +25,8 @@ import {
   mrtShare,
   notes,
   playmantisHarvestDiff,
+  standardsChoices,
+  standardsHolds,
 } from "@/core/store/schema";
 import {
   MRT_RELATIONAL_DDL,
@@ -37,11 +39,18 @@ import type {
   KanbanMeta,
   KanbanTicket,
 } from "@/core/kanban/schema";
+import type {
+  StandardsChoices,
+  StandardsHoldKind,
+  StandardsHoldRecord,
+} from "@/modules/standards/schema";
+import { STANDARDS_HOLD_KINDS } from "@/modules/standards/schema";
 import {
   kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
   kanbanMetaSchema,
   kanbanTicketSchema,
+  normalizeInboxNote,
   type KanbanAttachmentStoreRow,
 } from "@/core/kanban/schema";
 
@@ -60,7 +69,7 @@ export type MrtShareRow = {
 
 type SimpleSchema = typeof schema;
 
-const DDL_VERSION = 4;
+const DDL_VERSION = 5;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -130,9 +139,19 @@ const DDL = [
     status text NOT NULL,
     created_at text NOT NULL,
     updated_at text NOT NULL,
-    copied_at text
+    copied_at text,
+    kind text NOT NULL DEFAULT 'idea',
+    source text NOT NULL DEFAULT 'raise',
+    page_href text,
+    page_title text,
+    submitted_by text
   )`,
   `CREATE INDEX IF NOT EXISTS kanban_ideas_node_id ON kanban_ideas (node_id)`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'idea'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'raise'`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_href text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS page_title text`,
+  `ALTER TABLE kanban_ideas ADD COLUMN IF NOT EXISTS submitted_by text`,
   `CREATE TABLE IF NOT EXISTS kanban_tickets (
     id text PRIMARY KEY,
     node_id text NOT NULL,
@@ -169,6 +188,19 @@ const DDL = [
     node_id text PRIMARY KEY,
     body text NOT NULL,
     updated_at text NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS standards_choices (
+    entry_id text PRIMARY KEY,
+    option_id text NOT NULL,
+    updated_at text NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS standards_holds (
+    id text PRIMARY KEY,
+    created_at text NOT NULL,
+    kind text NOT NULL,
+    body text NOT NULL,
+    source text,
+    submitted_by text NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS playmantis_harvest_diff (
     id text PRIMARY KEY,
@@ -487,16 +519,23 @@ export async function pgEnd(): Promise<void> {
 }
 
 function ideaFromRow(row: typeof kanbanIdeas.$inferSelect): KanbanInboxNote {
-  return kanbanInboxNoteSchema.parse({
-    id: row.id,
-    nodeId: row.nodeId,
-    title: row.title,
-    body: row.body,
-    status: row.status,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    copiedAt: row.copiedAt,
-  });
+  return normalizeInboxNote(
+    kanbanInboxNoteSchema.parse({
+      id: row.id,
+      nodeId: row.nodeId,
+      title: row.title,
+      body: row.body,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      copiedAt: row.copiedAt,
+      kind: row.kind,
+      source: row.source,
+      pageHref: row.pageHref,
+      pageTitle: row.pageTitle,
+      submittedBy: row.submittedBy,
+    }),
+  );
 }
 
 function ticketFromRow(row: typeof kanbanTickets.$inferSelect): KanbanTicket {
@@ -545,28 +584,39 @@ export async function pgGetKanbanMeta(): Promise<KanbanMeta[]> {
 
 export async function pgUpsertKanbanIdea(row: KanbanInboxNote): Promise<void> {
   const db = await getDb();
+  const note = normalizeInboxNote(row);
   await db
     .insert(kanbanIdeas)
     .values({
-      id: row.id,
-      nodeId: row.nodeId,
-      title: row.title,
-      body: row.body,
-      status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      copiedAt: row.copiedAt ?? null,
+      id: note.id,
+      nodeId: note.nodeId,
+      title: note.title,
+      body: note.body,
+      status: note.status,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      copiedAt: note.copiedAt ?? null,
+      kind: note.kind ?? "idea",
+      source: note.source ?? "raise",
+      pageHref: note.pageHref ?? null,
+      pageTitle: note.pageTitle ?? null,
+      submittedBy: note.submittedBy ?? null,
     })
     .onConflictDoUpdate({
       target: kanbanIdeas.id,
       set: {
-        nodeId: row.nodeId,
-        title: row.title,
-        body: row.body,
-        status: row.status,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        copiedAt: row.copiedAt ?? null,
+        nodeId: note.nodeId,
+        title: note.title,
+        body: note.body,
+        status: note.status,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        copiedAt: note.copiedAt ?? null,
+        kind: note.kind ?? "idea",
+        source: note.source ?? "raise",
+        pageHref: note.pageHref ?? null,
+        pageTitle: note.pageTitle ?? null,
+        submittedBy: note.submittedBy ?? null,
       },
     });
 }
@@ -739,6 +789,78 @@ export async function pgUpsertKanbanLeafNote(
       target: kanbanLeafNotes.nodeId,
       set: { body, updatedAt },
     });
+}
+
+function holdKind(value: string): StandardsHoldKind {
+  return STANDARDS_HOLD_KINDS.includes(value as StandardsHoldKind)
+    ? (value as StandardsHoldKind)
+    : "note";
+}
+
+export async function pgGetStandardsChoices(): Promise<StandardsChoices> {
+  const db = await getDb();
+  const rows = await db.select().from(standardsChoices);
+  const out: StandardsChoices = {};
+  for (const row of rows) out[row.entryId] = row.optionId;
+  return out;
+}
+
+export async function pgUpsertStandardsChoice(
+  entryId: string,
+  optionId: string,
+  updatedAt: string,
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(standardsChoices)
+    .values({ entryId, optionId, updatedAt })
+    .onConflictDoUpdate({
+      target: standardsChoices.entryId,
+      set: { optionId, updatedAt },
+    });
+}
+
+export async function pgReplaceStandardsChoices(
+  rows: StandardsChoices,
+  updatedAt: string,
+): Promise<void> {
+  for (const [entryId, optionId] of Object.entries(rows)) {
+    await pgUpsertStandardsChoice(entryId, optionId, updatedAt);
+  }
+}
+
+export async function pgGetStandardsHolds(): Promise<StandardsHoldRecord[]> {
+  const db = await getDb();
+  const rows = await db.select().from(standardsHolds);
+  return rows
+    .map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      kind: holdKind(row.kind),
+      body: row.body,
+      source: row.source ?? undefined,
+      submittedBy: row.submittedBy,
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function pgInsertStandardsHold(
+  row: StandardsHoldRecord,
+): Promise<void> {
+  const db = await getDb();
+  await db.insert(standardsHolds).values({
+    id: row.id,
+    createdAt: row.createdAt,
+    kind: row.kind,
+    body: row.body,
+    source: row.source ?? null,
+    submittedBy: row.submittedBy,
+  });
+}
+
+export async function pgDeleteStandardsHold(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(standardsHolds).where(eq(standardsHolds.id, id));
 }
 
 export async function pgInsertPlaymantisHarvestDiff(

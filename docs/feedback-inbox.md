@@ -3,8 +3,9 @@
 Open items for Cursor housekeeping / bug-fix sessions. Newest first.
 
 When the user asks to fix bugs or do housekeeping, query Neon first
-(`npx --yes tsx scripts/inspect-neon-inbox.ts`), then Internal → Feedback,
-then this file. Laptop `data/feedback.json` and seed are not the live register.
+(`npx --yes tsx scripts/inspect-neon-inbox.ts`), then Development Inbox
+(`/d?tab=inbox`). Laptop `data/feedback.json` and seed
+are not the live register. Live rows are `kanban_ideas` (one inbox).
 
 ---
 

@@ -9,6 +9,7 @@ export const KANBAN_CHROME = {
     raise: "Raise an idea",
     designSpec: "Design spec",
     leafs: "Leafs",
+    type: "Type",
     sort: "Sort",
     layout: "Layout",
     category: "Category",
@@ -18,14 +19,14 @@ export const KANBAN_CHROME = {
     boardFilters: COLUMN_FILTERS.map((f) => ({ id: f.id, label: f.label })),
   },
   raise: {
-    placement: "tablist-end" as const,
-    trigger: "primary" as const,
-    popup: "viewport-capped ShellModal with leaf tag, details, attachments",
+    placement: "chrome-feedback" as const,
+    trigger: "header Feedback / mobile FAB" as const,
+    popup: "viewport-capped ShellModal with type, leaf tag, details, attachments",
   },
   layout: {
     host: "flex min-h-0 flex-1 flex-col (fills leftover viewport)",
     pageWidth: "full width of the leaf main; no max-w-5xl on the board",
-    chromeRows: "Row 1 = tablist + Raise. Row 2 = filters (Inbox and board only).",
+    chromeRows: "Row 1 = tablist (no Raise). Row 2 = filters (Inbox and board only).",
     readingWidth: "Changelog / Notes / Design spec may use a readable card; the board must not.",
   },
   density: {
@@ -37,7 +38,7 @@ export const KANBAN_CHROME = {
   },
   colour: {
     badge:
-      "Leaf CodeBadge hex only (dc-design-defaults). Kanban Online badge is a blue tint of Internal.",
+      "Leaf CodeBadge hex only (dc-design-defaults). Development hub badge is C45C26.",
     inboxAccent:
       "Inbox hat/accent stays pink (#b45a78). Column colours: Later gold, Open blue, Done green.",
   },

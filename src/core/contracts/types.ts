@@ -1,4 +1,4 @@
-export type HubPrefix = "w" | "p" | "i" | "s";
+export type HubPrefix = "w" | "p" | "d" | "i" | "s";
 export type AccessMode = "shared" | "restricted" | "per_user";
 export type NodeStatus = "sketched" | "building" | "live";
 export type NodeKind = "hub" | "subhub" | "tool";

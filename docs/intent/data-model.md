@@ -4,7 +4,7 @@
 
 | Field | Example | Notes |
 | ----- | ------- | ----- |
-| hubPrefix | `p` | `w` Work, `p` Projects, `i` Internal, `s` System |
+| hubPrefix | `p` | `w` Work, `p` Projects, `d` Development, `i` Internal, `s` System |
 | slug | `fueltracker` | URL path segment |
 | title | Fuel Tracker | Human display |
 | code | `A3F91C` | Opaque 6-hex; badge colour `#A3F91C` only |

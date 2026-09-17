@@ -25,15 +25,16 @@ Do **not** start Vite, CRA, a second Next app, or a parallel theme/design system
 
 ```
 Login → Home
-  ├── Work      /w     client-context (org only, no client logins)
-  ├── Projects  /p     personal / spin-out capable
-  ├── Internal  /i     ScrivenGroup tools (`/i/feedback`, `/i/dev-choices`, …)
-  └── System    /s     Definition + Appearance
+  ├── Work         /w     client-context (org only, no client logins)
+  ├── Projects     /p     personal / spin-out capable
+  ├── Development  /d     suite (Inbox, board, changelog, notes, design spec)
+  ├── Internal     /i     leftover tools (`/i/dev-choices`, `/i/testing`)
+  └── System       /s     Definition + Appearance + Standards
 ```
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.
 
-The wrapping website is **the hub** (this app — the building, not a room). Persistent header is **chrome**. The four floors are **Hubs**. Each named place on a floor is a **card** (registry node: sub-hub or tool). Login → Home → Hubs → cards is **the site map**. Product interiors sit *inside* a card and are not the wrapping hub.
+The wrapping website is **the hub** (this app — the building, not a room). Persistent header is **chrome**. The five floors are **Hubs**. Each named place on a floor is a **card** (registry node: sub-hub or tool). Development `/d` is a Hub that **is** the suite (no child cards). Login → Home → Hubs → cards is **the site map**. Product interiors sit *inside* a card and are not the wrapping hub.
 
 Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`](./hub-atlas.html).
 
@@ -48,7 +49,7 @@ Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`
 ## Modules (how to extend)
 
 1. Add/update `RegistryNode` in [`src/core/registry/seed.ts`](../src/core/registry/seed.ts) (hubPrefix, slug, title, 6-hex `code`, accessMode, status).
-2. Add route under `src/app/{w|p|i|s}/...`.
+2. Add route under `src/app/{w|p|d|i|s}/...`.
 3. Keep shared chrome; build product UI **inside** that route.
 4. Access: `shared` | `restricted` | `per_user` per surface.
 5. Status: `sketched` → `building` → `live` as real capability lands.
@@ -83,7 +84,7 @@ npm run deploy:azure
 
 ## Feedback → housekeeping
 
-Open bugs/housekeeping: Internal → Feedback, `docs/feedback-inbox.md`, `data/feedback.json`. See `.cursor/rules/feedback-register.mdc`.
+Open bugs/housekeeping: chrome Feedback writes Development Inbox (`/d?tab=inbox`). Inspect: `scripts/inspect-neon-inbox.ts`. See [`docs/FEEDBACK.md`](./FEEDBACK.md) and `.cursor/rules/feedback-register.mdc`.
 
 ## Development choices
 

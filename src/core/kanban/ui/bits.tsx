@@ -78,3 +78,18 @@ export function HatInbox() {
     </span>
   );
 }
+
+export function KindChip({ kind }: { kind?: string }) {
+  const label = kind === "bug"
+    ? "Bug"
+    : kind === "housekeeping"
+      ? "Housekeeping"
+      : kind === "other"
+        ? "Other"
+        : "Idea";
+  return (
+    <span className="inline-block shrink-0 rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] font-medium uppercase text-[var(--ink)]">
+      {label}
+    </span>
+  );
+}

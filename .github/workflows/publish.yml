@@ -38,13 +38,19 @@ jobs:
       - name: Zip (forward-slash paths, exclude data/)
         run: npm run deploy:zip
 
-      - name: Fail if zip includes data/
+      - name: Fail if zip includes data/ or omits .next/
         run: |
           if unzip -Z1 scrivengroup-deploy.zip | grep -E '^data(/|$)'; then
             echo "zip must not include data/"
             exit 1
           fi
           echo "zip has no data/ entries"
+          next_count=$(unzip -Z1 scrivengroup-deploy.zip | grep -cE '^\.next(/|$)' || true)
+          echo "zip .next entries=$next_count"
+          if [ "$next_count" -lt 1 ]; then
+            echo "zip must include .next/ (Linux pwsh Get-ChildItem needs -Force)"
+            exit 1
+          fi
 
       - uses: azure/login@v2
         with:
@@ -59,7 +65,7 @@ jobs:
             --name app-scrivengroup \
             --src-path scrivengroup-deploy.zip \
             --type zip \
-            --async true
+            --async false
 
       - name: Confirm SCM Basic Auth still Off
         run: |

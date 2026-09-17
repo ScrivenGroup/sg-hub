@@ -6,4 +6,4 @@
 4. Hex code colours the **badge only**; default SG theme unless ThemeContract override.
 5. New/changed sub-hubs update site/Hub maps via registry (automated).
 6. Dependency RAG cascades to System card on Home.
-7. Access defaults: wiki/map/ideas `shared`; deps `restricted`; personal apps `per_user`; notes `per_user`.
+7. Access defaults: wiki/map `shared`; deps `restricted`; personal apps `per_user`. Inbox and notes live on Development (`shared`).
