@@ -746,8 +746,10 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
     );
   }
   const eagleCompare = buildCompareRows([eagleRow], ambiguousEagles, []);
-  if (!eagleCompare[0]?.putAside || eagleCompare[0].listedMateCreditCents < 625) {
-    messages.push("Ambiguous money Mate listing should put aside for future value at $6.25 listed");
+  if (eagleCompare[0]?.putAside || eagleCompare[0]?.listedMateCreditCents !== 0) {
+    messages.push(
+      "Ambiguous Mate listings must not borrow a sibling printing's listed credit for Put aside",
+    );
   }
   if (
     !eagleCompare[0]?.mateAmbiguous ||
@@ -784,6 +786,78 @@ export function runParserSelfCheck(): { ok: boolean; messages: string[] } {
   ) {
     messages.push(
       "Confirmed Mate printing should allocate sell qty, clear ambiguous, and collapse Compare to one row",
+    );
+  }
+  if (eagleConfirmedCompare[0]?.listedMateCreditCents !== 625) {
+    messages.push("Confirmed Mate listed $ should be the confirmed printing, not a sibling");
+  }
+
+  const siblingPrints: MateOffer[] = [
+    {
+      mateUuid: "cheap-print",
+      name: "Keep An Eye",
+      setCode: "abc",
+      finish: "Nonfoil",
+      buyPriceCents: 40,
+      creditPriceCents: 50,
+      quantity: 0,
+      normalisedName: "keep an eye",
+      collectorNumber: "10",
+      imageUrl: "https://example.com/cheap-print",
+      rarity: "rare",
+    },
+    {
+      mateUuid: "dear-print",
+      name: "Keep An Eye",
+      setCode: "abc",
+      finish: "Nonfoil",
+      buyPriceCents: 320,
+      creditPriceCents: 400,
+      quantity: 0,
+      normalisedName: "keep an eye",
+      collectorNumber: "10a",
+      imageUrl: "https://example.com/dear-print",
+      rarity: "rare",
+    },
+  ];
+  const cheapCsvRow = {
+    name: "Keep An Eye",
+    setCode: "ABC",
+    setName: "Alphabet",
+    collectorNumber: "10",
+    foil: "normal",
+    quantity: 1,
+    scryfallId: "aaaaaaaa-bbbb-cccc-dddd-111111111111",
+    rarity: "rare",
+    purchasePriceCents: 80,
+    purchaseCurrency: "AUD",
+    frameEffects: [] as string[],
+  };
+  const cheapListed = buildCompareRows([cheapCsvRow], siblingPrints, []);
+  if (
+    cheapListed[0]?.listedMateCreditCents !== 50 ||
+    cheapListed[0]?.putAside ||
+    cheapListed[0]?.mateAmbiguous
+  ) {
+    messages.push(
+      "CSV printing (set+#) must show its own Mate listed $, not a same-name sibling",
+    );
+  }
+  const dearCsvRow = { ...cheapCsvRow, collectorNumber: "10a", scryfallId: "bbbbbbbb-cccc-dddd-eeee-222222222222" };
+  const dearListed = buildCompareRows([dearCsvRow], siblingPrints, []);
+  if (dearListed[0]?.listedMateCreditCents !== 400 || !dearListed[0]?.putAside) {
+    messages.push("Resolved money printing with want 0 should put aside at that printing's listed $");
+  }
+
+  const imageCheap = buildCompareRows([eagleRow], ambiguousEagles, [], {
+    imageLinks: {
+      a: "11111111-2222-3333-4444-555555555555",
+      b: eagleRow.scryfallId,
+    },
+  });
+  if (imageCheap[0]?.listedMateCreditCents !== 25 || imageCheap[0]?.putAside) {
+    messages.push(
+      "Scryfall-id image join must list the matched printing's Mate $, not a same-name sibling",
     );
   }
 

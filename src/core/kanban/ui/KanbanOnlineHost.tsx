@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { ChangelogEntry } from "@/core/contracts/types";
 import type { DevHostKind } from "../host";
 import { leafOptionsWithRows, type KanbanLeafOption } from "../leaves";
@@ -24,7 +23,6 @@ import { KanbanChangelogPanel } from "./KanbanChangelogPanel";
 import { KanbanDesignSpec } from "./KanbanDesignSpec";
 import { KanbanNotesPanel } from "./KanbanNotesPanel";
 import { RaiseIdeaButton } from "./RaiseIdeaButton";
-import { useUiLoadingGate } from "@/core/shell/UiLoading";
 
 export type KanbanOnlineScope = "all" | "leaf";
 export type KanbanOnlinePanel = "inbox" | "kanban";
@@ -125,8 +123,6 @@ export function KanbanOnlineHost({
   showDesignSpec?: boolean;
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const router = useRouter();
-  const runUi = useUiLoadingGate();
   const [chromeTabState, setChromeTab] = useState<ChromeTab>(() =>
     initialChromeTab(panel, initialTab),
   );
@@ -192,12 +188,11 @@ export function KanbanOnlineHost({
 
   function selectChrome(next: ChromeTab) {
     if (next === chromeTab) return;
-    runUi(() => {
-      setChromeTab(next);
-      if (!showTabs) return;
-      const path = revalidateHref.split("?")[0];
-      router.replace(`${path}?tab=${urlTabFor(next)}`, { scroll: false });
-    });
+    setChromeTab(next);
+    if (!showTabs) return;
+    const path = revalidateHref.split("?")[0];
+    const url = `${path}?tab=${urlTabFor(next)}`;
+    window.history.replaceState(window.history.state, "", url);
   }
 
   return (

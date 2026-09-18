@@ -1,5 +1,5 @@
-import { UiLoadingScreen } from "@/core/shell/UiLoading";
+import { MtgBuylistPaneLoading } from "@/modules/mtg-buylist/ui/MtgBuylistPaneLoading";
 
 export default function MtgBuylistLoading() {
-  return <UiLoadingScreen />;
+  return <MtgBuylistPaneLoading />;
 }

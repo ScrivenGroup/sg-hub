@@ -1008,6 +1008,37 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.33",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.33",
+    createdAt: "2026-09-18T05:25:00.000Z",
+    title: "1.5.33 (dev) — Development Kanban + Mate listed $",
+    body: `## Publish to localhost (not live)
+
+- Development is Kanban Online only — no Testing tab (parser check stays a staff action).
+- Listed Mate $ and Put aside use the resolved printing (Scryfall id + finish, then set+# + finish), not the max credit among same-name siblings.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.34",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.34",
+    createdAt: "2026-09-18T05:55:00.000Z",
+    title: "1.5.34 (dev) — Leaf tabs keep chrome; changelog groups",
+    body: `## Publish to localhost (not live)
+
+- Run / Logs / Development keep PageNav, title, and L1 tabs. Only the pane below swaps. L1 tabs are buttons (not Links), so they do not trip the hub nav veil.
+- Leaf loading waits in the pane. Development Inbox / board / Changelog / Notes / Spec no longer wrap the page veil.
+- Changelog groups by live milestone X.Y (1.5 with 1.5.x; 1.4 with 1.4.x). Newest group starts open; click a version row to expand or collapse.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

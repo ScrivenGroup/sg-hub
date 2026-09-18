@@ -1,12 +1,6 @@
-import { isMrtGuest } from "@/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { hostKindFromHeaders } from "@/core/kanban/host";
 import { getMtgBuylistWorkspace } from "@/core/store/json-store";
-import { getBuylistSession, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { requireBuylistStaff } from "@/modules/mtg-buylist/actions";
 import { parseRunStep, resolveRunStep } from "@/modules/mtg-buylist/logic/run-steps";
-import { MTG_BUYLIST_HREF } from "@/modules/mtg-buylist/schema";
-import { MtgBuylistChrome } from "@/modules/mtg-buylist/ui/MtgBuylistChrome";
 import { MtgBuylistWorkspace } from "@/modules/mtg-buylist/ui/MtgBuylistWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -17,27 +11,13 @@ export default async function MtgBuylistPage({
 }: {
   searchParams: Promise<{ run?: string; step?: string }>;
 }) {
-  const session = await getBuylistSession();
-  if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
-
   const params = await searchParams;
-  const { kind, host } = hostKindFromHeaders(await headers());
   const staff = await requireBuylistStaff();
   if (!staff) {
     return (
-      <MtgBuylistChrome
-        href={MTG_BUYLIST_HREF}
-        title="MTG Buylist"
-        intent="Staff Microsoft sign-in required. This run is yours alone — no guest door."
-        page
-        canRaise={false}
-        hostKind={kind}
-        host={host}
-      >
-        <div className="sg-card">
-          <p className="font-medium">Sign in to run this tool</p>
-        </div>
-      </MtgBuylistChrome>
+      <div className="sg-card">
+        <p className="font-medium">Sign in to run this tool</p>
+      </div>
     );
   }
 
@@ -50,21 +30,12 @@ export default async function MtgBuylistPage({
   });
 
   return (
-    <MtgBuylistChrome
-      href={MTG_BUYLIST_HREF}
-      title="MTG Buylist"
-      intent="Four cards on Run — Upload, Harvest, Picking, Reupload — with only the active step on screen. Shared ManaBox CSV, then isolated Playmantis and MTGMate streams. Compare (filters and exports) is available from the first harvested store — credit vs credit when both exist, Mate cash shown. This run is keyed to your login."
-      page
-      hostKind={kind}
-      host={host}
-    >
-      <MtgBuylistWorkspace
-        initialStore={pack.store}
-        initialRuns={pack.runs}
-        initialRunId={pack.activeRunId}
-        initialStep={initialStep}
-        initialArchives={pack.archives}
-      />
-    </MtgBuylistChrome>
+    <MtgBuylistWorkspace
+      initialStore={pack.store}
+      initialRuns={pack.runs}
+      initialRunId={pack.activeRunId}
+      initialStep={initialStep}
+      initialArchives={pack.archives}
+    />
   );
 }

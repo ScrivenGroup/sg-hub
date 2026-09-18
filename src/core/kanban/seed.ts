@@ -172,6 +172,16 @@ const MTG_BUYLIST_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-18T02:35:00.000Z",
     copiedAt: "2026-09-18T01:33:06.253Z",
   },
+  {
+    id: "IN-20260918-02",
+    nodeId: "p-mtg-buylist",
+    title: "Buylist leaf tabs remount the whole leaf",
+    body: "Run / Logs / Development remount the whole leaf (full veil). Keep PageNav, title row, and L1 tabs; swap only the pane. L1 tabs must not be Links. Changelog: click row to expand/collapse; group by live milestone X.Y.",
+    status: "archived",
+    createdAt: "2026-09-18T05:30:00.000Z",
+    updatedAt: "2026-09-18T05:55:00.000Z",
+    copiedAt: "2026-09-18T06:00:00.000Z",
+  },
 ];
 
 const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
@@ -317,6 +327,17 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     sourceIdeaId: "IN-20260918-01",
     createdAt: "2026-09-18T04:20:00.000Z",
     updatedAt: "2026-09-18T05:10:00.000Z",
+  },
+  {
+    id: "kt-buylist-leaf-tabs",
+    nodeId: "p-mtg-buylist",
+    title: "Leaf tabs keep chrome; changelog groups by X.Y",
+    body: "sourceIdeaId IN-20260918-02. Run / Logs / Development keep PageNav, title, L1 tabs; pane only. Buttons + router.replace, not Links. Neutralize leaf loading.tsx. KanbanOnlineHost.selectChrome without runUi. Changelog row toggle + X.Y groups. Bump 1.5.34. Live stays 1.5. WIP top-row stays Later on kt-changelog-expand.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-02",
+    createdAt: "2026-09-18T05:30:00.000Z",
+    updatedAt: "2026-09-18T05:55:00.000Z",
   },
 ];
 
@@ -764,6 +785,7 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260914-01",
   "IN-20260915-01",
   "IN-20260916-02",
+  "IN-20260918-02",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -779,6 +801,7 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-inbox-feedback-chrome",
   "kt-inbox-register-views",
   "kt-inbox-sitting-docs",
+  "kt-buylist-leaf-tabs",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {
