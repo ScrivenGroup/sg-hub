@@ -162,6 +162,16 @@ const MTG_BUYLIST_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-17T06:30:00.000Z",
     copiedAt: null,
   },
+  {
+    id: "IN-20260918-01",
+    nodeId: "p-mtg-buylist",
+    title: "MTG Buylist Layout per Run",
+    body: "Replace the vertical Step 1–5 stack with four cards under the run tabs: Upload → Harvest → Picking → Reupload. Only the active step body is on screen.",
+    status: "archived",
+    createdAt: "2026-09-18T01:33:06.253Z",
+    updatedAt: "2026-09-18T02:35:00.000Z",
+    copiedAt: "2026-09-18T01:33:06.253Z",
+  },
 ];
 
 const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
@@ -263,6 +273,17 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     sourceIdeaId: "IN-20260916-02",
     createdAt: "2026-09-17T06:30:00.000Z",
     updatedAt: "2026-09-17T06:30:00.000Z",
+  },
+  {
+    id: "kt-run-four-step",
+    nodeId: "p-mtg-buylist",
+    title: "Four-step horizontal Run (Upload / Harvest / Picking / Reupload)",
+    body: "sourceIdeaId IN-20260918-01. Run cards: Upload → Harvest → Picking → Reupload. Only the active step body is on screen. Same store, harvest, Compare, and re-prepare logic. No CSV row editor.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-01",
+    createdAt: "2026-09-18T01:33:06.253Z",
+    updatedAt: "2026-09-18T02:35:00.000Z",
   },
 ];
 

@@ -945,6 +945,22 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.29",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.29",
+    createdAt: "2026-09-18T02:30:00.000Z",
+    title: "1.5.29 (dev) — Four Run cards",
+    body: `## Publish to localhost (not live)
+
+- Run is Upload → Harvest → Picking → Reupload. Only the active card body is on screen.
+- CSV table is read-only (drop a new file to replace). Mate confirm/reject is unchanged.
+- Deep link \`?run=\` + \`&step=\`. Phone wraps 2×2.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { hostKindFromHeaders } from "@/core/kanban/host";
 import { getMtgBuylistWorkspace } from "@/core/store/json-store";
 import { getBuylistSession, requireBuylistStaff } from "@/modules/mtg-buylist/actions";
+import { parseRunStep, resolveRunStep } from "@/modules/mtg-buylist/logic/run-steps";
 import { MTG_BUYLIST_HREF } from "@/modules/mtg-buylist/schema";
 import { MtgBuylistChrome } from "@/modules/mtg-buylist/ui/MtgBuylistChrome";
 import { MtgBuylistWorkspace } from "@/modules/mtg-buylist/ui/MtgBuylistWorkspace";
@@ -14,7 +15,7 @@ export const maxDuration = 120;
 export default async function MtgBuylistPage({
   searchParams,
 }: {
-  searchParams: Promise<{ run?: string }>;
+  searchParams: Promise<{ run?: string; step?: string }>;
 }) {
   const session = await getBuylistSession();
   if (isMrtGuest(session)) redirect("/w/sunwater-mrt");
@@ -41,12 +42,18 @@ export default async function MtgBuylistPage({
   }
 
   const pack = await getMtgBuylistWorkspace(staff.userKey, params.run);
+  const initialStep = resolveRunStep(parseRunStep(params.step), {
+    hasRun: Boolean(pack.activeRunId),
+    hasCsv: Boolean(pack.store.csv),
+    hasHarvest: Boolean(pack.store.playmantis || pack.store.mate),
+    hasSubmission: false,
+  });
 
   return (
     <MtgBuylistChrome
       href={MTG_BUYLIST_HREF}
       title="MTG Buylist"
-      intent="Shared ManaBox CSV, then isolated Playmantis and MTGMate streams. Compare (filters and exports) is available from the first harvested store — credit vs credit when both exist, Mate cash shown. This run is keyed to your login."
+      intent="Four cards on Run — Upload, Harvest, Picking, Reupload — with only the active step on screen. Shared ManaBox CSV, then isolated Playmantis and MTGMate streams. Compare (filters and exports) is available from the first harvested store — credit vs credit when both exist, Mate cash shown. This run is keyed to your login."
       page
       hostKind={kind}
       host={host}
@@ -55,6 +62,7 @@ export default async function MtgBuylistPage({
         initialStore={pack.store}
         initialRuns={pack.runs}
         initialRunId={pack.activeRunId}
+        initialStep={initialStep}
         initialArchives={pack.archives}
       />
     </MtgBuylistChrome>

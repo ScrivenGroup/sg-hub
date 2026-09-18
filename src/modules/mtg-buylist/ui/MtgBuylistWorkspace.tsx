@@ -15,10 +15,16 @@ import {
   lookupSetCodesAction,
   refreshMateImageLinksAction,
   rejectMateVariantAction,
-  saveCsvRowsAction,
   savePlaymantisHarvestDiffAction,
   uploadCsvAction,
 } from "../actions";
+import {
+  resolveRunStep,
+  runHref,
+  runStepEnabled,
+  type RunStep,
+  type RunStepFlags,
+} from "../logic/run-steps";
 import { uniqueSetCodes, parseManaBoxCsv, majorityPurchaseCurrency, manaBoxRowsToCsv } from "../logic/parse-csv";
 import { countMateHarvestCards } from "../logic/parse-mate";
 import { buildPlaymantisImportReviewBookmarklet } from "../logic/bookmarklet";
@@ -70,6 +76,7 @@ import {
 } from "../schema";
 import { CardNameCell } from "./CardNameCell";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
+import { RunStepBar } from "./RunStepBar";
 import { InfoTip } from "@/core/ui/InfoTip";
 import { ShellModal } from "@/core/shell/ShellModal";
 import { useUiLoadingGate } from "@/core/shell/UiLoading";
@@ -552,16 +559,19 @@ export function MtgBuylistWorkspace({
   initialStore,
   initialRuns,
   initialRunId,
+  initialStep,
 }: {
   initialStore: MtgBuylistStore;
   initialRuns: BuylistRunMeta[];
   initialRunId: string;
+  initialStep: RunStep;
   initialArchives?: BuylistArchive[];
 }) {
   const router = useRouter();
   const [store, setStore] = useState(initialStore);
   const [runs, setRuns] = useState(initialRuns);
   const [activeRunId, setActiveRunId] = useState(initialRunId);
+  const [step, setStep] = useState<RunStep>(initialStep);
   const [closeTarget, setCloseTarget] = useState<BuylistRunMeta | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -782,6 +792,52 @@ export function MtgBuylistWorkspace({
     [store.csv, store.mate, store.playmantis, dumpOffers.length, pmOffers, mateResolveOpts],
   );
 
+  const hasCsv = Boolean(store.csv);
+  const hasHarvest = Boolean(store.playmantis || store.mate || dumpOffers.length);
+  const hasSubmission = Boolean(pmSubmission || mateSubmission);
+  const stepFlags: RunStepFlags = {
+    hasRun: Boolean(activeRunId),
+    hasCsv,
+    hasHarvest,
+    hasSubmission,
+  };
+  const csvQty = (store.csv?.rows || pendingCsv?.rows || []).reduce(
+    (n, row) => n + row.quantity,
+    0,
+  );
+  const pickingPmCents =
+    store.resultCompare?.totals.playmantisCreditCents ??
+    compareRows.reduce((n, r) => n + r.playmantisSell * r.playmantisCreditCents, 0);
+  const pickingMateCredit = store.resultCompare?.totals.mateCreditCents ?? 0;
+  const pickingMateCash = store.resultCompare?.totals.mateCashCents ?? 0;
+  const uploadSummary = store.csv
+    ? `${store.csv.filename} · ${csvQty} cards · ${store.csv.priceCurrency || "currency?"}`
+    : pendingCsv
+      ? `${pendingCsv.filename} · ${csvQty} cards · ${priceCurrency || "currency?"}`
+      : "Drop a ManaBox CSV";
+  const harvestStores = [
+    store.playmantis || dumpOffers.length ? "Playmantis" : "",
+    store.mate ? "MTGMate" : "",
+  ].filter(Boolean);
+  const harvestSummary = harvestStores.length
+    ? harvestStores.join(" · ")
+    : "No harvest yet";
+  const pickingSummary = hasHarvest
+    ? `PM ${money(pickingPmCents)} · Mate ${money(pickingMateCredit)}${
+        pickingMateCash ? ` / cash ${money(pickingMateCash)}` : ""
+      }`
+    : "Harvest first";
+  const reuploadSummary = hasCsv
+    ? `Playmantis: ${pmSubmission ? pmSubmission.filename : "none"} · Mate: ${
+        mateSubmission ? mateSubmission.filename : "none"
+      }`
+    : "Upload a CSV first";
+
+  useEffect(() => {
+    const next = resolveRunStep(step, stepFlags);
+    if (next !== step) setStep(next);
+  }, [step, hasCsv, hasHarvest, hasSubmission, activeRunId]);
+
   function confirmMateVariant(rowKey: string, mateUuid: string, currentlyConfirmed: boolean) {
     // Optimistic: flip confirmations only — stream/compare rows recompute via useMemo.
     setStore((prev) => {
@@ -873,6 +929,21 @@ export function MtgBuylistWorkspace({
     );
   }
 
+  function selectStep(next: RunStep) {
+    if (!runStepEnabled(next, stepFlags)) return;
+    setStep(next);
+    window.history.replaceState(window.history.state, "", runHref(activeRunId, next));
+  }
+
+  function flagsForStore(nextStore: MtgBuylistStore, runId: string): RunStepFlags {
+    return {
+      hasRun: Boolean(runId),
+      hasCsv: Boolean(nextStore.csv),
+      hasHarvest: Boolean(nextStore.playmantis || nextStore.mate),
+      hasSubmission: false,
+    };
+  }
+
   function openRunTab(runId: string) {
     if (runId === activeRunId) return;
     setError("");
@@ -903,14 +974,19 @@ export function MtgBuylistWorkspace({
         return;
       }
       applyPack(result);
-      const href = runId
-        ? `${MTG_BUYLIST_HREF}?run=${encodeURIComponent(runId)}`
-        : MTG_BUYLIST_HREF;
-      window.history.replaceState(window.history.state, "", href);
+      const nextStep = runId
+        ? resolveRunStep(null, flagsForStore(result.store, result.activeRunId || runId))
+        : "upload";
+      setStep(nextStep);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        runHref(runId, nextStep),
+      );
     });
   }
 
-  function goToRun(runId: string) {
+  function goToRun(runId: string, nextStep?: RunStep) {
     setActiveRunId(runId);
     if (runId) {
       setPmSubmission(null);
@@ -918,10 +994,9 @@ export function MtgBuylistWorkspace({
       setImportReview(null);
       setSubmissionError("");
     }
-    router.replace(
-      runId ? `${MTG_BUYLIST_HREF}?run=${encodeURIComponent(runId)}` : MTG_BUYLIST_HREF,
-      { scroll: false },
-    );
+    const resolved = nextStep ?? step;
+    setStep(resolved);
+    router.replace(runHref(runId, resolved), { scroll: false });
   }
 
   function finishClose(pack: {
@@ -936,7 +1011,12 @@ export function MtgBuylistWorkspace({
     setPendingCsv(null);
     setSubmissionError("");
     setCloseTarget(null);
-    goToRun(pack.activeRunId || "");
+    const nextId = pack.activeRunId || "";
+    const nextStep =
+      nextId && pack.store
+        ? resolveRunStep(null, flagsForStore(pack.store, nextId))
+        : "upload";
+    goToRun(nextId, nextStep);
   }
 
   function requestCloseRun(meta: BuylistRunMeta | "current") {
@@ -991,6 +1071,7 @@ export function MtgBuylistWorkspace({
   function run<T extends { ok: boolean; error?: string; store?: MtgBuylistStore }>(
     fn: () => Promise<T>,
     working: string,
+    nextStep?: RunStep,
   ) {
     setError("");
     setStatus(working);
@@ -1004,8 +1085,9 @@ export function MtgBuylistWorkspace({
           return;
         }
         applyPack(result);
+        if (nextStep) setStep(nextStep);
         if ("activeRunId" in result && typeof result.activeRunId === "string") {
-          goToRun(result.activeRunId);
+          goToRun(result.activeRunId, nextStep ?? step);
         } else {
           router.refresh();
         }
@@ -1138,6 +1220,7 @@ export function MtgBuylistWorkspace({
           activeRunId,
         ),
       "Reading CSV…",
+      "harvest",
     );
   }
 
@@ -1354,7 +1437,7 @@ export function MtgBuylistWorkspace({
               run(async () => {
                 const result = await createBuylistRunAction();
                 return result;
-              }, "New Run…");
+              }, "New Run…", "upload");
             }}
           >
             +
@@ -1370,98 +1453,51 @@ export function MtgBuylistWorkspace({
       ) : null}
       {!busy ? <LoadingBanner status={status} pending={pending} /> : null}
 
-      {!activeRunId ? (
-        <div className="sg-card space-y-3">
-          <h2 className="font-medium">New Run</h2>
-          <p className="text-sm text-[var(--muted)]">
-            No run folder is open. Drop a ManaBox CSV to start one. Existing tabs stay as they are.
-          </p>
-          <FileDropZone
-            accept=".csv,text/csv"
-            disabled={pending || busy}
-            label="ManaBox CSV"
-            hint="Drop or click · up to ~1000 cards"
-            onFile={acceptCsvFile}
+      <RunStepBar
+        step={step}
+        flags={stepFlags}
+        summaries={{
+          upload: uploadSummary,
+          harvest: harvestSummary,
+          picking: pickingSummary,
+          reupload: reuploadSummary,
+        }}
+        onStep={selectStep}
+      />
+
+      {step === "upload" ? (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {activeRunId ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
+              style={{ minHeight: "var(--sg-btn-height)" }}
+              disabled={pending}
+              onClick={() => requestCloseRun("current")}
+            >
+              Clear this run
+            </button>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">
+              No run folder is open. Drop a ManaBox CSV to start one. Existing tabs stay as they are.
+            </p>
+          )}
+          <UniquenessKey
+            label={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>
+                  <strong>Scryfall ID</strong> first
+                </li>
+                <li>
+                  Else <strong>set + # + finish</strong>
+                </li>
+                <li>
+                  <strong>Name</strong> is a label only
+                </li>
+              </ul>
+            }
           />
-          {pendingCsv ? (
-            <div className="space-y-3 rounded border border-[var(--border)] p-3">
-              <p className="text-sm">
-                <CsvFilenameLink
-                  filename={pendingCsv.filename}
-                  csvText={manaBoxRowsToCsv(pendingCsv.rows)}
-                /> ready.
-                Price source?
-              </p>
-              <label className="block text-sm">
-                Price source
-                <select
-                  className="sg-input mt-1"
-                  value={priceSource}
-                  onChange={(e) => setPriceSource(e.target.value as PriceSource)}
-                >
-                  {PRICE_SOURCES.map((src) => (
-                    <option key={src} value={src}>
-                      {PRICE_SOURCE_LABELS[src]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                Listed currency
-                <input
-                  className="sg-input mt-1"
-                  value={priceCurrency}
-                  onChange={(e) => setPriceCurrency(e.target.value.toUpperCase())}
-                  placeholder="AUD"
-                />
-              </label>
-              <CsvRowsPanel
-                rows={pendingCsv.rows}
-                editable
-                onChange={(rows) => setPendingCsv((prev) => (prev ? { ...prev, rows } : prev))}
-              />
-              <button
-                type="button"
-                className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
-                disabled={pending || busy}
-                onClick={() => confirmCsvUpload()}
-              >
-                Open this run
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-      <>
-      <CollapsibleSection
-        id="csv"
-        title="1. ManaBox CSV"
-        hint="Shared input. Price source is asked once per upload."
-        uniqueness={
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>
-              <strong>Scryfall ID</strong> first
-            </li>
-            <li>
-              Else <strong>set + # + finish</strong>
-            </li>
-            <li>
-              <strong>Name</strong> is a label only
-            </li>
-          </ul>
-        }
-        defaultOpen
-      >
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
-            style={{ minHeight: "var(--sg-btn-height)" }}
-            disabled={pending}
-            onClick={() => requestCloseRun("current")}
-          >
-            Clear this run
-          </button>
         </div>
         <FileDropZone
           accept=".csv,text/csv"
@@ -1471,14 +1507,13 @@ export function MtgBuylistWorkspace({
           onFile={acceptCsvFile}
         />
         {pendingCsv ? (
-          <div className="mt-3 space-y-3 rounded border border-[var(--border)] p-3">
+          <div className="space-y-3 rounded border border-[var(--border)] p-3">
             <p className="text-sm">
               <CsvFilenameLink
                 filename={pendingCsv.filename}
                 csvText={manaBoxRowsToCsv(pendingCsv.rows)}
               />{" "}
-              ready.
-              Price source?
+              ready. Price source?
             </p>
             <label className="block text-sm">
               Price source
@@ -1510,74 +1545,55 @@ export function MtgBuylistWorkspace({
                   ? `File has mixed currencies; majority is ${pendingCsv.currencyFromFile}. Confirm the basis for this run.`
                   : `File lists ${pendingCsv.currencyFromFile || "a currency"}. Confirm if that is what ManaBox was set to.`}
             </p>
-            <CsvRowsPanel
-              rows={pendingCsv.rows}
-              editable
-              onChange={(rows) => setPendingCsv((prev) => (prev ? { ...prev, rows } : prev))}
-            />
+            <CsvRowsPanel rows={pendingCsv.rows} />
             <button
               type="button"
               className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
               disabled={pending || busy}
               onClick={() => confirmCsvUpload()}
             >
-              Use this CSV
+              {activeRunId ? "Use this CSV" : "Open this run"}
             </button>
           </div>
         ) : null}
-        {store.csv ? (
-          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-            <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
-              <CsvFilenameLink
-                filename={store.csv.filename}
-                csvText={manaBoxRowsToCsv(store.csv.rows)}
-              />
-              · {store.csv.rows.length} printings · {csvSets.length} sets
-              <InfoTip
-                label={`${new Date(store.csv.uploadedAt).toLocaleString()}. Price basis: ${PRICE_SOURCE_LABELS[store.csv.priceSource]} · ${store.csv.priceCurrency || "currency unknown"}. ${
-                  store.csv.rows.some((r) => (r.frameEffects || []).length > 0)
-                    ? `Scryfall treatments on ${store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/${store.csv.rows.length} (used for Mate auto-match).`
-                    : "No Scryfall treatments yet — Refresh Scryfall treatments so Extended Art can auto-match (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis)."
-                }`}
-              />
-            </p>
-            <button
-              type="button"
-              className="sg-btn-secondary shrink-0 text-sm"
-              disabled={pending || busy}
-              onClick={() =>
-                run(() => enrichCsvTreatmentsAction(activeRunId), "Asking Scryfall for treatments…")
-              }
-            >
-              Refresh Scryfall treatments
-            </button>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-[var(--muted)]">No CSV in this run yet.</p>
-        )}
         {pendingCsv ? null : store.csv ? (
-          <div className="mt-3">
-            <CsvRowsPanel
-              rows={store.csv.rows}
-              editable={!store.mate && !store.playmantis}
-              onChange={(rows) =>
-                setStore((prev) => (prev.csv ? { ...prev, csv: { ...prev.csv, rows } } : prev))
-              }
-              onSave={
-                store.mate || store.playmantis
-                  ? undefined
-                  : () =>
-                      run(
-                        () => saveCsvRowsAction(store.csv?.rows || [], activeRunId),
-                        "Saving CSV…",
-                      )
-              }
-              saveDisabled={pending || busy}
-            />
-          </div>
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
+                <CsvFilenameLink
+                  filename={store.csv.filename}
+                  csvText={manaBoxRowsToCsv(store.csv.rows)}
+                />
+                · {csvQty} cards · {store.csv.rows.length} printings · {csvSets.length} sets
+                <InfoTip
+                  label={`${new Date(store.csv.uploadedAt).toLocaleString()}. Price basis: ${PRICE_SOURCE_LABELS[store.csv.priceSource]} · ${store.csv.priceCurrency || "currency unknown"}. ${
+                    store.csv.rows.some((r) => (r.frameEffects || []).length > 0)
+                      ? `Scryfall treatments on ${store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/${store.csv.rows.length} (used for Mate auto-match).`
+                      : "No Scryfall treatments yet — Refresh Scryfall treatments so Extended Art can auto-match (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis)."
+                  }`}
+                />
+              </p>
+              <button
+                type="button"
+                className="sg-btn-secondary shrink-0 text-sm"
+                disabled={pending || busy}
+                onClick={() =>
+                  run(() => enrichCsvTreatmentsAction(activeRunId), "Asking Scryfall for treatments…")
+                }
+              >
+                Refresh Scryfall treatments
+              </button>
+            </div>
+            <CsvRowsPanel rows={store.csv.rows} />
+          </>
+        ) : activeRunId ? (
+          <p className="text-sm text-[var(--muted)]">No CSV in this run yet.</p>
         ) : null}
-      </CollapsibleSection>
+      </div>
+      ) : null}
 
+      {step === "harvest" ? (
+      <>
       <CollapsibleSection
         id="pm"
         title="2. Playmantis stream"
@@ -2019,7 +2035,10 @@ export function MtgBuylistWorkspace({
           </p>
         )}
       </CollapsibleSection>
+      </>
+      ) : null}
 
+      {step === "picking" ? (
       <CollapsibleSection
         id="compare"
         title="4. Compare stores · Mate vs Playmantis"
@@ -2039,9 +2058,9 @@ export function MtgBuylistWorkspace({
         <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
           <li>
             Store picklists. Import Review diffs:{" "}
-            <a className="underline" href="#pm">
-              2. Playmantis
-            </a>
+            <button type="button" className="underline" onClick={() => selectStep("harvest")}>
+              Harvest
+            </button>
           </li>
         </ul>
         {compareRows.length ? (
@@ -2083,7 +2102,9 @@ export function MtgBuylistWorkspace({
           </p>
         )}
       </CollapsibleSection>
+      ) : null}
 
+      {step === "reupload" ? (
       <CollapsibleSection
         id="reprepare"
         title="5. Re-prepare ManaBox after pick"
@@ -2183,8 +2204,7 @@ export function MtgBuylistWorkspace({
           </div>
         )}
       </CollapsibleSection>
-      </>
-      )}
+      ) : null}
       <ShellModal
         open={Boolean(closeTarget)}
         titleId="clear-buylist-run"
@@ -2257,67 +2277,28 @@ function MetaHead({
   );
 }
 
-const csvEditInput =
-  "h-6 w-full min-h-0 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0 text-[13px] leading-5 text-[var(--ink)]";
-
 function CsvRowsPanel({
   rows,
-  editable,
-  onChange,
-  onSave,
-  saveDisabled,
 }: {
   rows: ManaBoxRow[];
-  editable: boolean;
-  onChange?: (rows: ManaBoxRow[]) => void;
-  onSave?: () => void;
-  saveDisabled?: boolean;
 }) {
   return (
     <CollapsibleTableSection
       id="csv-rows"
       title="CSV rows"
       count={String(rows.length)}
-      hint={editable ? "edit before harvest" : "locked after harvest"}
+      hint="read-only — drop a new CSV to replace"
       defaultOpen={false}
     >
       <p className="text-xs text-[var(--muted)]">
-        {editable
-          ? "Revise qty, finish, #, and Scryfall ID before adding buylist items."
-          : "Re-upload the CSV to change these rows."}
+        Uploads only. If the file is wrong, drop a new CSV. Mate confirm/reject stays on Harvest.
       </p>
-      <CsvRowsEditor rows={rows} editable={editable} onChange={onChange} />
-      {editable && onSave ? (
-        <button
-          type="button"
-          className="sg-btn-secondary disabled:opacity-50"
-          disabled={saveDisabled}
-          onClick={onSave}
-        >
-          Save CSV edits
-        </button>
-      ) : null}
+      <CsvRowsEditor rows={rows} />
     </CollapsibleTableSection>
   );
 }
 
-function CsvRowsEditor({
-  rows,
-  editable,
-  onChange,
-}: {
-  rows: ManaBoxRow[];
-  editable: boolean;
-  onChange?: (rows: ManaBoxRow[]) => void;
-}) {
-  function patch(index: number, next: Partial<ManaBoxRow>) {
-    if (!onChange) return;
-    onChange(rows.map((row, i) => (i === index ? { ...row, ...next } : row)));
-  }
-  function remove(index: number) {
-    if (!onChange) return;
-    onChange(rows.filter((_, i) => i !== index));
-  }
+function CsvRowsEditor({ rows }: { rows: ManaBoxRow[] }) {
   return (
     <div className="min-w-0 overflow-x-auto">
       <table className={runTableClass}>
@@ -2330,122 +2311,20 @@ function CsvRowsEditor({
             <MetaHead>Qty</MetaHead>
             <MetaHead title="Listed">List</MetaHead>
             <th className={`${metaHeadClass} min-w-[10rem]`}>Scryfall ID</th>
-            {editable ? <th className={metaHeadClass}> </th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={`${row.scryfallId}-${row.name}-${i}`} className="border-t border-[var(--border)]">
-              <td className={nameCellClass}>
-                {editable ? (
-                  <input
-                    className={csvEditInput}
-                    value={row.name}
-                    aria-label="Name"
-                    onChange={(e) => patch(i, { name: e.target.value })}
-                  />
-                ) : (
-                  row.name
-                )}
-              </td>
+              <td className={nameCellClass}>{row.name}</td>
+              <td className={metaCellClass}>{row.setCode || "—"}</td>
+              <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
+              <td className={metaCellClass}>{compactFinish(row.foil).short}</td>
+              <td className={metaCellClass}>{row.quantity}</td>
               <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} w-16`}
-                    value={row.setCode}
-                    aria-label="Set code"
-                    onChange={(e) => patch(i, { setCode: e.target.value })}
-                  />
-                ) : (
-                  row.setCode || "—"
-                )}
+                {row.purchasePriceCents > 0 ? money(row.purchasePriceCents) : "—"}
               </td>
-              <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} w-14`}
-                    value={row.collectorNumber}
-                    aria-label="Collector number"
-                    onChange={(e) => patch(i, { collectorNumber: e.target.value })}
-                  />
-                ) : (
-                  row.collectorNumber || "—"
-                )}
-              </td>
-              <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} w-16`}
-                    value={row.foil}
-                    aria-label="Finish"
-                    onChange={(e) => patch(i, { foil: e.target.value })}
-                  />
-                ) : (
-                  compactFinish(row.foil).short
-                )}
-              </td>
-              <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} w-12`}
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={row.quantity}
-                    aria-label="Quantity"
-                    onChange={(e) => patch(i, { quantity: Number(e.target.value) || 0 })}
-                  />
-                ) : (
-                  row.quantity
-                )}
-              </td>
-              <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} w-16`}
-                    inputMode="decimal"
-                    value={
-                      row.purchasePriceCents > 0 ? (row.purchasePriceCents / 100).toFixed(2) : ""
-                    }
-                    aria-label="Listed price"
-                    onChange={(e) => {
-                      const n = Number(e.target.value);
-                      patch(i, {
-                        purchasePriceCents:
-                          Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0,
-                      });
-                    }}
-                  />
-                ) : row.purchasePriceCents > 0 ? (
-                  money(row.purchasePriceCents)
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className={metaCellClass}>
-                {editable ? (
-                  <input
-                    className={`${csvEditInput} min-w-[9rem]`}
-                    value={row.scryfallId}
-                    aria-label="Scryfall ID"
-                    onChange={(e) => patch(i, { scryfallId: e.target.value.trim() })}
-                  />
-                ) : (
-                  row.scryfallId || "—"
-                )}
-              </td>
-              {editable ? (
-                <td className={metaCellClass}>
-                  <button
-                    type="button"
-                    className="sg-btn-ghost px-1 text-xs text-[var(--muted)]"
-                    aria-label={`Remove ${row.name}`}
-                    onClick={() => remove(i)}
-                  >
-                    ×
-                  </button>
-                </td>
-              ) : null}
+              <td className={metaCellClass}>{row.scryfallId || "—"}</td>
             </tr>
           ))}
         </tbody>
