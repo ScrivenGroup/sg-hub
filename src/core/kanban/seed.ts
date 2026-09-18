@@ -182,6 +182,20 @@ const MTG_BUYLIST_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-18T05:55:00.000Z",
     copiedAt: "2026-09-18T06:00:00.000Z",
   },
+  {
+    id: "IN-20260918-03",
+    nodeId: "p-mtg-buylist",
+    title: "1.5 wrap — copy and leftover Testing remap",
+    body: "Last 1.5.x sitting before 1.6: Development intent, drop ?tab=testing remap, Brisbane stamps, hide the dummy Logs diffs tab. No new product.",
+    status: "archived",
+    createdAt: "2026-09-18T07:50:00.000Z",
+    updatedAt: "2026-09-18T08:10:00.000Z",
+    copiedAt: "2026-09-18T08:10:00.000Z",
+    kind: "housekeeping",
+    source: "raise",
+    pageHref: "/p/mtg-buylist/development",
+    pageTitle: "MTG Buylist",
+  },
 ];
 
 const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
@@ -210,13 +224,13 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
   {
     id: "kt-changelog-expand",
     nodeId: "p-mtg-buylist",
-    title: "Expandable changelog rows plus a WIP top row",
-    body: "Changelog table rows expand for detail. Keep a perpetual next-version WIP row at the top.",
+    title: "Changelog WIP top row — superseded",
+    body: "Expand-on-click + collapse + X.Y grouping shipped in kt-buylist-leaf-tabs / 1.5.34. Perpetual next-version WIP row cancelled: 1.3.4 already moved plans to Inbox. sourceIdeaId raw-mtmjqb8t-jglsww / raw-mtmjsema-xrf956.",
     lane: "structure",
-    column: "later",
+    column: "archived",
     sourceIdeaId: "raw-mtmjqb8t-jglsww",
     createdAt: "2026-09-17T06:30:00.000Z",
-    updatedAt: "2026-09-17T06:30:00.000Z",
+    updatedAt: "2026-09-18T07:54:00.000Z",
   },
   {
     id: "kt-cash-back-scenario",
@@ -277,12 +291,12 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     id: "kt-eye-out-finish",
     nodeId: "p-mtg-buylist",
     title: "Keep-an-eye-out finish/version match",
-    body: "When that shortlist exists, match finish the same way Mate compare does.",
+    body: "Shipped in 1.5.33 (kt-testing-tab-mate-print). IN-20260916-02 was the wrong printing $ (sibling max), not the shortlist. Listed Mate $ / Put aside use the resolved printing. kt-bulk-shortlist stays Later.",
     lane: "behaviour",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260916-02",
     createdAt: "2026-09-17T06:30:00.000Z",
-    updatedAt: "2026-09-17T06:30:00.000Z",
+    updatedAt: "2026-09-18T08:05:00.000Z",
   },
   {
     id: "kt-run-four-step",
@@ -338,6 +352,17 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     sourceIdeaId: "IN-20260918-02",
     createdAt: "2026-09-18T05:30:00.000Z",
     updatedAt: "2026-09-18T05:55:00.000Z",
+  },
+  {
+    id: "kt-buylist-1.5-wrap",
+    nodeId: "p-mtg-buylist",
+    title: "1.5 wrap: copy, timestamps, leftover Testing remap",
+    body: "sourceIdeaId IN-20260918-03. Development intent matches the host. Drop testing from parseDevTab. Brisbane formatStamp on Changelog/Logs/Run. Remove dummy Logs diffs tab. Rename CsvRowsEditor. Bump 1.5.35. Live stays 1.5. No 1.6 product.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-03",
+    createdAt: "2026-09-18T07:50:00.000Z",
+    updatedAt: "2026-09-18T08:10:00.000Z",
   },
 ];
 
@@ -786,6 +811,7 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260915-01",
   "IN-20260916-02",
   "IN-20260918-02",
+  "IN-20260918-03",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -802,6 +828,9 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-inbox-register-views",
   "kt-inbox-sitting-docs",
   "kt-buylist-leaf-tabs",
+  "kt-eye-out-finish",
+  "kt-changelog-expand",
+  "kt-buylist-1.5-wrap",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

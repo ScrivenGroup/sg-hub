@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangelogEntry } from "@/core/contracts/types";
-import { KanbanOnlineHost, type KanbanOnlineStart } from "@/core/kanban/ui/KanbanOnlineHost";
+import { KanbanOnlineHost } from "@/core/kanban/ui/KanbanOnlineHost";
 import { type DevHostKind, type DevTab } from "@/core/kanban/host";
 import { kanbanLeafOptions } from "@/core/kanban/leaves";
 import { type KanbanBoard as KanbanBoardData } from "@/core/kanban/schema";
@@ -19,12 +19,9 @@ export function MtgBuylistDevelopment({
   notes: string;
   board: KanbanBoardData;
   hostKind: DevHostKind;
-  host: string;
   initialTab: DevTab;
 }) {
   const devHref = `${MTG_BUYLIST_HREF}/development`;
-  const hostTab: KanbanOnlineStart =
-    initialTab === "testing" ? "changelog" : initialTab;
 
   return (
     <KanbanOnlineHost
@@ -39,7 +36,7 @@ export function MtgBuylistDevelopment({
       leafOptions={kanbanLeafOptions()}
       defaultTagNodeId={MTG_BUYLIST_NODE_ID}
       showTabs
-      initialTab={hostTab}
+      initialTab={initialTab}
       changelogs={changelogs}
       notes={notes}
       onSaveNotes={async (body) => {

@@ -42,7 +42,7 @@ const LEAF_COPY: Record<
   development: {
     title: "Development",
     intent:
-      "Release table, WIP plan, staff notes, Inbox, and a KanBan snapshot. Notes are per login until Neon. Inbox and KanBan share one leaf board.",
+      "Inbox, board, Changelog, Notes, and Design spec. Notes are per login. Inbox and board share one leaf board.",
   },
 };
 

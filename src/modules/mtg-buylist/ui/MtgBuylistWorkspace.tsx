@@ -79,6 +79,7 @@ import { CardNameCell } from "./CardNameCell";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 import { RunStepBar } from "./RunStepBar";
 import { InfoTip } from "@/core/ui/InfoTip";
+import { formatStamp } from "@/core/ui/format-stamp";
 import { ShellModal } from "@/core/shell/ShellModal";
 import { runHasStoredData } from "../logic/runs";
 import type { BuylistArchive, BuylistRunMeta } from "../schema";
@@ -1786,7 +1787,7 @@ export function MtgBuylistWorkspace({
               <ul className="list-disc space-y-0.5 pl-4">
                 <li>
                   File {store.csv.filename}. {csvSets.length} sets.{" "}
-                  {new Date(store.csv.uploadedAt).toLocaleString()}.
+                  {formatStamp(store.csv.uploadedAt)}.
                 </li>
                 <li>
                   Price basis: {PRICE_SOURCE_LABELS[store.csv.priceSource]} ·{" "}
@@ -2158,7 +2159,7 @@ export function MtgBuylistWorkspace({
             </ol>
             <p className="text-sm">
               Sets: {setCodes.join(", ") || "none"}. Token expires{" "}
-              {expiresAt ? new Date(expiresAt).toLocaleString() : ""}.
+              {expiresAt ? formatStamp(expiresAt) : ""}.
             </p>
             <button
               type="button"
@@ -2197,7 +2198,7 @@ export function MtgBuylistWorkspace({
               Mate snapshot · {store.mate.offers.length} rows ·{" "}
               {Object.keys(store.mateImageLinks || {}).length} image joins
               <InfoTip
-                label={`Sets ${store.mate.sets.join(", ") || "—"} (${store.mate.source}). ${new Date(store.mate.harvestedAt).toLocaleString()}.`}
+                label={`Sets ${store.mate.sets.join(", ") || "—"} (${store.mate.source}). ${formatStamp(store.mate.harvestedAt)}.`}
               />
             </p>
             <button
@@ -2488,13 +2489,13 @@ function CsvRowsPanel({
         count={String(rows.length)}
         defaultOpen={false}
       >
-        <CsvRowsEditor rows={rows} />
+        <CsvRowsTable rows={rows} />
       </CollapsibleTableSection>
     </StepTableToolbar>
   );
 }
 
-function CsvRowsEditor({ rows }: { rows: ManaBoxRow[] }) {
+function CsvRowsTable({ rows }: { rows: ManaBoxRow[] }) {
   return (
     <div className="min-w-0 overflow-x-auto">
       <table className={runTableClass}>

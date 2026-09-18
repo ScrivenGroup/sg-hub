@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
+import { formatStamp } from "@/core/ui/format-stamp";
 
 function newestFirst(a: ChangelogEntry, b: ChangelogEntry) {
   const t = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -126,7 +127,7 @@ export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntr
                                   ) : null}
                                 </td>
                                 <td className="py-1.5 text-[var(--muted)]">
-                                  {new Date(entry.createdAt).toLocaleString()}
+                                  {formatStamp(entry.createdAt)}
                                 </td>
                                 <td className="py-1.5">{entry.title}</td>
                               </tr>

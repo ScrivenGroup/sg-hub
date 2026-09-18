@@ -19,7 +19,7 @@ export default async function MtgBuylistDevelopmentPage({
 }) {
   const params = await searchParams;
   const staff = await requireBuylistStaff();
-  const { kind, host } = hostKindFromHeaders(await headers());
+  const { kind } = hostKindFromHeaders(await headers());
   const changelogs = await getChangelogsForNode(MTG_BUYLIST_NODE_ID);
   const [notes, board] = staff
     ? await Promise.all([
@@ -34,7 +34,6 @@ export default async function MtgBuylistDevelopmentPage({
       notes={notes || ""}
       board={board}
       hostKind={kind}
-      host={host}
       initialTab={parseDevTab(params.tab)}
     />
   );

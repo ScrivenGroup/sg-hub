@@ -1039,6 +1039,21 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.35",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.35",
+    createdAt: "2026-09-18T08:05:00.000Z",
+    title: "1.5.35 (dev) — 1.5 wrap: copy, timestamps, leftover Testing remap",
+    body: `## Publish to localhost (not live)
+
+- Development intent matches the host (Inbox, board, Changelog, Notes, Design spec). Leftover \`?tab=testing\` remap is gone.
+- Changelog, Logs, and Run stamps use a fixed Brisbane format. Logs no longer shows a dummy diffs tab. CSV rows table is read-only by name too.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
