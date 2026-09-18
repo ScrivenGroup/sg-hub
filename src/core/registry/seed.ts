@@ -977,6 +977,37 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.31",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.31",
+    createdAt: "2026-09-18T03:50:00.000Z",
+    title: "1.5.31 (dev) — Run chrome silhouette + shared table toolbar",
+    body: `## Publish to localhost (not live)
+
+- Selected step card and body share one SVG silhouette (concave shoulders; unselected cards stay pills). Equal-width cards, darker selected fill, thicker outline.
+- Shared table toolbar on Upload, Harvest, Picking, and Reupload. Harvest 2a/2b are store sections with RAG/KPI. CSV names use the O hover preview. Collapse headers stick under AppShell.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.32",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.32",
+    createdAt: "2026-09-18T05:10:00.000Z",
+    title: "1.5.32 (dev) — Run metrics grid + table-filter wait",
+    body: `## Publish to localhost (not live)
+
+- Selected step silhouette fill is \`--surface\` (white), lighter than \`--page\`; ink stroke unchanged.
+- Store metrics on cards 2–4 and Harvest 2a/2b use four columns: name | status | RAG | $. Status is not glued to the store name.
+- Table filter chips no longer veil the whole page. Put aside sits above the Picking table and collapses. Toolbar tabs left; legends and buttons right.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

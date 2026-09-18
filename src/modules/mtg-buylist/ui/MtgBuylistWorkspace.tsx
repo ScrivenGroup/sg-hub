@@ -74,12 +74,12 @@ import {
   type MtgBuylistStore,
   type PriceSource,
 } from "../schema";
+import { scryfallImageUrl } from "../logic/images";
 import { CardNameCell } from "./CardNameCell";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 import { RunStepBar } from "./RunStepBar";
 import { InfoTip } from "@/core/ui/InfoTip";
 import { ShellModal } from "@/core/shell/ShellModal";
-import { useUiLoadingGate } from "@/core/shell/UiLoading";
 import { runHasStoredData } from "../logic/runs";
 import type { BuylistArchive, BuylistRunMeta } from "../schema";
 
@@ -127,7 +127,7 @@ function UniquenessKey({ label }: { label: ReactNode }) {
   );
 }
 
-/** Nested table disclosure. Remembers open/closed in this tab. */
+/** Nested table disclosure. Remembers open/closed in this tab. Header sticks under AppShell. */
 function CollapsibleTableSection({
   id,
   title,
@@ -155,7 +155,7 @@ function CollapsibleTableSection({
     <div className="rounded-lg border border-[var(--border)]">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm"
+        className="sticky top-14 z-30 flex w-full cursor-pointer items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm"
         aria-expanded={open}
         onClick={() => {
           const next = !open;
@@ -170,8 +170,67 @@ function CollapsibleTableSection({
         {count ? <span className="text-[var(--muted)]">({count})</span> : null}
         {hint ? <span className="text-xs font-normal text-[var(--muted)]">{hint}</span> : null}
       </button>
-      {open ? (
-        <div className="space-y-2 border-t border-[var(--border)] px-3 py-2">{children}</div>
+      {open ? <div className="space-y-2 px-3 py-2">{children}</div> : null}
+    </div>
+  );
+}
+
+function StepTableToolbar({
+  title,
+  info,
+  tabs,
+  legend,
+  actions,
+  children,
+}: {
+  title: ReactNode;
+  info: ReactNode;
+  tabs?: ReactNode;
+  legend?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+}) {
+  const tools = Boolean(legend || actions);
+  return (
+    <div className="min-w-0 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 text-lg font-semibold leading-snug">{title}</div>
+        <UniquenessKey label={info} />
+      </div>
+      {tabs || tools ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          {tabs ? <div className="flex min-w-0 flex-wrap justify-start gap-1">{tabs}</div> : <span />}
+          {tools ? (
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-2">
+              {legend}
+              {actions ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+function TableWaitFrame({ pending, children }: { pending: boolean; children: ReactNode }) {
+  return (
+    <div className="relative min-w-0" data-table-wait={pending ? "1" : "0"}>
+      {children}
+      {pending ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_srgb,var(--surface)_72%,transparent)]"
+          role="status"
+          aria-live="polite"
+          aria-label="Updating table"
+        >
+          <span
+            className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--ink)]"
+            aria-hidden
+          />
+        </div>
       ) : null}
     </div>
   );
@@ -358,14 +417,13 @@ function RecoveryLegendButton({
   label: string;
   onToggle: () => void;
 }) {
-  const runUi = useUiLoadingGate();
   return (
     <button
       type="button"
       className={className}
       title={title}
       aria-pressed={active}
-      onClick={() => runUi(onToggle)}
+      onClick={onToggle}
     >
       <span
         className="inline-block h-2.5 w-2.5 rounded-full"
@@ -429,46 +487,133 @@ function RowToneLegend({
   );
 }
 
+const STORE_METRICS_GRID =
+  "grid w-full min-w-0 grid-cols-[2.5rem_7rem_minmax(0,1fr)_auto] items-baseline gap-x-2 gap-y-0.5";
+
+function StoreMetricsGrid({ children }: { children: ReactNode }) {
+  return (
+    <span className={STORE_METRICS_GRID} data-store-metrics="">
+      {children}
+    </span>
+  );
+}
+
+function StoreMetricCell({
+  children,
+  className,
+  title,
+  col,
+}: {
+  children?: ReactNode;
+  className?: string;
+  title?: string;
+  col?: "name" | "status" | "rag" | "money";
+}) {
+  return (
+    <span className={className} title={title} data-store-col={col}>
+      {children ?? "\u00a0"}
+    </span>
+  );
+}
+
 function HarvestStoreSummary({
   name,
   harvested,
   rows,
   includeConfirm,
+  extra,
 }: {
   name: string;
   harvested: boolean;
   rows: StreamRow[];
   includeConfirm?: boolean;
+  extra?: ReactNode;
 }) {
-  if (!harvested) {
-    return <span className="block">{name} not harvested</span>;
-  }
   const counts = { sell: 0, capped: 0, skip: 0, ambiguous: 0 };
-  for (const row of rows) {
-    if (row.tone === "sell") counts.sell += 1;
-    else if (row.tone === "capped") counts.capped += 1;
-    else if (row.tone === "ambiguous") counts.ambiguous += 1;
-    else counts.skip += 1;
+  if (harvested) {
+    for (const row of rows) {
+      if (row.tone === "sell") counts.sell += 1;
+      else if (row.tone === "capped") counts.capped += 1;
+      else if (row.tone === "ambiguous") counts.ambiguous += 1;
+      else counts.skip += 1;
+    }
   }
   const bits: { tone: StreamTone; label: string; n: number }[] = [];
-  if (counts.sell) bits.push({ tone: "sell", label: "sellable", n: counts.sell });
-  if (counts.capped) bits.push({ tone: "capped", label: "at limit", n: counts.capped });
-  if (counts.skip) bits.push({ tone: "skip", label: "not found", n: counts.skip });
-  if (includeConfirm && counts.ambiguous) {
-    bits.push({ tone: "ambiguous", label: "confirm printing", n: counts.ambiguous });
+  if (harvested) {
+    if (counts.sell) bits.push({ tone: "sell", label: "sellable", n: counts.sell });
+    if (counts.capped) bits.push({ tone: "capped", label: "at limit", n: counts.capped });
+    if (counts.skip) bits.push({ tone: "skip", label: "not found", n: counts.skip });
+    if (includeConfirm && counts.ambiguous) {
+      bits.push({ tone: "ambiguous", label: "confirm", n: counts.ambiguous });
+    }
   }
   return (
-    <span className="block">
-      {name} harvested
-      {bits.map((bit) => (
-        <span key={bit.tone}>
-          {" · "}
-          <span className={`rounded px-0.5 ${toneClass(bit.tone)}`}>
-            {bit.n} {bit.label}
+    <>
+      <StoreMetricCell col="name" className="whitespace-nowrap font-medium text-[var(--ink)]">
+        {name}
+      </StoreMetricCell>
+      <StoreMetricCell col="status" className="whitespace-nowrap">
+        {harvested ? "harvested" : "not harvested"}
+      </StoreMetricCell>
+      <StoreMetricCell col="rag" className="min-w-0 overflow-hidden">
+        {bits.length ? (
+          <span className="inline-flex flex-nowrap items-center gap-1">
+            {bits.map((bit) => (
+              <span key={bit.tone} className={`rounded px-0.5 ${toneClass(bit.tone)}`}>
+                {bit.n} {bit.label}
+              </span>
+            ))}
           </span>
-        </span>
-      ))}
-    </span>
+        ) : null}
+      </StoreMetricCell>
+      <StoreMetricCell col="money" className="whitespace-nowrap text-right tabular-nums">
+        {extra}
+      </StoreMetricCell>
+    </>
+  );
+}
+
+function HarvestStoreSection({
+  label,
+  summaryName,
+  selected,
+  harvested,
+  rows,
+  includeConfirm,
+  onSelect,
+}: {
+  label: string;
+  summaryName: string;
+  selected: boolean;
+  harvested: boolean;
+  rows: StreamRow[];
+  includeConfirm?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      className={`w-full cursor-pointer rounded-[10px] p-3 text-left ${
+        selected
+          ? "border-2 border-[var(--ink)] bg-[color-mix(in_srgb,var(--ink)_12%,var(--surface))]"
+          : "border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--ink)]"
+      }`}
+      onClick={onSelect}
+    >
+      <span className="block text-sm font-semibold">{label}</span>
+      <span className="mt-1 block text-xs font-normal text-[var(--muted)]">
+        <StoreMetricsGrid>
+          <HarvestStoreSummary
+            name={summaryName}
+            harvested={harvested}
+            rows={rows}
+            includeConfirm={includeConfirm}
+          />
+        </StoreMetricsGrid>
+      </span>
+    </button>
   );
 }
 
@@ -480,9 +625,16 @@ function ReuploadStoreSummary({
   filename?: string;
 }) {
   return (
-    <span className="block">
-      {filename ? `${name} uploaded · ${filename}` : `${name} not uploaded`}
-    </span>
+    <>
+      <StoreMetricCell col="name" className="whitespace-nowrap font-medium text-[var(--ink)]">
+        {name}
+      </StoreMetricCell>
+      <StoreMetricCell col="status" className="whitespace-nowrap" title={filename}>
+        {filename ? "uploaded" : "not uploaded"}
+      </StoreMetricCell>
+      <StoreMetricCell col="rag" />
+      <StoreMetricCell col="money" />
+    </>
   );
 }
 
@@ -828,8 +980,6 @@ export function MtgBuylistWorkspace({
     compareRows.reduce((n, r) => n + r.playmantisSell * r.playmantisCreditCents, 0);
   const pickingMateCredit = store.resultCompare?.totals.mateCreditCents ?? 0;
   const pickingMateCash = store.resultCompare?.totals.mateCashCents ?? 0;
-  const pickingPmQty = compareRows.reduce((n, r) => n + r.playmantisSell, 0);
-  const pickingMateQty = compareRows.reduce((n, r) => n + r.mateSell, 0);
   const pmHarvested = Boolean(store.playmantis || dumpOffers.length);
   const mateHarvested = Boolean(store.mate);
   const uploadSummary = store.csv
@@ -838,7 +988,7 @@ export function MtgBuylistWorkspace({
       ? `${pendingCsv.filename} · ${csvQty} cards · ${priceCurrency || "currency?"}`
       : "Drop a ManaBox CSV";
   const harvestSummary = (
-    <>
+    <StoreMetricsGrid>
       <HarvestStoreSummary name="PM" harvested={pmHarvested} rows={pmRows} />
       <HarvestStoreSummary
         name="Mate"
@@ -846,18 +996,32 @@ export function MtgBuylistWorkspace({
         rows={mateRows}
         includeConfirm
       />
-    </>
+    </StoreMetricsGrid>
   );
-  const pickingSummary = hasHarvest
-    ? `PM ${pickingPmQty} · ${money(pickingPmCents)} · Mate ${pickingMateQty} · ${money(
-        pickingMateCredit,
-      )} / cash ${money(pickingMateCash)}`
-    : "Harvest first";
+  const pickingSummary = hasHarvest ? (
+    <StoreMetricsGrid>
+      <HarvestStoreSummary
+        name="PM"
+        harvested={pmHarvested}
+        rows={pmRows}
+        extra={money(pickingPmCents)}
+      />
+      <HarvestStoreSummary
+        name="Mate"
+        harvested={mateHarvested}
+        rows={mateRows}
+        includeConfirm
+        extra={`${money(pickingMateCredit)} / cash ${money(pickingMateCash)}`}
+      />
+    </StoreMetricsGrid>
+  ) : (
+    "Harvest first"
+  );
   const reuploadSummary = (
-    <>
+    <StoreMetricsGrid>
       <ReuploadStoreSummary name="PM" filename={pmSubmission?.filename} />
       <ReuploadStoreSummary name="Mate" filename={mateSubmission?.filename} />
-    </>
+    </StoreMetricsGrid>
   );
 
   useEffect(() => {
@@ -1523,38 +1687,11 @@ export function MtgBuylistWorkspace({
       >
       {step === "upload" ? (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {activeRunId ? (
-            <button
-              type="button"
-              className="inline-flex cursor-pointer items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ minHeight: "var(--sg-btn-height)" }}
-              disabled={pending}
-              onClick={() => requestCloseRun("current")}
-            >
-              Clear this run
-            </button>
-          ) : (
-            <p className="text-sm text-[var(--muted)]">
-              No run folder is open. Drop a ManaBox CSV to start one. Existing tabs stay as they are.
-            </p>
-          )}
-          <UniquenessKey
-            label={
-              <ul className="list-disc space-y-0.5 pl-4">
-                <li>
-                  <strong>Scryfall ID</strong> first
-                </li>
-                <li>
-                  Else <strong>set + # + finish</strong>
-                </li>
-                <li>
-                  <strong>Name</strong> is a label only
-                </li>
-              </ul>
-            }
-          />
-        </div>
+        {activeRunId ? null : (
+          <p className="text-sm text-[var(--muted)]">
+            No run folder is open. Drop a ManaBox CSV to start one. Existing tabs stay as they are.
+          </p>
+        )}
         <FileDropZone
           accept=".csv,text/csv"
           disabled={pending || busy}
@@ -1594,54 +1731,104 @@ export function MtgBuylistWorkspace({
                 placeholder="AUD"
               />
             </label>
-            <p className="text-xs text-[var(--muted)]">
-              {pendingCsv.missingCurrency
-                ? "The CSV had no Purchase price currency column — set it here."
-                : pendingCsv.mixedCurrency
-                  ? `File has mixed currencies; majority is ${pendingCsv.currencyFromFile}. Confirm the basis for this run.`
-                  : `File lists ${pendingCsv.currencyFromFile || "a currency"}. Confirm if that is what ManaBox was set to.`}
-            </p>
-            <CsvRowsPanel rows={pendingCsv.rows} />
-            <button
-              type="button"
-              className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
-              disabled={pending || busy}
-              onClick={() => confirmCsvUpload()}
-            >
-              {activeRunId ? "Use this CSV" : "Open this run"}
-            </button>
+            <CsvRowsPanel
+              rows={pendingCsv.rows}
+              title={`${pendingCsv.filename} · ${csvQty} cards`}
+              info={
+                <>
+                  <p>
+                    {pendingCsv.missingCurrency
+                      ? "The CSV had no Purchase price currency column — set it here."
+                      : pendingCsv.mixedCurrency
+                        ? `File has mixed currencies; majority is ${pendingCsv.currencyFromFile}. Confirm the basis for this run.`
+                        : `File lists ${pendingCsv.currencyFromFile || "a currency"}. Confirm if that is what ManaBox was set to.`}
+                  </p>
+                  <ul className="mt-2 list-disc space-y-0.5 pl-4">
+                    <li>
+                      <strong>Scryfall ID</strong> first
+                    </li>
+                    <li>
+                      Else <strong>set + # + finish</strong>
+                    </li>
+                    <li>
+                      <strong>Name</strong> is a label only
+                    </li>
+                    <li>Uploads only. Drop a new CSV to replace. Mate confirm/reject stays on Harvest.</li>
+                  </ul>
+                </>
+              }
+              actions={
+                <button
+                  type="button"
+                  className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+                  disabled={pending || busy}
+                  onClick={() => confirmCsvUpload()}
+                >
+                  {activeRunId ? "Use this CSV" : "Open this run"}
+                </button>
+              }
+            />
           </div>
         ) : null}
         {pendingCsv ? null : store.csv ? (
-          <>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--muted)]">
+          <CsvRowsPanel
+            rows={store.csv.rows}
+            title={
+              <>
                 <CsvFilenameLink
                   filename={store.csv.filename}
                   csvText={manaBoxRowsToCsv(store.csv.rows)}
                 />
-                · {csvQty} cards · {store.csv.rows.length} printings · {csvSets.length} sets
-                <InfoTip
-                  label={`${new Date(store.csv.uploadedAt).toLocaleString()}. Price basis: ${PRICE_SOURCE_LABELS[store.csv.priceSource]} · ${store.csv.priceCurrency || "currency unknown"}. ${
-                    store.csv.rows.some((r) => (r.frameEffects || []).length > 0)
-                      ? `Scryfall treatments on ${store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/${store.csv.rows.length} (used for Mate auto-match).`
-                      : "No Scryfall treatments yet — Refresh Scryfall treatments so Extended Art can auto-match (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis)."
-                  }`}
-                />
-              </p>
-              <button
-                type="button"
-                className="sg-btn-secondary shrink-0 text-sm"
-                disabled={pending || busy}
-                onClick={() =>
-                  run(() => enrichCsvTreatmentsAction(activeRunId), "Asking Scryfall for treatments…")
-                }
-              >
-                Refresh Scryfall treatments
-              </button>
-            </div>
-            <CsvRowsPanel rows={store.csv.rows} />
-          </>
+                {` · ${csvQty} cards · ${store.csv.rows.length} printings`}
+              </>
+            }
+            info={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>
+                  File {store.csv.filename}. {csvSets.length} sets.{" "}
+                  {new Date(store.csv.uploadedAt).toLocaleString()}.
+                </li>
+                <li>
+                  Price basis: {PRICE_SOURCE_LABELS[store.csv.priceSource]} ·{" "}
+                  {store.csv.priceCurrency || "currency unknown"}.
+                </li>
+                <li>
+                  {store.csv.rows.some((r) => (r.frameEffects || []).length > 0)
+                    ? `Scryfall treatments on ${store.csv.rows.filter((r) => (r.frameEffects || []).length > 0).length}/${store.csv.rows.length} (used for Mate auto-match).`
+                    : "No Scryfall treatments yet — Refresh so Extended Art can auto-match (keeps Mate/PM harvests; a full CSV re-upload would clear Playmantis)."}
+                </li>
+                <li>
+                  <strong>Scryfall ID</strong> first, else set + # + finish. Name is a label only.
+                </li>
+                <li>Uploads only. Drop a new CSV to replace. Mate confirm/reject stays on Harvest.</li>
+              </ul>
+            }
+            actions={
+              <>
+                {activeRunId ? (
+                  <button
+                    type="button"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ minHeight: "var(--sg-btn-height)" }}
+                    disabled={pending}
+                    onClick={() => requestCloseRun("current")}
+                  >
+                    Clear this run
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="sg-btn-secondary shrink-0 text-sm"
+                  disabled={pending || busy}
+                  onClick={() =>
+                    run(() => enrichCsvTreatmentsAction(activeRunId), "Asking Scryfall for treatments…")
+                  }
+                >
+                  Refresh Scryfall treatments
+                </button>
+              </>
+            }
+          />
         ) : activeRunId ? (
           <p className="text-sm text-[var(--muted)]">No CSV in this run yet.</p>
         ) : null}
@@ -1650,62 +1837,23 @@ export function MtgBuylistWorkspace({
 
       {step === "harvest" ? (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Harvest store" className="flex flex-wrap">
-            <button
-              type="button"
-              className="sg-tab"
-              role="tab"
-              aria-selected={harvestPane === "pm"}
-              onClick={() => setHarvestPane("pm")}
-            >
-              2a Playmantis
-            </button>
-            <button
-              type="button"
-              className="sg-tab"
-              role="tab"
-              aria-selected={harvestPane === "mate"}
-              onClick={() => setHarvestPane("mate")}
-            >
-              2b MTGMate
-            </button>
-          </div>
-          <InfoTip
-            label={
-              harvestPane === "pm"
-                ? "Either path fills the table. Dump wins when both exist."
-                : "Console script + JSON. Confirm ambiguous printings."
-            }
+        <div role="tablist" aria-label="Harvest store" className="grid gap-2 sm:grid-cols-2">
+          <HarvestStoreSection
+            label="2a Playmantis"
+            summaryName="PM"
+            selected={harvestPane === "pm"}
+            harvested={pmHarvested}
+            rows={pmRows}
+            onSelect={() => setHarvestPane("pm")}
           />
-          <UniquenessKey
-            label={
-              harvestPane === "pm" ? (
-                <ul className="list-disc space-y-0.5 pl-4">
-                  <li>
-                    Harvest: <strong>Scryfall ID + finish</strong>
-                  </li>
-                  <li>
-                    Dump: stripped <strong>name + set name + finish</strong> onto this CSV printing
-                  </li>
-                  <li>
-                    Both present: <strong>Import Review</strong> is the table
-                  </li>
-                </ul>
-              ) : (
-                <ul className="list-disc space-y-0.5 pl-4">
-                  <li>
-                    <strong>Set + name + finish</strong>
-                  </li>
-                  <li>
-                    <strong>#</strong> when the Mate title has one
-                  </li>
-                  <li>
-                    Same name/finish, different art: <strong>Confirm</strong>
-                  </li>
-                </ul>
-              )
-            }
+          <HarvestStoreSection
+            label="2b MTGMate"
+            summaryName="Mate"
+            selected={harvestPane === "mate"}
+            harvested={mateHarvested}
+            rows={mateRows}
+            includeConfirm
+            onSelect={() => setHarvestPane("mate")}
           />
         </div>
         {harvestPane === "pm" ? (
@@ -1713,12 +1861,6 @@ export function MtgBuylistWorkspace({
         <div className="grid items-stretch gap-3 md:grid-cols-[minmax(13rem,0.85fr)_auto_minmax(18rem,1.2fr)]">
           <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] p-3">
             <h3 className="text-sm font-medium">Path 1 · Harvest</h3>
-            <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
-              <li>
-                Look up this <strong>CSV</strong>
-              </li>
-              <li>Leave the page open</li>
-            </ul>
             <div className="flex flex-1 flex-col justify-center gap-2">
               <button
                 type="button"
@@ -1790,25 +1932,6 @@ export function MtgBuylistWorkspace({
           </p>
           <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
             <h3 className="text-sm font-medium">Path 2 · Site dump</h3>
-            <ul className="list-disc space-y-0.5 pl-4 text-sm text-[var(--muted)]">
-              <li>
-                Import CSV on{" "}
-                <a
-                  className="underline"
-                  href="https://playmantis.com.au/collections/buylist"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Playmantis
-                </a>
-              </li>
-              <li>
-                Click the <strong>bookmark</strong>
-              </li>
-              <li>
-                <strong>Drop</strong> the HTML
-              </li>
-            </ul>
             <div className="flex flex-wrap items-center gap-2">
               <a
                 className="sg-btn-secondary"
@@ -1920,21 +2043,6 @@ export function MtgBuylistWorkspace({
             </div>
           </div>
         ) : null}
-        <p className="text-sm text-[var(--muted)]" suppressHydrationWarning>
-          {importReview
-            ? `Table from Import Review · ${importReview.review.length} rows${
-                store.playmantis
-                  ? ` · harvest compared (${pmDone} / ${pmTotal} looked up)`
-                  : ""
-              }.`
-            : store.playmantis
-              ? `Looked up ${pmDone} / ${pmTotal} Scryfall IDs · ${pmWanted} finish-offers with credit · ${pmMissing} not found${
-                  store.playmantis.fetchedAt
-                    ? ` · ${store.playmantis.fetchedAt.slice(0, 16).replace("T", " ")} UTC`
-                    : ""
-                }.`
-              : "Choose a path above."}
-        </p>
         {pmRows.length ? (
           <StreamTable
             mode="pm"
@@ -1948,6 +2056,36 @@ export function MtgBuylistWorkspace({
             }
             priceSource={store.csv?.priceSource}
             priceCurrency={store.csv?.priceCurrency}
+            info={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>Path 1 harvest looks up this CSV — leave the page open.</li>
+                <li>
+                  Path 2: import CSV on Playmantis, click the bookmark, drop the HTML. Harvest uses
+                  Scryfall ID + finish; dump uses stripped name + set name + finish.
+                </li>
+                <li>Either path fills the table. Dump wins when both exist. Import Review is then the table.</li>
+                <li>
+                  {importReview
+                    ? `Table from Import Review · ${importReview.review.length} rows${
+                        store.playmantis
+                          ? ` · harvest compared (${pmDone} / ${pmTotal} looked up)`
+                          : ""
+                      }.`
+                    : store.playmantis
+                      ? `Looked up ${pmDone} / ${pmTotal} Scryfall IDs · ${pmWanted} finish-offers with credit · ${pmMissing} not found${
+                          store.playmantis.fetchedAt
+                            ? ` · ${store.playmantis.fetchedAt.slice(0, 16).replace("T", " ")} UTC`
+                            : ""
+                        }.`
+                      : "Choose a path above."}
+                </li>
+                <li>
+                  Price basis: {PRICE_SOURCE_LABELS[store.csv?.priceSource || "other"]} ·{" "}
+                  {(store.csv?.priceCurrency || "").trim().toUpperCase() || "unknown"}. O = owned, S =
+                  store.
+                </li>
+              </ul>
+            }
             onDownload={() =>
               downloadText(
                 "mtg-buylist-playmantis.csv",
@@ -2101,6 +2239,20 @@ export function MtgBuylistWorkspace({
             priceCurrency={store.csv?.priceCurrency}
             onConfirmMate={confirmMateVariant}
             onRejectMate={rejectMateVariant}
+            info={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>
+                  Console script + JSON. Match is <strong>set + name + finish</strong>, and{" "}
+                  <strong>#</strong> when the Mate title has one.
+                </li>
+                <li>Same name/finish, different art: Confirm. ↻ reopens variants.</li>
+                <li>
+                  Price basis: {PRICE_SOURCE_LABELS[store.csv?.priceSource || "other"]} ·{" "}
+                  {(store.csv?.priceCurrency || "").trim().toUpperCase() || "unknown"}. O = owned, S =
+                  store.
+                </li>
+              </ul>
+            }
             onDownload={() =>
               downloadText(
                 "mtg-buylist-mtgmate.csv",
@@ -2120,31 +2272,6 @@ export function MtgBuylistWorkspace({
 
       {step === "picking" ? (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <UniquenessKey
-            label={
-              <ul className="list-disc space-y-0.5 pl-4">
-                <li>
-                  One <strong>CSV printing</strong> per row
-                </li>
-                <li>
-                  Prices already resolved on each <strong>stream</strong>
-                </li>
-              </ul>
-            }
-          />
-          <InfoTip label="Who wins. Harvest vs Import Review is on Playmantis." />
-        </div>
-        <p className="text-sm text-[var(--muted)]">
-          Store picklists. Import Review diffs:{" "}
-          <button
-            type="button"
-            className="cursor-pointer underline"
-            onClick={() => selectStep("harvest")}
-          >
-            Harvest
-          </button>
-        </p>
         {compareRows.length ? (
           <CompareTable
             rows={compareRows}
@@ -2188,24 +2315,6 @@ export function MtgBuylistWorkspace({
 
       {step === "reupload" ? (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <UniquenessKey
-            label={
-              <ul className="list-disc space-y-0.5 pl-4">
-                <li>
-                  <strong>Scryfall ID + finish</strong> first
-                </li>
-                <li>
-                  Then <strong>set + # + finish</strong>
-                </li>
-                <li>
-                  Then <strong>name + set + finish</strong>
-                </li>
-              </ul>
-            }
-          />
-          <InfoTip label="Drop what the stores took. One CSV + Mate + Playmantis table; filters are views. Re-import CSV is always available." />
-        </div>
         {!store.csv || !join ? (
           <p className="text-sm text-[var(--muted)]">
             Upload a ManaBox CSV in step 1 first.
@@ -2362,22 +2471,26 @@ function MetaHead({
 
 function CsvRowsPanel({
   rows,
+  title,
+  info,
+  actions,
 }: {
   rows: ManaBoxRow[];
+  title: ReactNode;
+  info: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <CollapsibleTableSection
-      id="csv-rows"
-      title="CSV rows"
-      count={String(rows.length)}
-      hint="read-only — drop a new CSV to replace"
-      defaultOpen={false}
-    >
-      <p className="text-xs text-[var(--muted)]">
-        Uploads only. If the file is wrong, drop a new CSV. Mate confirm/reject stays on Harvest.
-      </p>
-      <CsvRowsEditor rows={rows} />
-    </CollapsibleTableSection>
+    <StepTableToolbar title={title} info={info} actions={actions}>
+      <CollapsibleTableSection
+        id="csv-rows"
+        title="CSV rows"
+        count={String(rows.length)}
+        defaultOpen={false}
+      >
+        <CsvRowsEditor rows={rows} />
+      </CollapsibleTableSection>
+    </StepTableToolbar>
   );
 }
 
@@ -2399,7 +2512,17 @@ function CsvRowsEditor({ rows }: { rows: ManaBoxRow[] }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={`${row.scryfallId}-${row.name}-${i}`} className="border-t border-[var(--border)]">
-              <td className={nameCellClass}>{row.name}</td>
+              <td className={nameCellClass}>
+                <CardNameCell
+                  name={row.name}
+                  setCode={row.setCode}
+                  collectorNumber={row.collectorNumber}
+                  finish={row.foil}
+                  ownedImageUrl={scryfallImageUrl(row.scryfallId)}
+                  showOwned={Boolean(row.scryfallId)}
+                  showStore={false}
+                />
+              </td>
               <td className={metaCellClass}>{row.setCode || "—"}</td>
               <td className={metaCellClass}>{row.collectorNumber || "—"}</td>
               <td className={metaCellClass}>{compactFinish(row.foil).short}</td>
@@ -2451,6 +2574,7 @@ function JoinBoard({
   hasMate: boolean;
   hasPm: boolean;
 }) {
+  const [tableWait, startTableWait] = useTransition();
   const visible = filterJoinRows(join.join, view);
   const oversold = join.join.filter((row) => row.remaining < 0).length;
   const unsold = join.join.filter((row) => row.csvQty > 0 && row.mmQty === 0 && row.pmQty === 0)
@@ -2469,116 +2593,127 @@ function JoinBoard({
     unsold: "Unsold",
   };
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-sm text-[var(--muted)]">
-            {join.leftoverCopies} leftover copies · {join.reimport.length} printings · removed{" "}
-            {join.removedCopies}
-          </p>
+    <StepTableToolbar
+      title={`${join.leftoverCopies} leftover copies · ${join.reimport.length} printings`}
+      info={
+        <ul className="list-disc space-y-0.5 pl-4">
+          <li>
+            <strong>Scryfall ID + finish</strong> first, then set + # + finish, then name + set +
+            finish.
+          </li>
+          <li>
+            Drop what the stores took. One CSV + Mate + Playmantis table; filters are views. Re-import
+            CSV is always available.
+          </li>
+          <li>
+            Showing {viewLabel[view]} · {visible.length} of {join.join.length}. Removed{" "}
+            {join.removedCopies} copies.
+          </li>
+        </ul>
+      }
+      tabs={
+        <div className="flex flex-wrap" role="tablist" aria-label="Reupload view">
+          <FilterChip
+            active={view === "master"}
+            label={`Master (${join.join.length})`}
+            onClick={() => startTableWait(() => onView("master"))}
+          />
+          <FilterChip
+            active={view === "reimport"}
+            label={`Reimport (${join.reimport.length})`}
+            onClick={() => startTableWait(() => onView("reimport"))}
+          />
+          <FilterChip
+            active={view === "csv"}
+            label={`CSV (${join.csv.length})`}
+            onClick={() => startTableWait(() => onView("csv"))}
+          />
+          {hasMate ? (
+            <FilterChip
+              active={view === "mate"}
+              label={`Mate (${join.mm.length})`}
+              onClick={() => startTableWait(() => onView("mate"))}
+            />
+          ) : null}
+          {hasPm ? (
+            <FilterChip
+              active={view === "pm"}
+              label={`Playmantis (${join.pm.length})`}
+              onClick={() => startTableWait(() => onView("pm"))}
+            />
+          ) : null}
+          {nonCsv > 0 ? (
+            <FilterChip
+              active={view === "noncsv"}
+              label={`Non-CSV (${nonCsv})`}
+              onClick={() => startTableWait(() => onView("noncsv"))}
+            />
+          ) : null}
+          {sold > 0 ? (
+            <FilterChip
+              active={view === "sold"}
+              label={`Sold (${sold})`}
+              onClick={() => startTableWait(() => onView("sold"))}
+            />
+          ) : null}
+          {unsold > 0 ? (
+            <FilterChip
+              active={view === "unsold"}
+              label={`Unsold (${unsold})`}
+              onClick={() => startTableWait(() => onView("unsold"))}
+            />
+          ) : null}
+          {oversold > 0 ? (
+            <FilterChip
+              active={view === "oversold"}
+              label={`Oversold (${oversold})`}
+              tone="amber"
+              onClick={() => startTableWait(() => onView("oversold"))}
+            />
+          ) : null}
         </div>
-        <button
-          type="button"
-          className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
-          disabled={!join.reimport.length}
-          onClick={() => downloadText(`${csvStem}-reimport-manabox.csv`, join.leftoverCsv)}
-        >
-          Download re-import CSV
-        </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Reupload view">
-        <FilterChip
-          active={view === "master"}
-          label={`Master (${join.join.length})`}
-          onClick={() => onView("master")}
-        />
-        <FilterChip
-          active={view === "reimport"}
-          label={`Reimport (${join.reimport.length})`}
-          onClick={() => onView("reimport")}
-        />
-        <FilterChip
-          active={view === "csv"}
-          label={`CSV (${join.csv.length})`}
-          onClick={() => onView("csv")}
-        />
-        {hasMate ? (
-          <FilterChip
-            active={view === "mate"}
-            label={`Mate (${join.mm.length})`}
-            onClick={() => onView("mate")}
-          />
-        ) : null}
-        {hasPm ? (
-          <FilterChip
-            active={view === "pm"}
-            label={`Playmantis (${join.pm.length})`}
-            onClick={() => onView("pm")}
-          />
-        ) : null}
-        {nonCsv > 0 ? (
-          <FilterChip
-            active={view === "noncsv"}
-            label={`Non-CSV (${nonCsv})`}
-            onClick={() => onView("noncsv")}
-          />
-        ) : null}
-        {sold > 0 ? (
-          <FilterChip
-            active={view === "sold"}
-            label={`Sold (${sold})`}
-            onClick={() => onView("sold")}
-          />
-        ) : null}
-        {unsold > 0 ? (
-          <FilterChip
-            active={view === "unsold"}
-            label={`Unsold (${unsold})`}
-            onClick={() => onView("unsold")}
-          />
-        ) : null}
-        {oversold > 0 ? (
-          <FilterChip
-            active={view === "oversold"}
-            label={`Oversold (${oversold})`}
-            tone="amber"
-            onClick={() => onView("oversold")}
-          />
-        ) : null}
-      </div>
-      <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-[var(--muted)]">
-        <span>
-          Showing {viewLabel[view]} · {visible.length} of {join.join.length}
-        </span>
-        <button
-          type="button"
-          className="sg-btn-secondary"
-          onClick={() =>
-            downloadText(
-              `${csvStem}-${view}.csv`,
-              outerJoinCsv(view === "master" ? join.join : visible),
-            )
-          }
-        >
-          Download this view
-        </button>
-      </p>
-      {visible.length ? (
+      }
+      legend={<JoinToneLegend />}
+      actions={
         <>
-          <JoinToneLegend />
-          <CollapsibleTableSection
-            id="reupload-rows"
-            title="Submission rows"
-            count={String(visible.length)}
-            defaultOpen
+          <button
+            type="button"
+            className="sg-btn-primary border border-[var(--ink)] disabled:opacity-50"
+            disabled={!join.reimport.length}
+            onClick={() => downloadText(`${csvStem}-reimport-manabox.csv`, join.leftoverCsv)}
           >
-            <JoinTable rows={visible} />
-          </CollapsibleTableSection>
+            Download re-import CSV
+          </button>
+          <button
+            type="button"
+            className="sg-btn-secondary"
+            onClick={() =>
+              downloadText(
+                `${csvStem}-${view}.csv`,
+                outerJoinCsv(view === "master" ? join.join : visible),
+              )
+            }
+          >
+            Download this view
+          </button>
         </>
+      }
+    >
+      {visible.length ? (
+        <CollapsibleTableSection
+          id="reupload-rows"
+          title="Submission rows"
+          count={String(visible.length)}
+          defaultOpen
+        >
+          <TableWaitFrame pending={tableWait}>
+            <JoinTable rows={visible} />
+          </TableWaitFrame>
+        </CollapsibleTableSection>
       ) : (
         <p className="text-sm text-[var(--muted)]">No printings in this view.</p>
       )}
-    </div>
+    </StepTableToolbar>
   );
 }
 
@@ -2590,7 +2725,7 @@ function joinRowTone(row: OuterJoinRow): string {
 
 function JoinToneLegend() {
   return (
-    <ul className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-label="Row colours">
+    <ul className="mb-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-label="Row colours">
       <li className="inline-flex items-center gap-1.5">
         <span
           className="inline-block h-3.5 w-5 rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]"
@@ -2722,10 +2857,9 @@ function FilterChip({
   onClick: () => void;
   tone?: "default" | "amber";
 }) {
-  const runUi = useUiLoadingGate();
   function handleClick() {
     if (active) return;
-    runUi(onClick);
+    onClick();
   }
   if (tone === "amber") {
     return (
@@ -2784,10 +2918,9 @@ function StreamTable({
   onFilter,
   creditTotal,
   cashTotal,
-  priceSource,
-  priceCurrency,
   onConfirmMate,
   onRejectMate,
+  info,
   onDownload,
 }: {
   mode: "pm" | "mate";
@@ -2800,9 +2933,10 @@ function StreamTable({
   priceCurrency?: string;
   onConfirmMate?: (rowKey: string, mateUuid: string, currentlyConfirmed: boolean) => void;
   onRejectMate?: (rowKey: string) => void;
+  info: ReactNode;
   onDownload: () => void;
 }) {
-  const runUi = useUiLoadingGate();
+  const [tableWait, startTableWait] = useTransition();
   const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
   const [showHarvestDiffs, setShowHarvestDiffs] = useState(false);
   const harvestDiffCount = rows.filter((row) => row.harvestDiff).length;
@@ -2811,155 +2945,146 @@ function StreamTable({
   );
   const sellCopies = rows.reduce((n, r) => n + r.sell, 0);
   const colCount = mode === "mate" ? 11 : 10;
-  const filterLabel =
-    filter === "all"
-      ? "All"
-      : filter === "sell"
-        ? "Sellable"
-        : filter === "capped"
-          ? "At limit"
-          : filter === "harvest_diff"
-            ? "Harvest differs"
-            : "Not found";
   return (
-    <div className="mt-4 min-w-0 border-t border-[var(--border)] pt-4">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-[var(--muted)]">
-                {mode === "pm" ? "Playmantis credit" : "Mate credit"}
-              </dt>
-              <dd className="text-lg font-semibold">{money(creditTotal)}</dd>
-              {mode === "mate" ? (
-                <p className="text-xs text-[var(--muted)]">Cash {money(cashTotal || 0)}</p>
-              ) : null}
-            </div>
-            <div>
-              <dt className="text-xs text-[var(--muted)]">Sell copies</dt>
-              <dd className="text-lg font-semibold">{sellCopies}</dd>
-            </div>
-          </dl>
-        </div>
-        <button type="button" className="sg-btn-secondary" onClick={onDownload}>
-          Download CSV
-        </button>
-      </div>
-      <div className="mb-2 flex flex-wrap items-center gap-2" role="tablist" aria-label="Row filter">
-        <FilterChip active={filter === "all"} label="All" onClick={() => onFilter("all")} />
-        <FilterChip active={filter === "sell"} label="Sellable" onClick={() => onFilter("sell")} />
-        <FilterChip
-          active={filter === "capped"}
-          label="At limit"
-          onClick={() => onFilter("capped")}
-        />
-        <FilterChip
-          active={filter === "skip"}
-          label="Not found"
-          onClick={() => onFilter("skip")}
-        />
-        {mode === "pm" && harvestDiffCount > 0 ? (
+    <StepTableToolbar
+      title={
+        mode === "pm"
+          ? `PM ${sellCopies} · ${money(creditTotal)}`
+          : `Mate ${sellCopies} · ${money(creditTotal)} / cash ${money(cashTotal || 0)}`
+      }
+      info={info}
+      tabs={
+        <div className="flex flex-wrap" role="tablist" aria-label="Row filter">
           <FilterChip
-            active={filter === "harvest_diff"}
-            label={`Harvest differs (${harvestDiffCount})`}
-            tone="amber"
-            onClick={() => onFilter("harvest_diff")}
+            active={filter === "all"}
+            label="All"
+            onClick={() => startTableWait(() => onFilter("all"))}
           />
-        ) : null}
-        {mode === "pm" && harvestDiffCount > 0 ? (
-          <div
-            className="inline-flex h-6 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-px"
-            role="group"
-            aria-label="Show harvest diffs"
-          >
-            <button
-              type="button"
-              className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
-                !showHarvestDiffs
-                  ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
-                  : "text-[var(--muted)]"
-              }`}
-              aria-pressed={!showHarvestDiffs}
-              onClick={() => {
-                if (!showHarvestDiffs) return;
-                runUi(() => setShowHarvestDiffs(false));
-              }}
+          <FilterChip
+            active={filter === "sell"}
+            label="Sellable"
+            onClick={() => startTableWait(() => onFilter("sell"))}
+          />
+          <FilterChip
+            active={filter === "capped"}
+            label="At limit"
+            onClick={() => startTableWait(() => onFilter("capped"))}
+          />
+          <FilterChip
+            active={filter === "skip"}
+            label="Not found"
+            onClick={() => startTableWait(() => onFilter("skip"))}
+          />
+          {mode === "pm" && harvestDiffCount > 0 ? (
+            <FilterChip
+              active={filter === "harvest_diff"}
+              label={`Harvest differs (${harvestDiffCount})`}
+              tone="amber"
+              onClick={() => startTableWait(() => onFilter("harvest_diff"))}
+            />
+          ) : null}
+        </div>
+      }
+      legend={
+        <div className="space-y-2">
+          <RowToneLegend includeConfirm={mode === "mate"} compact />
+          <RecoveryLegend
+            compact
+            selected={bandFilter}
+            onToggle={(band) =>
+              startTableWait(() => setBandFilter((prev) => toggleBandInSet(prev, band)))
+            }
+          />
+        </div>
+      }
+      actions={
+        <>
+          <button type="button" className="sg-btn-secondary" onClick={onDownload}>
+            Download CSV
+          </button>
+          {mode === "pm" && harvestDiffCount > 0 ? (
+            <div
+              className="inline-flex h-6 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-px"
+              role="group"
+              aria-label="Show harvest diffs"
             >
-              Table
-            </button>
-            <button
-              type="button"
-              className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
-                showHarvestDiffs
-                  ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
-                  : "text-[var(--muted)]"
-              }`}
-              aria-pressed={showHarvestDiffs}
-              onClick={() => {
-                if (showHarvestDiffs) return;
-                runUi(() => setShowHarvestDiffs(true));
-              }}
-            >
-              Show diffs
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <p className="sticky top-12 z-10 mb-2 flex flex-wrap items-center gap-1.5 rounded bg-[var(--surface)] py-1 text-xs font-medium text-[var(--muted)]">
-        Showing {filterLabel}
-        {bandFilter.size > 0 ? " · recovered % filter" : ""} · {visible.length} of {rows.length}
-        <InfoTip
-          label={`${
-            mode === "mate" ? "↻ reopens variants. " : ""
-          }O = owned, S = store.`}
-        />
-      </p>
-      <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <RowToneLegend includeConfirm={mode === "mate"} />
-      <RecoveryLegend
-        selected={bandFilter}
-        onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
-      />
+              <button
+                type="button"
+                className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
+                  !showHarvestDiffs
+                    ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                    : "text-[var(--muted)]"
+                }`}
+                aria-pressed={!showHarvestDiffs}
+                onClick={() => {
+                  if (!showHarvestDiffs) return;
+                  startTableWait(() => setShowHarvestDiffs(false));
+                }}
+              >
+                Table
+              </button>
+              <button
+                type="button"
+                className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
+                  showHarvestDiffs
+                    ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                    : "text-[var(--muted)]"
+                }`}
+                aria-pressed={showHarvestDiffs}
+                onClick={() => {
+                  if (showHarvestDiffs) return;
+                  startTableWait(() => setShowHarvestDiffs(true));
+                }}
+              >
+                Show diffs
+              </button>
+            </div>
+          ) : null}
+        </>
+      }
+    >
       <CollapsibleTableSection
         id={`stream-${mode}`}
         title={mode === "pm" ? "Playmantis rows" : "Mate rows"}
         count={`${visible.length}/${rows.length}`}
         defaultOpen
       >
-      <div className="min-w-0 overflow-x-auto">
-        <table className={runTableClass}>
-          <thead className="bg-[var(--surface)]">
-            <tr className="text-[var(--muted)]">
-              <th className={nameHeadClass}>Name</th>
-              <MetaHead>Set</MetaHead>
-              <MetaHead>#</MetaHead>
-              <MetaHead title="Finish">Fin</MetaHead>
-              <MetaHead>Have</MetaHead>
-              <MetaHead title="Wanted">Want</MetaHead>
-              <MetaHead>Sell</MetaHead>
-              <MetaHead title="Listed">List</MetaHead>
-              <MetaHead title="Credit">Cr</MetaHead>
-              <MetaHead>Gain</MetaHead>
-              {mode === "mate" ? <MetaHead>Cash</MetaHead> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row, i) => (
-              <StreamRowBlock
-                key={`${row.scryfallId}-${row.name}-${i}`}
-                mode={mode}
-                row={row}
-                colCount={colCount}
-                showHarvestDiff={showHarvestDiffs}
-                onConfirmMate={onConfirmMate}
-                onRejectMate={onRejectMate}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <TableWaitFrame pending={tableWait}>
+          <div className="min-w-0 overflow-x-auto">
+            <table className={runTableClass}>
+              <thead className="bg-[var(--surface)]">
+                <tr className="text-[var(--muted)]">
+                  <th className={nameHeadClass}>Name</th>
+                  <MetaHead>Set</MetaHead>
+                  <MetaHead>#</MetaHead>
+                  <MetaHead title="Finish">Fin</MetaHead>
+                  <MetaHead>Have</MetaHead>
+                  <MetaHead title="Wanted">Want</MetaHead>
+                  <MetaHead>Sell</MetaHead>
+                  <MetaHead title="Listed">List</MetaHead>
+                  <MetaHead title="Credit">Cr</MetaHead>
+                  <MetaHead>Gain</MetaHead>
+                  {mode === "mate" ? <MetaHead>Cash</MetaHead> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((row, i) => (
+                  <StreamRowBlock
+                    key={`${row.scryfallId}-${row.name}-${i}`}
+                    mode={mode}
+                    row={row}
+                    colCount={colCount}
+                    showHarvestDiff={showHarvestDiffs}
+                    onConfirmMate={onConfirmMate}
+                    onRejectMate={onRejectMate}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TableWaitFrame>
       </CollapsibleTableSection>
-    </div>
+    </StepTableToolbar>
   );
 }
 
@@ -3237,6 +3362,7 @@ function CompareTable({
   onExportCsv: () => void;
   onExportManaBox: () => void;
 }) {
+  const [tableWait, startTableWait] = useTransition();
   const [bandFilter, setBandFilter] = useState<Set<RecoveryBand>>(new Set());
   const visible = filterCompareRows(rows, filter).filter((row) =>
     compareRowMatchesBand(row, filter, bandFilter),
@@ -3252,81 +3378,65 @@ function CompareTable({
   const mateQty = rows.reduce((n, r) => n + r.mateSell, 0);
 
   return (
-    <div className="min-w-0 space-y-2">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <p className="text-sm font-medium">
-          PM {pmQty} · {money(pmCredit)} · Mate {mateQty} · {money(mateCredit)} / cash{" "}
-          {money(mateCash)}
-        </p>
+    <StepTableToolbar
+      title={`PM ${pmQty} · ${money(pmCredit)} · Mate ${mateQty} · ${money(mateCredit)} / cash ${money(mateCash)}`}
+      info={
+        <ul className="list-disc space-y-0.5 pl-4">
+          <li>CSV {csvFilename}. One CSV printing per row. Prices already resolved on each stream.</li>
+          <li>
+            Who wins and Sell qty. Set and # identify lands and reprints. Confirm Mate printings on
+            Harvest → 2b. O = owned. Downloads use the selected filter.
+          </li>
+          <li>
+            Price basis: {PRICE_SOURCE_LABELS[priceSource || "other"]} ·{" "}
+            {(priceCurrency || "").trim().toUpperCase() || "unknown"}.
+          </li>
+          <li>Import Review diffs live on Harvest.</li>
+        </ul>
+      }
+      tabs={
         <div className="flex flex-wrap" role="tablist" aria-label="Compare filter">
           {COMPARE_FILTERS.map((f) => (
             <FilterChip
               key={f.id}
               active={filter === f.id}
               label={f.label}
-              onClick={() => onFilter(f.id)}
+              onClick={() => startTableWait(() => onFilter(f.id))}
             />
           ))}
         </div>
-        <InfoTip label="Who wins and Sell qty. Set and # identify lands and reprints. Confirm Mate printings on Harvest → 2b. O = owned. Downloads use the selected filter." />
-        <PriceBasisNote source={priceSource} currency={priceCurrency} compact />
-        <RowToneLegend includeConfirm compact />
-        <RecoveryLegend
-          compact
-          selected={bandFilter}
-          onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
-        />
-        <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
-          Download CSV
-        </button>
-        <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
-          ManaBox template
-        </button>
-        <span className="text-xs text-[var(--muted)]">{csvFilename}</span>
-      </div>
-      <CollapsibleTableSection
-        id="picking-rows"
-        title="Picking rows"
-        count={`${visible.length}/${rows.length}`}
-        defaultOpen
-      >
-      <div className="min-w-0 overflow-x-auto">
-        <table className={runTableClass}>
-          <thead className="bg-[var(--surface)]">
-            <tr className="text-[var(--muted)]">
-              <th className={nameHeadClass}>Card</th>
-              <MetaHead>Set</MetaHead>
-              <MetaHead>#</MetaHead>
-              <MetaHead>Have</MetaHead>
-              <MetaHead title="Listed">List</MetaHead>
-              <MetaHead>Mate</MetaHead>
-              <MetaHead title="Playmantis">PM</MetaHead>
-              <MetaHead title="Winner">Win</MetaHead>
-              <MetaHead>Sell</MetaHead>
-              <MetaHead>Gain</MetaHead>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row, i) => (
-              <CompareRowBlock
-                key={`${row.scryfallId}-${row.name}-${i}`}
-                row={row}
-                filter={filter}
-                winCell={winCell}
-                loseCell={loseCell}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </CollapsibleTableSection>
-
+      }
+      legend={
+        <div className="space-y-2">
+          <RowToneLegend includeConfirm compact />
+          <RecoveryLegend
+            compact
+            selected={bandFilter}
+            onToggle={(band) =>
+              startTableWait(() => setBandFilter((prev) => toggleBandInSet(prev, band)))
+            }
+          />
+        </div>
+      }
+      actions={
+        <>
+          <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
+            Download CSV
+          </button>
+          <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
+            ManaBox template
+          </button>
+        </>
+      }
+    >
       {putAside.length ? (
-        <div className="mt-6 border-t border-[var(--border)] pt-4">
-          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-            Put aside
-            <InfoTip label="Credit ≥ $2 but not sellable now — at limit, not found, or Mate needs Confirm." />
-          </h3>
+        <CollapsibleTableSection
+          id="picking-put-aside"
+          title="Put aside"
+          count={String(putAside.length)}
+          hint="Credit ≥ $2 but not sellable now — at limit, not found, or Mate needs Confirm."
+          defaultOpen
+        >
           <ul className="space-y-1 text-sm">
             {putAside.map((row, i) => (
               <li
@@ -3356,9 +3466,47 @@ function CompareTable({
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleTableSection>
       ) : null}
-    </div>
+      <CollapsibleTableSection
+        id="picking-rows"
+        title="Picking rows"
+        count={`${visible.length}/${rows.length}`}
+        defaultOpen
+      >
+        <TableWaitFrame pending={tableWait}>
+          <div className="min-w-0 overflow-x-auto">
+            <table className={runTableClass}>
+              <thead className="bg-[var(--surface)]">
+                <tr className="text-[var(--muted)]">
+                  <th className={nameHeadClass}>Card</th>
+                  <MetaHead>Set</MetaHead>
+                  <MetaHead>#</MetaHead>
+                  <MetaHead>Have</MetaHead>
+                  <MetaHead title="Listed">List</MetaHead>
+                  <MetaHead>Mate</MetaHead>
+                  <MetaHead title="Playmantis">PM</MetaHead>
+                  <MetaHead title="Winner">Win</MetaHead>
+                  <MetaHead>Sell</MetaHead>
+                  <MetaHead>Gain</MetaHead>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((row, i) => (
+                  <CompareRowBlock
+                    key={`${row.scryfallId}-${row.name}-${i}`}
+                    row={row}
+                    filter={filter}
+                    winCell={winCell}
+                    loseCell={loseCell}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TableWaitFrame>
+      </CollapsibleTableSection>
+    </StepTableToolbar>
   );
 }
 

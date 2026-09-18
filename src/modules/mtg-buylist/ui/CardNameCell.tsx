@@ -214,7 +214,7 @@ export function CardNameCell({
   const identity = { name, setCode, collectorNumber, finish };
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
-      {showOwned ? (
+      {showOwned && ownedImageUrl ? (
         <PreviewIcon
           label="Owned"
           ariaLabel="Owned (CSV / Scryfall)"

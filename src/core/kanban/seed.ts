@@ -296,6 +296,28 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     createdAt: "2026-09-18T03:00:00.000Z",
     updatedAt: "2026-09-18T03:25:00.000Z",
   },
+  {
+    id: "kt-run-step-chrome",
+    nodeId: "p-mtg-buylist",
+    title: "Run chrome: merged tab silhouette, equal cards, shared table toolbar",
+    body: "Follow-up to kt-run-step-polish / IN-20260918-01. Rebuild folder-tab as one silhouette (concave shoulders). Equal cards, darker+thicker selected, sticky collapse headers, CSV O-preview, Harvest store sections, Picking RAG+$ badges, shared table toolbar. Bump 1.5.31. Live stays 1.5.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-01",
+    createdAt: "2026-09-18T03:40:00.000Z",
+    updatedAt: "2026-09-18T04:10:00.000Z",
+  },
+  {
+    id: "kt-run-step-metrics",
+    nodeId: "p-mtg-buylist",
+    title: "Run metrics grid, white join fill, table-filter wait",
+    body: "Follow-up to kt-run-step-chrome / IN-20260918-01. White --surface silhouette fill. Store metrics name | status | RAG | $. No runUi on table filters. Put aside above Picking table, collapsible. Toolbar tabs left, legends+buttons right. Bump 1.5.32. Live stays 1.5.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-01",
+    createdAt: "2026-09-18T04:20:00.000Z",
+    updatedAt: "2026-09-18T05:10:00.000Z",
+  },
 ];
 
 const GLOBAL_IDEAS: KanbanInboxNote[] = [
