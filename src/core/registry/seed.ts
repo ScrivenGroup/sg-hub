@@ -1054,6 +1054,24 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6",
+    createdAt: "2026-09-18T09:00:00.000Z",
+    title: "1.6 — Four-step Run, owned run folders, leftover join",
+    body: `## Live
+
+Ships the 1.5.1–1.5.35 localhost slices.
+
+- Run is four cards (Upload → Harvest → Picking → Reupload) with a folder-tab join. Parallel runs are owned folders.
+- Leftover / Step 5: store submissions, one outer-join table, re-import. Logs hold harvest vs Import Review.
+- Development is Kanban Online. Leaf tabs keep chrome. Changelog groups by live milestone. Brisbane stamps.
+
+Zip does not copy \`data/\`. Azure store stays on the App Service.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
