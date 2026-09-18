@@ -961,6 +961,22 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.30",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.30",
+    createdAt: "2026-09-18T03:20:00.000Z",
+    title: "1.5.30 (dev) — Run folder-tab polish",
+    body: `## Publish to localhost (not live)
+
+- **New Run** after a loaded folder is client-only (empty store, \`?step=upload\`) — no idle server round-trip, overlay always clears.
+- Step cards sit on one folder-tab panel (selected tab shares the body fill; chevrons between cards on desktop).
+- Harvest is 2a Playmantis / 2b MTGMate (one table). Picking chrome is one toolbar. Collapse tables only.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

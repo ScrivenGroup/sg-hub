@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   clearBuylistRunAction,
   confirmMateVariantAction,
-  createBuylistRunAction,
   createMateHarvestAction,
   enrichCsvTreatmentsAction,
   harvestPlaymantisAction,
@@ -70,6 +69,7 @@ import {
   MTG_BUYLIST_HREF,
   PRICE_SOURCE_LABELS,
   PRICE_SOURCES,
+  emptyMtgBuylistStore,
   type ManaBoxRow,
   type MtgBuylistStore,
   type PriceSource,
@@ -105,7 +105,7 @@ function UniquenessKey({ label }: { label: ReactNode }) {
       <button
         type="button"
         aria-label="How this section identifies a printing"
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[color-mix(in_srgb,var(--ink)_10%,var(--surface))] text-[var(--ink)]"
+        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[color-mix(in_srgb,var(--ink)_10%,var(--surface))] text-[var(--ink)]"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
@@ -124,62 +124,6 @@ function UniquenessKey({ label }: { label: ReactNode }) {
         </span>
       ) : null}
     </span>
-  );
-}
-
-function CollapsibleSection({
-  id,
-  title,
-  hint,
-  uniqueness,
-  defaultOpen,
-  children,
-}: {
-  id: string;
-  title: string;
-  hint?: string;
-  uniqueness?: ReactNode;
-  defaultOpen: boolean;
-  children: ReactNode;
-}) {
-  const storageKey = `mtg-buylist-section-${id}`;
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return defaultOpen;
-    const saved = sessionStorage.getItem(storageKey);
-    if (saved === "1") return true;
-    if (saved === "0") return false;
-    return defaultOpen;
-  });
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    sessionStorage.setItem(storageKey, next ? "1" : "0");
-  }
-
-  return (
-    <section className="sg-card min-w-0 overflow-visible p-0">
-      <button
-        type="button"
-        className="sticky top-14 z-20 flex w-full cursor-pointer items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-left font-medium shadow-sm"
-        aria-expanded={open}
-        onClick={toggle}
-      >
-        <span className="text-[var(--muted)]" aria-hidden>
-          {open ? "▾" : "▸"}
-        </span>
-        <span className="min-w-0">{title}</span>
-        {hint ? (
-          <span
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <InfoTip label={hint} />
-          </span>
-        ) : null}
-        {uniqueness ? <UniquenessKey label={uniqueness} /> : null}
-      </button>
-      {open ? <div className="space-y-3 px-4 py-3">{children}</div> : null}
-    </section>
   );
 }
 
@@ -211,7 +155,7 @@ function CollapsibleTableSection({
     <div className="rounded-lg border border-[var(--border)]">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm"
         aria-expanded={open}
         onClick={() => {
           const next = !open;
@@ -347,9 +291,11 @@ function CsvFilenameLink({
 function RecoveryLegend({
   selected,
   onToggle,
+  compact,
 }: {
   selected?: Set<RecoveryBand>;
   onToggle?: (band: RecoveryBand) => void;
+  compact?: boolean;
 }) {
   const colorVar: Record<(typeof RECOVERY_BAND_CHIPS)[number]["color"], string> = {
     green: "var(--rag-green)",
@@ -357,7 +303,7 @@ function RecoveryLegend({
     red: "var(--rag-red)",
   };
   return (
-    <ul className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+    <ul className={`${compact ? "mb-0" : "mb-2"} flex flex-wrap items-center gap-2 text-xs`}>
       {RECOVERY_BAND_CHIPS.map((chip) => {
         const active = selected?.has(chip.band) ?? false;
         const filtering = Boolean(onToggle);
@@ -450,7 +396,13 @@ function toneClass(tone: StreamTone): string {
   return "bg-[color-mix(in_srgb,var(--rag-amber)_10%,transparent)]";
 }
 
-function RowToneLegend({ includeConfirm }: { includeConfirm?: boolean }) {
+function RowToneLegend({
+  includeConfirm,
+  compact,
+}: {
+  includeConfirm?: boolean;
+  compact?: boolean;
+}) {
   const items: { tone: StreamTone; label: string }[] = [
     { tone: "sell", label: "Sellable" },
     { tone: "capped", label: "At limit" },
@@ -460,7 +412,10 @@ function RowToneLegend({ includeConfirm }: { includeConfirm?: boolean }) {
     items.push({ tone: "ambiguous", label: "Confirm printing" });
   }
   return (
-    <ul className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" aria-label="Row colours">
+    <ul
+      className={`${compact ? "mb-0" : "mb-2"} flex flex-wrap items-center gap-x-3 gap-y-1 text-xs`}
+      aria-label="Row colours"
+    >
       {items.map((item) => (
         <li key={item.tone} className="inline-flex items-center gap-1.5">
           <span
@@ -471,6 +426,63 @@ function RowToneLegend({ includeConfirm }: { includeConfirm?: boolean }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function HarvestStoreSummary({
+  name,
+  harvested,
+  rows,
+  includeConfirm,
+}: {
+  name: string;
+  harvested: boolean;
+  rows: StreamRow[];
+  includeConfirm?: boolean;
+}) {
+  if (!harvested) {
+    return <span className="block">{name} not harvested</span>;
+  }
+  const counts = { sell: 0, capped: 0, skip: 0, ambiguous: 0 };
+  for (const row of rows) {
+    if (row.tone === "sell") counts.sell += 1;
+    else if (row.tone === "capped") counts.capped += 1;
+    else if (row.tone === "ambiguous") counts.ambiguous += 1;
+    else counts.skip += 1;
+  }
+  const bits: { tone: StreamTone; label: string; n: number }[] = [];
+  if (counts.sell) bits.push({ tone: "sell", label: "sellable", n: counts.sell });
+  if (counts.capped) bits.push({ tone: "capped", label: "at limit", n: counts.capped });
+  if (counts.skip) bits.push({ tone: "skip", label: "not found", n: counts.skip });
+  if (includeConfirm && counts.ambiguous) {
+    bits.push({ tone: "ambiguous", label: "confirm printing", n: counts.ambiguous });
+  }
+  return (
+    <span className="block">
+      {name} harvested
+      {bits.map((bit) => (
+        <span key={bit.tone}>
+          {" · "}
+          <span className={`rounded px-0.5 ${toneClass(bit.tone)}`}>
+            {bit.n} {bit.label}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function ReuploadStoreSummary({
+  name,
+  filename,
+}: {
+  name: string;
+  filename?: string;
+}) {
+  return (
+    <span className="block">
+      {filename ? `${name} uploaded · ${filename}` : `${name} not uploaded`}
+    </span>
   );
 }
 
@@ -586,6 +598,7 @@ export function MtgBuylistWorkspace({
   const [mateFilter, setMateFilter] = useState<StreamFilter>("all");
   const [compareFilter, setCompareFilter] = useState<CompareFilter>("all");
   const [joinView, setJoinView] = useState<JoinView>("master");
+  const [harvestPane, setHarvestPane] = useState<"pm" | "mate">("pm");
   const [pendingCsv, setPendingCsv] = useState<{
     text: string;
     filename: string;
@@ -618,8 +631,13 @@ export function MtgBuylistWorkspace({
 
   const busyRef = useRef(false);
   busyRef.current = busy;
+  const clientIdleRef = useRef(!initialRunId);
   useEffect(() => {
     if (busyRef.current) return;
+    if (clientIdleRef.current) {
+      setRuns(initialRuns);
+      return;
+    }
     setStore(initialStore);
     setRuns(initialRuns);
     setActiveRunId(initialRunId);
@@ -810,28 +828,37 @@ export function MtgBuylistWorkspace({
     compareRows.reduce((n, r) => n + r.playmantisSell * r.playmantisCreditCents, 0);
   const pickingMateCredit = store.resultCompare?.totals.mateCreditCents ?? 0;
   const pickingMateCash = store.resultCompare?.totals.mateCashCents ?? 0;
+  const pickingPmQty = compareRows.reduce((n, r) => n + r.playmantisSell, 0);
+  const pickingMateQty = compareRows.reduce((n, r) => n + r.mateSell, 0);
+  const pmHarvested = Boolean(store.playmantis || dumpOffers.length);
+  const mateHarvested = Boolean(store.mate);
   const uploadSummary = store.csv
     ? `${store.csv.filename} · ${csvQty} cards · ${store.csv.priceCurrency || "currency?"}`
     : pendingCsv
       ? `${pendingCsv.filename} · ${csvQty} cards · ${priceCurrency || "currency?"}`
       : "Drop a ManaBox CSV";
-  const harvestStores = [
-    store.playmantis || dumpOffers.length ? "Playmantis" : "",
-    store.mate ? "MTGMate" : "",
-  ].filter(Boolean);
-  const harvestSummary = harvestStores.length
-    ? harvestStores.join(" · ")
-    : "No harvest yet";
+  const harvestSummary = (
+    <>
+      <HarvestStoreSummary name="PM" harvested={pmHarvested} rows={pmRows} />
+      <HarvestStoreSummary
+        name="Mate"
+        harvested={mateHarvested}
+        rows={mateRows}
+        includeConfirm
+      />
+    </>
+  );
   const pickingSummary = hasHarvest
-    ? `PM ${money(pickingPmCents)} · Mate ${money(pickingMateCredit)}${
-        pickingMateCash ? ` / cash ${money(pickingMateCash)}` : ""
-      }`
+    ? `PM ${pickingPmQty} · ${money(pickingPmCents)} · Mate ${pickingMateQty} · ${money(
+        pickingMateCredit,
+      )} / cash ${money(pickingMateCash)}`
     : "Harvest first";
-  const reuploadSummary = hasCsv
-    ? `Playmantis: ${pmSubmission ? pmSubmission.filename : "none"} · Mate: ${
-        mateSubmission ? mateSubmission.filename : "none"
-      }`
-    : "Upload a CSV first";
+  const reuploadSummary = (
+    <>
+      <ReuploadStoreSummary name="PM" filename={pmSubmission?.filename} />
+      <ReuploadStoreSummary name="Mate" filename={mateSubmission?.filename} />
+    </>
+  );
 
   useEffect(() => {
     const next = resolveRunStep(step, stepFlags);
@@ -919,7 +946,10 @@ export function MtgBuylistWorkspace({
   }) {
     if (result.store) setStore(result.store);
     if (result.runs) setRuns(result.runs);
-    if (typeof result.activeRunId === "string") setActiveRunId(result.activeRunId);
+    if (typeof result.activeRunId === "string") {
+      clientIdleRef.current = !result.activeRunId;
+      setActiveRunId(result.activeRunId);
+    }
   }
 
   function runHasClientData() {
@@ -944,8 +974,32 @@ export function MtgBuylistWorkspace({
     };
   }
 
+  function startIdleRun() {
+    clientIdleRef.current = true;
+    setError("");
+    setBusy(false);
+    setStatus("");
+    setActiveRunId("");
+    setStep("upload");
+    setPmSubmission(null);
+    setMateSubmission(null);
+    setImportReview(null);
+    setPendingCsv(null);
+    setSubmissionError("");
+    setHarvestScript("");
+    setBookmarklet("");
+    setDeltaSave(null);
+    setStore(emptyMtgBuylistStore());
+    window.history.replaceState(window.history.state, "", runHref("", "upload"));
+  }
+
   function openRunTab(runId: string) {
     if (runId === activeRunId) return;
+    if (!runId) {
+      startIdleRun();
+      return;
+    }
+    clientIdleRef.current = false;
     setError("");
     setActiveRunId(runId);
     setPmSubmission(null);
@@ -965,28 +1019,36 @@ export function MtgBuylistWorkspace({
       mateImageLinks: {},
     }));
     setBusy(true);
-    setStatus(runId ? "Opening run…" : "New Run…");
-    void loadBuylistRunAction(runId).then((result) => {
-      setBusy(false);
-      setStatus("");
-      if (!result.ok) {
-        setError(result.error || "Could not open run");
-        return;
+    setStatus("Opening run…");
+    void (async () => {
+      try {
+        const result = await loadBuylistRunAction(runId);
+        if (!result.ok) {
+          setError(result.error || "Could not open run");
+          return;
+        }
+        applyPack(result);
+        const nextStep = resolveRunStep(
+          null,
+          flagsForStore(result.store, result.activeRunId || runId),
+        );
+        setStep(nextStep);
+        window.history.replaceState(
+          window.history.state,
+          "",
+          runHref(runId, nextStep),
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not open run");
+      } finally {
+        setBusy(false);
+        setStatus("");
       }
-      applyPack(result);
-      const nextStep = runId
-        ? resolveRunStep(null, flagsForStore(result.store, result.activeRunId || runId))
-        : "upload";
-      setStep(nextStep);
-      window.history.replaceState(
-        window.history.state,
-        "",
-        runHref(runId, nextStep),
-      );
-    });
+    })();
   }
 
   function goToRun(runId: string, nextStep?: RunStep) {
+    clientIdleRef.current = !runId;
     setActiveRunId(runId);
     if (runId) {
       setPmSubmission(null);
@@ -1415,7 +1477,7 @@ export function MtgBuylistWorkspace({
                 </Link>
                 <button
                   type="button"
-                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[13px] leading-none text-[var(--muted)] opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-[color-mix(in_srgb,var(--rag-red)_18%,transparent)] hover:text-[var(--rag-red)] focus-visible:opacity-100"
+                  className="inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded text-[13px] leading-none text-[var(--muted)] opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-[color-mix(in_srgb,var(--rag-red)_18%,transparent)] hover:text-[var(--rag-red)] focus-visible:opacity-100"
                   aria-label={`Close ${runTab.name}`}
                   onClick={(event) => {
                     event.preventDefault();
@@ -1433,12 +1495,7 @@ export function MtgBuylistWorkspace({
             className="sg-tab min-w-8 rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] hover:text-[var(--ink)]"
             aria-label="New Run"
             disabled={pending || busy}
-            onClick={() => {
-              run(async () => {
-                const result = await createBuylistRunAction();
-                return result;
-              }, "New Run…", "upload");
-            }}
+            onClick={() => startIdleRun()}
           >
             +
           </button>
@@ -1463,15 +1520,14 @@ export function MtgBuylistWorkspace({
           reupload: reuploadSummary,
         }}
         onStep={selectStep}
-      />
-
+      >
       {step === "upload" ? (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {activeRunId ? (
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:opacity-50"
+              className="inline-flex cursor-pointer items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))] disabled:cursor-not-allowed disabled:opacity-50"
               style={{ minHeight: "var(--sg-btn-height)" }}
               disabled={pending}
               onClick={() => requestCloseRun("current")}
@@ -1593,26 +1649,67 @@ export function MtgBuylistWorkspace({
       ) : null}
 
       {step === "harvest" ? (
-      <>
-      <CollapsibleSection
-        id="pm"
-        title="2. Playmantis stream"
-        hint="Either path fills the table. Dump wins when both exist."
-        uniqueness={
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>
-              Harvest: <strong>Scryfall ID + finish</strong>
-            </li>
-            <li>
-              Dump: stripped <strong>name + set name + finish</strong> onto this CSV printing
-            </li>
-            <li>
-              Both present: <strong>Import Review</strong> is the table
-            </li>
-          </ul>
-        }
-        defaultOpen={Boolean(store.csv)}
-      >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="tablist" aria-label="Harvest store" className="flex flex-wrap">
+            <button
+              type="button"
+              className="sg-tab"
+              role="tab"
+              aria-selected={harvestPane === "pm"}
+              onClick={() => setHarvestPane("pm")}
+            >
+              2a Playmantis
+            </button>
+            <button
+              type="button"
+              className="sg-tab"
+              role="tab"
+              aria-selected={harvestPane === "mate"}
+              onClick={() => setHarvestPane("mate")}
+            >
+              2b MTGMate
+            </button>
+          </div>
+          <InfoTip
+            label={
+              harvestPane === "pm"
+                ? "Either path fills the table. Dump wins when both exist."
+                : "Console script + JSON. Confirm ambiguous printings."
+            }
+          />
+          <UniquenessKey
+            label={
+              harvestPane === "pm" ? (
+                <ul className="list-disc space-y-0.5 pl-4">
+                  <li>
+                    Harvest: <strong>Scryfall ID + finish</strong>
+                  </li>
+                  <li>
+                    Dump: stripped <strong>name + set name + finish</strong> onto this CSV printing
+                  </li>
+                  <li>
+                    Both present: <strong>Import Review</strong> is the table
+                  </li>
+                </ul>
+              ) : (
+                <ul className="list-disc space-y-0.5 pl-4">
+                  <li>
+                    <strong>Set + name + finish</strong>
+                  </li>
+                  <li>
+                    <strong>#</strong> when the Mate title has one
+                  </li>
+                  <li>
+                    Same name/finish, different art: <strong>Confirm</strong>
+                  </li>
+                </ul>
+              )
+            }
+          />
+        </div>
+        {harvestPane === "pm" ? (
+        <div className="space-y-3">
         <div className="grid items-stretch gap-3 md:grid-cols-[minmax(13rem,0.85fr)_auto_minmax(18rem,1.2fr)]">
           <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] p-3">
             <h3 className="text-sm font-medium">Path 1 · Harvest</h3>
@@ -1863,27 +1960,9 @@ export function MtgBuylistWorkspace({
             Harvest or drop a dump to fill this table.
           </p>
         )}
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        id="mate"
-        title="3. MTGMate stream"
-        hint="Console script + JSON. Confirm ambiguous printings."
-        uniqueness={
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>
-              <strong>Set + name + finish</strong>
-            </li>
-            <li>
-              <strong>#</strong> when the Mate title has one
-            </li>
-            <li>
-              Same name/finish, different art: <strong>Confirm</strong>
-            </li>
-          </ul>
-        }
-        defaultOpen={Boolean(store.csv)}
-      >
+        </div>
+        ) : (
+        <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -2034,35 +2113,38 @@ export function MtgBuylistWorkspace({
             Drop a Mate harvest to fill this table.
           </p>
         )}
-      </CollapsibleSection>
-      </>
+        </div>
+        )}
+      </div>
       ) : null}
 
       {step === "picking" ? (
-      <CollapsibleSection
-        id="compare"
-        title="4. Compare stores · Mate vs Playmantis"
-        hint="Who wins. Harvest vs Import Review is on Playmantis."
-        uniqueness={
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>
-              One <strong>CSV printing</strong> per row
-            </li>
-            <li>
-              Prices already resolved on each <strong>stream</strong>
-            </li>
-          </ul>
-        }
-        defaultOpen={Boolean(store.playmantis || store.mate || dumpOffers.length)}
-      >
-        <ul className="list-disc pl-4 text-sm text-[var(--muted)]">
-          <li>
-            Store picklists. Import Review diffs:{" "}
-            <button type="button" className="underline" onClick={() => selectStep("harvest")}>
-              Harvest
-            </button>
-          </li>
-        </ul>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <UniquenessKey
+            label={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>
+                  One <strong>CSV printing</strong> per row
+                </li>
+                <li>
+                  Prices already resolved on each <strong>stream</strong>
+                </li>
+              </ul>
+            }
+          />
+          <InfoTip label="Who wins. Harvest vs Import Review is on Playmantis." />
+        </div>
+        <p className="text-sm text-[var(--muted)]">
+          Store picklists. Import Review diffs:{" "}
+          <button
+            type="button"
+            className="cursor-pointer underline"
+            onClick={() => selectStep("harvest")}
+          >
+            Harvest
+          </button>
+        </p>
         {compareRows.length ? (
           <CompareTable
             rows={compareRows}
@@ -2101,29 +2183,29 @@ export function MtgBuylistWorkspace({
             Harvest Playmantis or Mate first.
           </p>
         )}
-      </CollapsibleSection>
+      </div>
       ) : null}
 
       {step === "reupload" ? (
-      <CollapsibleSection
-        id="reprepare"
-        title="5. Re-prepare ManaBox after pick"
-        hint="Drop what the stores took. One CSV + Mate + Playmantis table; filters are views. Re-import CSV is always available."
-        uniqueness={
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>
-              <strong>Scryfall ID + finish</strong> first
-            </li>
-            <li>
-              Then <strong>set + # + finish</strong>
-            </li>
-            <li>
-              Then <strong>name + set + finish</strong>
-            </li>
-          </ul>
-        }
-        defaultOpen={Boolean(store.csv)}
-      >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <UniquenessKey
+            label={
+              <ul className="list-disc space-y-0.5 pl-4">
+                <li>
+                  <strong>Scryfall ID + finish</strong> first
+                </li>
+                <li>
+                  Then <strong>set + # + finish</strong>
+                </li>
+                <li>
+                  Then <strong>name + set + finish</strong>
+                </li>
+              </ul>
+            }
+          />
+          <InfoTip label="Drop what the stores took. One CSV + Mate + Playmantis table; filters are views. Re-import CSV is always available." />
+        </div>
         {!store.csv || !join ? (
           <p className="text-sm text-[var(--muted)]">
             Upload a ManaBox CSV in step 1 first.
@@ -2203,8 +2285,9 @@ export function MtgBuylistWorkspace({
             )}
           </div>
         )}
-      </CollapsibleSection>
+      </div>
       ) : null}
+      </RunStepBar>
       <ShellModal
         open={Boolean(closeTarget)}
         titleId="clear-buylist-run"
@@ -2217,7 +2300,7 @@ export function MtgBuylistWorkspace({
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))]"
+              className="inline-flex cursor-pointer items-center justify-center rounded-[10px] border border-[var(--rag-red)] bg-[color-mix(in_srgb,var(--rag-red)_12%,var(--surface))] px-3 text-xs font-semibold text-[var(--rag-red)] hover:bg-[color-mix(in_srgb,var(--rag-red)_22%,var(--surface))]"
               style={{ minHeight: "var(--sg-btn-height)" }}
               onClick={confirmCloseRun}
             >
@@ -2403,7 +2486,7 @@ function JoinBoard({
           Download re-import CSV
         </button>
       </div>
-      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Step 5 view">
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Reupload view">
         <FilterChip
           active={view === "master"}
           label={`Master (${join.join.length})`}
@@ -2483,7 +2566,14 @@ function JoinBoard({
       {visible.length ? (
         <>
           <JoinToneLegend />
-          <JoinTable rows={visible} />
+          <CollapsibleTableSection
+            id="reupload-rows"
+            title="Submission rows"
+            count={String(visible.length)}
+            defaultOpen
+          >
+            <JoinTable rows={visible} />
+          </CollapsibleTableSection>
         </>
       ) : (
         <p className="text-sm text-[var(--muted)]">No printings in this view.</p>
@@ -2666,15 +2756,17 @@ function FilterChip({
 function PriceBasisNote({
   source,
   currency,
+  compact,
 }: {
   source?: PriceSource;
   currency?: string;
+  compact?: boolean;
 }) {
   const src = PRICE_SOURCE_LABELS[source || "other"];
   const cur = (currency || "").trim().toUpperCase() || "unknown";
   const fx = cur !== "AUD" && cur !== "unknown";
   return (
-    <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
+    <p className={`${compact ? "mb-0" : "mb-2"} flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]`}>
       {src} · {cur}
       <InfoTip
         label={`Price basis: ${src} · ${cur}. Recovered % = store credit ÷ ManaBox listed${
@@ -2782,7 +2874,7 @@ function StreamTable({
           >
             <button
               type="button"
-              className={`h-full rounded px-2 text-xs font-medium leading-none ${
+              className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
                 !showHarvestDiffs
                   ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
                   : "text-[var(--muted)]"
@@ -2797,7 +2889,7 @@ function StreamTable({
             </button>
             <button
               type="button"
-              className={`h-full rounded px-2 text-xs font-medium leading-none ${
+              className={`h-full cursor-pointer rounded px-2 text-xs font-medium leading-none ${
                 showHarvestDiffs
                   ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
                   : "text-[var(--muted)]"
@@ -2828,6 +2920,12 @@ function StreamTable({
         selected={bandFilter}
         onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
       />
+      <CollapsibleTableSection
+        id={`stream-${mode}`}
+        title={mode === "pm" ? "Playmantis rows" : "Mate rows"}
+        count={`${visible.length}/${rows.length}`}
+        defaultOpen
+      >
       <div className="min-w-0 overflow-x-auto">
         <table className={runTableClass}>
           <thead className="bg-[var(--surface)]">
@@ -2860,6 +2958,7 @@ function StreamTable({
           </tbody>
         </table>
       </div>
+      </CollapsibleTableSection>
     </div>
   );
 }
@@ -3013,7 +3112,7 @@ function StreamRowBlock({
           {mode === "mate" && row.canReject && onRejectMate ? (
             <button
               type="button"
-              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--ink)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              className="inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--ink)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
               title="Wrong printing — show all variants again"
               aria-label="Wrong printing"
               onClick={() => onRejectMate(row.rowKey)}
@@ -3149,25 +3248,16 @@ function CompareTable({
   const loseCell =
     "rounded px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--muted)_18%,transparent)] text-[var(--muted)]";
 
+  const pmQty = rows.reduce((n, r) => n + r.playmantisSell, 0);
+  const mateQty = rows.reduce((n, r) => n + r.mateSell, 0);
+
   return (
-    <div className="min-w-0">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs text-[var(--muted)]">Mate credit</dt>
-            <dd className="text-lg font-semibold">{money(mateCredit)}</dd>
-            <p className="text-xs text-[var(--muted)]">Cash {money(mateCash)}</p>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--muted)]">Playmantis credit</dt>
-            <dd className="text-lg font-semibold">{money(pmCredit)}</dd>
-          </div>
-        </dl>
-        <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
-          Download CSV
-        </button>
-      </div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="min-w-0 space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <p className="text-sm font-medium">
+          PM {pmQty} · {money(pmCredit)} · Mate {mateQty} · {money(mateCredit)} / cash{" "}
+          {money(mateCash)}
+        </p>
         <div className="flex flex-wrap" role="tablist" aria-label="Compare filter">
           {COMPARE_FILTERS.map((f) => (
             <FilterChip
@@ -3178,23 +3268,28 @@ function CompareTable({
             />
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
-            ManaBox template
-          </button>
-          <InfoTip label="Downloads use the selected filter. CSV = this table. ManaBox keeps original columns; qty is Sell (or leftover Have for Not sold)." />
-        </div>
+        <InfoTip label="Who wins and Sell qty. Set and # identify lands and reprints. Confirm Mate printings on Harvest → 2b. O = owned. Downloads use the selected filter." />
+        <PriceBasisNote source={priceSource} currency={priceCurrency} compact />
+        <RowToneLegend includeConfirm compact />
+        <RecoveryLegend
+          compact
+          selected={bandFilter}
+          onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
+        />
+        <button type="button" className="sg-btn-secondary" onClick={onExportCsv}>
+          Download CSV
+        </button>
+        <button type="button" className="sg-btn-secondary" onClick={onExportManaBox}>
+          ManaBox template
+        </button>
+        <span className="text-xs text-[var(--muted)]">{csvFilename}</span>
       </div>
-      <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
-        {csvFilename}
-        <InfoTip label="Who wins and Sell qty. Set and # identify lands and reprints. Confirm Mate printings on the Mate stream. O = owned." />
-      </p>
-      <PriceBasisNote source={priceSource} currency={priceCurrency} />
-      <RowToneLegend includeConfirm />
-      <RecoveryLegend
-        selected={bandFilter}
-        onToggle={(band) => setBandFilter((prev) => toggleBandInSet(prev, band))}
-      />
+      <CollapsibleTableSection
+        id="picking-rows"
+        title="Picking rows"
+        count={`${visible.length}/${rows.length}`}
+        defaultOpen
+      >
       <div className="min-w-0 overflow-x-auto">
         <table className={runTableClass}>
           <thead className="bg-[var(--surface)]">
@@ -3224,6 +3319,7 @@ function CompareTable({
           </tbody>
         </table>
       </div>
+      </CollapsibleTableSection>
 
       {putAside.length ? (
         <div className="mt-6 border-t border-[var(--border)] pt-4">

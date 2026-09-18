@@ -285,6 +285,17 @@ const MTG_BUYLIST_TICKETS: KanbanTicket[] = [
     createdAt: "2026-09-18T01:33:06.253Z",
     updatedAt: "2026-09-18T02:35:00.000Z",
   },
+  {
+    id: "kt-run-step-polish",
+    nodeId: "p-mtg-buylist",
+    title: "Run step polish: folder-tab join, 2a/2b harvest, New Run hang",
+    body: "Follow-up to kt-run-four-step / IN-20260918-01. New Run is client-only idle. Folder-tab join panel, chevrons, numbered titles, both-store harvest/picking/reupload summaries, Harvest 2a/2b one table, Picking toolbar, collapse tables only, pointer cursors. Bump 1.5.30. Live stays 1.5.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-01",
+    createdAt: "2026-09-18T03:00:00.000Z",
+    updatedAt: "2026-09-18T03:25:00.000Z",
+  },
 ];
 
 const GLOBAL_IDEAS: KanbanInboxNote[] = [

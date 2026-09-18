@@ -62,6 +62,11 @@ body {
   color: var(--surface);
   font-weight: 600;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-primary:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-primary:hover:not(:disabled) {
@@ -84,6 +89,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--rag-red);
   font-weight: 600;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-danger:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-danger:hover:not(:disabled) {
@@ -103,6 +113,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   font-weight: 600;
   font-size: var(--sg-btn-font);
   transition: background-color 0.12s ease, border-color 0.12s ease;
+  cursor: pointer;
+}
+
+.sg-btn-secondary:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-secondary:hover:not(:disabled) {
@@ -124,6 +139,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--ink);
   font-weight: 500;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-ghost:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-ghost:hover:not(:disabled) {
@@ -164,6 +184,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
+  cursor: pointer;
+}
+
+.sg-tab:disabled {
+  cursor: not-allowed;
 }
 
 .sg-tab:hover {

@@ -4,10 +4,10 @@ export const RUN_STEPS = ["upload", "harvest", "picking", "reupload"] as const;
 export type RunStep = (typeof RUN_STEPS)[number];
 
 export const RUN_STEP_LABELS: Record<RunStep, string> = {
-  upload: "Upload",
-  harvest: "Harvest",
-  picking: "Picking",
-  reupload: "Reupload",
+  upload: "1. Upload",
+  harvest: "2. Harvest",
+  picking: "3. Picking",
+  reupload: "4. Reupload",
 };
 
 export type RunStepFlags = {
