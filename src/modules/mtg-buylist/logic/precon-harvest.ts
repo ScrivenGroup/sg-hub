@@ -42,7 +42,20 @@ function byName(rows: ManaBoxRow[]): Map<string, ManaBoxRow> {
   return map;
 }
 
-function mateOffer(row: ManaBoxRow, cashCents: number): MateOffer {
+/** Listed at the store but want 0 — “would offer $x, not buying right now”. */
+export const MOCK_MATE_CLOSED: Record<string, number> = {
+  "Voracious Hydra": 800,
+  "Biogenic Ooze": 500,
+  "Steelbane Hydra": 400,
+};
+
+export const MOCK_PM_CLOSED: Record<string, number> = {
+  Cultivate: 200,
+  Harmonize: 150,
+  "Acidic Slime": 100,
+};
+
+function mateOffer(row: ManaBoxRow, cashCents: number, quantity: number): MateOffer {
   return {
     mateUuid: `precon-mate-${row.scryfallId || row.name}`,
     name: row.name,
@@ -50,7 +63,7 @@ function mateOffer(row: ManaBoxRow, cashCents: number): MateOffer {
     finish: csvFinishToMate(row.foil),
     buyPriceCents: cashCents,
     creditPriceCents: Math.round(cashCents * 1.5),
-    quantity: 99,
+    quantity,
     normalisedName: normalizeCardName(row.name).name,
     collectorNumber: row.collectorNumber || "",
     imageUrl: "",
@@ -58,13 +71,18 @@ function mateOffer(row: ManaBoxRow, cashCents: number): MateOffer {
   };
 }
 
-function pmOffer(row: ManaBoxRow, creditCents: number, fetchedAt: string): PlaymantisOffer {
+function pmOffer(
+  row: ManaBoxRow,
+  creditCents: number,
+  fetchedAt: string,
+  limit: number,
+): PlaymantisOffer {
   return {
     scryfallId: row.scryfallId,
     title: row.name,
     finish: row.foil,
     creditCents,
-    limit: 99,
+    limit,
     missing: false,
     fetchedAt,
     imageUrl: "",
@@ -83,13 +101,24 @@ export function buildMockPreconHarvest(decks: PreconDeck[], harvestedAt: string)
   for (const [name, cash] of Object.entries(MOCK_MATE_CASH)) {
     const row = named.get(name);
     if (!row) continue;
-    mate.push(mateOffer(row, cash));
+    mate.push(mateOffer(row, cash, 99));
+    if (row.setCode) sets.add(row.setCode.toLowerCase());
+  }
+  for (const [name, cash] of Object.entries(MOCK_MATE_CLOSED)) {
+    const row = named.get(name);
+    if (!row) continue;
+    mate.push(mateOffer(row, cash, 0));
     if (row.setCode) sets.add(row.setCode.toLowerCase());
   }
   for (const [name, credit] of Object.entries(MOCK_PM_CREDIT)) {
     const row = named.get(name);
     if (!row?.scryfallId) continue;
-    playmantis.push(pmOffer(row, credit, harvestedAt));
+    playmantis.push(pmOffer(row, credit, harvestedAt, 99));
+  }
+  for (const [name, credit] of Object.entries(MOCK_PM_CLOSED)) {
+    const row = named.get(name);
+    if (!row?.scryfallId) continue;
+    playmantis.push(pmOffer(row, credit, harvestedAt, 0));
   }
 
   return {

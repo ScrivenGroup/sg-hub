@@ -1088,6 +1088,121 @@ Live remains 1.6 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.6.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.2",
+    createdAt: "2026-09-21T01:50:00.000Z",
+    title: "1.6.2 (dev) — Decks table: Mate/PM columns, want-zero, sort, rarity",
+    body: `## Publish to localhost (not live)
+
+- Decks card table matches Run Compare: Mate and PM as columns, winner highlighted, loser muted.
+- A store can list a price with want 0 — “would offer $x but not buying right now.”
+- Card preview (owned / Scryfall). Columns sort A–Z or high–low. Filter Rare+mythic vs Common+uncommon so leftover value is the bulk-rare pile, not bulk commons.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.3",
+    createdAt: "2026-09-21T02:05:00.000Z",
+    title: "1.6.3 (dev) — Decks: badges, uid, Mate cash break-even, tighter chrome",
+    body: `## Publish to localhost (not live)
+
+- Rarity is M/R/U/C badges (white / silver / gold / orange). Finish is holographic F vs regular N. Headers are bold. uid is import order.
+- Asking price sits beside the verdict. Mate cash break-even is the first summary tile (other cash stores later).
+- Rarity filters on the column badges. Visual legend replaces the prose above the table.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.4",
+    createdAt: "2026-09-21T02:30:00.000Z",
+    title: "1.6.4 (dev) — Decks chrome: legend filters, sticky header, rarity $ mix",
+    body: `## Publish to localhost (not live)
+
+- Rarity / Finish are plain sortable headers. Surge foil is its own holographic S. Legend chips filter the table; Win shows every allocated row.
+- Asking and verdict sit larger under the deck name. Mate cash break-even is advisory beside Asking. Mate tile shows cash and credit.
+- Leftover and CK tiles list qty and $ per rarity, with a hover bar. Table footer totals wanted Mate/PM and a muted not-wanted sum. Deck chrome plus column headers stay put while rows scroll.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.5",
+    createdAt: "2026-09-21T02:50:00.000Z",
+    title: "1.6.5 (dev) — Decks table scroll, Show all, clearer ask result",
+    body: `## Publish to localhost (not live)
+
+- Deck table scrolls again: the pane is height-capped so rows move under sticky chrome and column headers.
+- Legend chips share one size. Want / rarity / finish are grouped. Show all appears when any filter is on.
+- Mate and PM tiles stay a pair; leftover and CK are a wider pair so rarity qty/$ stays on one line.
+- Asking result names the trade: convert the cash gap into PM credit, or gain Mate cash plus Playmantis when the ask is under break-even.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.6",
+    createdAt: "2026-09-21T03:05:00.000Z",
+    title: "1.6.6 (dev) — Decks table-first chrome, overlay catalog, solid totals",
+    body: `## Publish to localhost (not live)
+
+- Breadcrumb, tab title, badge, and version sit in the existing AppShell title slot. Leaf chrome is tabs only.
+- Decks list is a collapsible overlay. Name, ask, break-even, result, and rarity mixes share one compact toolbar.
+- Legend chips match table text height (16px). Reset is a reserved icon on the left of the legend.
+- Rarity hover chart is fixed to the page. Totals sit on a solid bar under the scroll (rows + have qty + Mate/PM/CK).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.7",
+    createdAt: "2026-09-21T04:00:00.000Z",
+    title: "1.6.7 (dev) — 2× credit consider, MRT header, export as-shown",
+    body: `## Publish to localhost (not live)
+
+- Consider now requires credit ≥ 2.0× the remaining cash spend, and names cash spent, store credit, and the ratio.
+- Page chrome matches Sunwater MRT: product title, version pill, badge, status. No breadcrumb.
+- Totals sit in table columns. Sticky to the visible bottom on a long table; sit under the last row when filtered short.
+- Legend chips show unfiltered qty underneath. Mate / PM / leftover / CK are compact bordered chips. Export icon (as-shown CSV/TXT, ManaBox when the deck came from ManaBox).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.8",
+    createdAt: "2026-09-21T04:15:00.000Z",
+    title: "1.6.8 (dev) — Cash-neutral buy, Pass on bad ratio, MM cash vs credit",
+    body: `## Publish to localhost (not live)
+
+- Spend $0 / cash covered is Buy now · Cash neutral. Highest Mate cash cards cover the ask first; the rest go to the better of Mate credit vs Playmantis credit.
+- Credit/cash below 2.0× is Pass, with the ratio named as the reason.
+- Table splits MM cash and MM credit. Export is a square bordered button; click outside closes the menu.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",

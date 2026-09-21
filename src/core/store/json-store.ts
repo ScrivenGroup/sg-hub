@@ -951,12 +951,16 @@ export async function getPreconHarvestBook(): Promise<PreconHarvestBook> {
   const raw = await readJson<PreconHarvestBook>(PRECON_HARVEST_FILE, emptyPreconHarvestBook());
   try {
     const parsed = preconHarvestBookSchema.parse(raw);
-    if (parsed.harvestedAt) return parsed;
+    if (parsed.source === "live" && parsed.harvestedAt) return parsed;
   } catch {
-    /* seed below */
+    /* rebuild mock below */
   }
   const catalog = await getPreconCatalog();
-  const seeded = buildMockPreconHarvest(catalog.decks, "2026-09-21T01:00:00.000Z");
+  const stamped =
+    typeof raw === "object" && raw && "harvestedAt" in raw && typeof raw.harvestedAt === "string"
+      ? raw.harvestedAt
+      : "";
+  const seeded = buildMockPreconHarvest(catalog.decks, stamped || "2026-09-21T01:00:00.000Z");
   await writeJson(PRECON_HARVEST_FILE, seeded);
   return seeded;
 }

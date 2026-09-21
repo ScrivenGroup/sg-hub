@@ -1,7 +1,7 @@
 import { allocate, withAllocateResults } from "./allocate";
 import { parseManaBoxCsv, majorityPurchaseCurrency } from "./parse-csv";
 import { manaBoxCopyCount, parseManaBoxTxt } from "./parse-txt";
-import { assessPrecon } from "./precon-assess";
+import { assessPrecon, buyingResultLine } from "./precon-assess";
 import { buildMockPreconHarvest } from "./precon-harvest";
 import { loadTurtlePowerDeck } from "../fixtures/precons/turtle-power";
 import { parseMateJson, filterMateOffersForCsv } from "./parse-mate";
@@ -1422,17 +1422,51 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
     messages.push("ManaBox TXT should parse qty and *F* foil");
   }
   const mockBook = buildMockPreconHarvest([turtle], "2026-09-21T01:00:00.000Z");
+  const free = assessPrecon(turtle, mockBook, 0);
+  if (free.verdict !== "buy-now" || !buyingResultLine(free).includes("Cash neutral")) {
+    messages.push(`$0 shop should be instant buy / cash neutral, got ${free.verdict} ${buyingResultLine(free)}`);
+  }
   const buy = assessPrecon(turtle, mockBook, 6000);
   if (buy.verdict !== "buy-now" || buy.mateCashCents !== 6000) {
     messages.push(`$60 shop should be buy-now at $60 Mate cash, got ${buy.verdict} ${buy.mateCashCents}`);
   }
-  const consider = assessPrecon(turtle, mockBook, 9000);
-  if (consider.verdict !== "consider-credit" || consider.cashOutlayCents !== 3000) {
-    messages.push(`$90 shop should be consider-credit spending $30, got ${consider.verdict} ${consider.cashOutlayCents}`);
+  if (!buyingResultLine(buy).includes("Cash neutral")) {
+    messages.push(`$60 shop copy should say cash neutral, got ${buyingResultLine(buy)}`);
+  }
+  const consider = assessPrecon(turtle, mockBook, 8000);
+  if (consider.verdict !== "consider-credit" || consider.cashOutlayCents !== 2000) {
+    messages.push(`$80 shop should be consider-credit spending $20, got ${consider.verdict} ${consider.cashOutlayCents}`);
+  }
+  const thin = assessPrecon(turtle, mockBook, 9000);
+  if (thin.verdict !== "pass") {
+    messages.push(`$90 shop is 1.3× and should be pass, got ${thin.verdict}`);
+  }
+  if (!buyingResultLine(thin).includes("below 2.0×")) {
+    messages.push(`Pass copy should name the bad ratio, got ${buyingResultLine(thin)}`);
+  }
+  const gain = assessPrecon(turtle, mockBook, 4500);
+  if (gain.verdict !== "buy-now" || !buyingResultLine(gain).includes("Cash neutral")) {
+    messages.push(`$45 shop should be cash-neutral buy now, got ${gain.verdict} ${buyingResultLine(gain)}`);
+  }
+  if (gain.mateCashCents >= 6000 || gain.mateCreditWantedCents <= 0) {
+    messages.push("Cash-neutral $45 should take top Mate cash then Mate credit on the rest");
+  }
+  if (buyingResultLine(consider) !== "Consider now · Spend $20.00 cash · $40.00 credit (Playmantis) · 2.0×") {
+    messages.push(`Credit-gap copy should name spend, credit, and ratio, got ${buyingResultLine(consider)}`);
   }
   const pass = assessPrecon(turtle, mockBook, 99900);
-  if (pass.verdict !== "hard-pass") {
-    messages.push(`Huge shop ask should be hard-pass, got ${pass.verdict}`);
+  if (pass.verdict !== "pass" && pass.verdict !== "hard-pass") {
+    messages.push(`Huge shop ask should be pass or hard-pass, got ${pass.verdict}`);
+  }
+  const closed = thin.lines.find((line) => line.name === "Voracious Hydra");
+  if (!closed || closed.dest !== "leftover" || closed.mateCashCents !== 800 || closed.mateWanted !== 0) {
+    messages.push("Voracious Hydra should show Mate $8 with want 0 and stay leftover");
+  }
+  if (thin.lines[0]?.uid !== 1 || thin.mateCashBreakEvenCents !== 6000) {
+    messages.push("First CSV row should be uid 1 and Mate cash break-even $60");
+  }
+  if (thin.mateUnwantedCashCents < 800 || !thin.leftoverByRarity.R.qty) {
+    messages.push("Leftover rarity slices and Mate unwanted cash should be populated");
   }
 
   return { ok: messages.length === 0, messages };

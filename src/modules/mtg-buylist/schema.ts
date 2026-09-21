@@ -239,12 +239,13 @@ export const PRECON_VERDICTS = [
   "consider-credit",
   "consider-value",
   "highly-consider-ck07",
+  "pass",
   "hard-pass",
 ] as const;
 export const preconVerdictSchema = z.enum(PRECON_VERDICTS);
 export type PreconVerdict = z.infer<typeof preconVerdictSchema>;
 
-export const PRECON_DESTS = ["mate-cash", "playmantis", "leftover"] as const;
+export const PRECON_DESTS = ["mate-cash", "mate-credit", "playmantis", "leftover"] as const;
 export const preconDestSchema = z.enum(PRECON_DESTS);
 export type PreconDest = z.infer<typeof preconDestSchema>;
 
