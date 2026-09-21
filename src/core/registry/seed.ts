@@ -2101,6 +2101,18 @@ Out of this version
 - Do not invent unnamed zips. Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
   },
   {
+    id: "cl-train-1.16",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.16",
+    createdAt: "2026-09-21T11:30:00.000Z",
+    title: "v1.16 — MTG Buylist 1.6.12 Decks tab and shared Neon harvest book",
+    body: `Train v1.16. Tag hub-1.16.
+
+- MTG Buylist 1.6.12: Decks tab assesses a sealed precon against a dated harvest. Cash-neutral Mate first, leftover to better credit. Shared Neon harvest book.
+`,
+  },
+  {
     id: "cl-train-1.15",
     nodeId: "d-train-changelog",
     kind: "release",
