@@ -20,10 +20,10 @@ export function KanbanDesignSpec() {
           </p>
           <h2 className="text-xl font-semibold tracking-tight">{c.labels.designSpec}</h2>
           <p className="text-[var(--muted)]">
-            This is the specification for the Development template. The Development hub at{" "}
-            <code className="font-mono text-xs">/d</code> is the reference implementation.
-            Every leaf that has left <code className="font-mono text-xs">sketched</code>{" "}
-            embeds the same host, including this tab.
+            This is the specification for the Development template. Layout 1 is the Development
+            hub at <code className="font-mono text-xs">/d</code> (cards). Layout 2 is a leaf
+            Development tab: Inbox, Kanban, Changelog (this leaf), Notes. This document lives
+            on the Development Design Spec card, not on product leaves.
           </p>
           <p className="text-[var(--muted)]">
             Relabel in <code className="font-mono text-xs">src/core/kanban/chrome.ts</code>.
@@ -107,8 +107,7 @@ export function KanbanDesignSpec() {
             <div className="rounded-[8px] border border-[var(--ink)] bg-[var(--surface)] p-2 text-[var(--ink)]">
               <div className="mb-1 flex items-center justify-between gap-2 border-b border-[var(--border)] pb-1">
                 <span>
-                  {c.labels.inbox} · All Kanban · Later+Open · … · {c.labels.changelog} ·{" "}
-                  {c.labels.notes} · {c.labels.designSpec}
+                  {c.labels.inbox} · {c.labels.kanban} · {c.labels.changelog} · {c.labels.notes}
                 </span>
                 <span className="rounded-[8px] bg-[var(--ink)] px-2 py-0.5 text-[var(--surface)]">
                   {c.labels.raise}
@@ -242,10 +241,9 @@ export function KanbanDesignSpec() {
 
         <SpecSection id="board" title="7. Board">
           <p>
-            Tickets only. Columns are Later / Open / Done, plus Archived when that filter is
-            on. Default layout is equal columns in a stretch grid; md+ uses one track per
-            visible column. Below md, columns stack and each well is at least ~52dvh so a
-            phone can scroll inside a column.
+            Tickets only. Columns are Later / Open / Done / Archived. Default visible buckets
+            are Later and Open. Checkbox filters above the board change which columns exist.
+            Category select filters tickets inside those columns.
           </p>
           <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
             <li>
@@ -257,8 +255,8 @@ export function KanbanDesignSpec() {
               Experience vs Data load, not as a second product.
             </li>
             <li>
-              Tab filters (All Kanban, Later+Open, …) change which columns exist. Category
-              select filters tickets inside those columns.
+              Checkbox filters (All, Later, Open, Done, Archived) change which columns exist.
+              Default Later + Open. Category select filters tickets inside those columns.
             </li>
             <li>
               Card: title; leaf tag on global All; category pill; clipped body; id · raw
@@ -518,9 +516,9 @@ const EMBED = [
     leaf: "This leaf (chrome Feedback).",
   },
   {
-    piece: "Design spec tab",
-    global: "Yes — this document.",
-    leaf: "Yes — same contract.",
+    piece: "Design spec",
+    global: "Its own Development hub card.",
+    leaf: "No — stay on /d/spec.",
   },
   {
     piece: "Notes persistence",
@@ -529,7 +527,7 @@ const EMBED = [
   },
   {
     piece: "Changelog",
-    global: "hub-development (plus legacy i-kanban rows).",
+    global: "SG Hub Changelog: hub-development + i-kanban, shown as X.Y.Z. Not the Train.",
     leaf: "That leaf’s changelog rows.",
   },
   {

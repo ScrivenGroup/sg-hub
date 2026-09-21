@@ -230,6 +230,65 @@ export type BuylistArchive = z.infer<typeof buylistArchiveSchema>;
 export type BuylistOwnerIndex = z.infer<typeof buylistOwnerIndexSchema>;
 export type PlaymantisHarvestDiffRow = z.infer<typeof playmantisHarvestDiffRowSchema>;
 
+export const PRECON_SOURCES = ["manabox-csv", "manabox-txt", "fixture", "placeholder"] as const;
+export const preconSourceSchema = z.enum(PRECON_SOURCES);
+export type PreconSource = z.infer<typeof preconSourceSchema>;
+
+export const PRECON_VERDICTS = [
+  "buy-now",
+  "consider-credit",
+  "consider-value",
+  "highly-consider-ck07",
+  "pass",
+  "hard-pass",
+] as const;
+export const preconVerdictSchema = z.enum(PRECON_VERDICTS);
+export type PreconVerdict = z.infer<typeof preconVerdictSchema>;
+
+export const PRECON_DESTS = ["mate-cash", "mate-credit", "playmantis", "leftover"] as const;
+export const preconDestSchema = z.enum(PRECON_DESTS);
+export type PreconDest = z.infer<typeof preconDestSchema>;
+
+export const preconDeckSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  productName: z.string().optional().default(""),
+  year: z.string().optional().default(""),
+  setCode: z.string().optional().default(""),
+  releasedAt: z.string().optional().default(""),
+  faceCommander: z.string().optional().default(""),
+  source: preconSourceSchema,
+  sourceUrl: z.string().optional().default(""),
+  createdAt: z.string(),
+  lastHarvestedAt: z.string().optional().default(""),
+  rows: z.array(manaBoxRowSchema),
+});
+
+export const preconCatalogSchema = z.object({
+  updatedAt: z.string(),
+  decks: z.array(preconDeckSchema),
+});
+
+/** Shared Mate/PM book for Decks — not a Run session. */
+export const preconHarvestBookSchema = z.object({
+  harvestedAt: z.string().optional().default(""),
+  source: z.enum(["mock", "live"]).optional().default("mock"),
+  mate: mtgBuylistStoreSchema.shape.mate,
+  playmantis: mtgBuylistStoreSchema.shape.playmantis,
+});
+
+export type PreconDeck = z.infer<typeof preconDeckSchema>;
+export type PreconCatalog = z.infer<typeof preconCatalogSchema>;
+export type PreconHarvestBook = z.infer<typeof preconHarvestBookSchema>;
+
+export function emptyPreconCatalog(): PreconCatalog {
+  return { updatedAt: new Date().toISOString(), decks: [] };
+}
+
+export function emptyPreconHarvestBook(): PreconHarvestBook {
+  return { harvestedAt: "", source: "mock", mate: null, playmantis: null };
+}
+
 export function emptyMtgBuylistStore(): MtgBuylistStore {
   return {
     updatedAt: new Date().toISOString(),

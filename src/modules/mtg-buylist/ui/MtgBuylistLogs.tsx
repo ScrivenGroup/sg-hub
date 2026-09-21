@@ -5,6 +5,7 @@ import {
   clearPlaymantisHarvestDiffAction,
   markPlaymantisHarvestDiffLookedAtAction,
 } from "../actions";
+import { formatStamp } from "@/core/ui/format-stamp";
 import { MtgBuylistPendingOverlay } from "./MtgBuylistPending";
 import type { BuylistArchive, PlaymantisHarvestDiffRow } from "../schema";
 
@@ -123,11 +124,6 @@ export function MtgBuylistLogs({
   return (
     <div className="min-w-0 space-y-3">
       <MtgBuylistPendingOverlay open={busy} status="Updating logs…" detail="Stay on this page." />
-      <div role="tablist" aria-label="Logs" className="flex flex-wrap">
-        <button type="button" role="tab" aria-selected className="sg-tab">
-          diffs
-        </button>
-      </div>
 
       {archives.length ? (
         <section className="sg-card min-w-0 space-y-2">
@@ -137,7 +133,7 @@ export function MtgBuylistLogs({
               <li key={`${row.id}-${row.archivedAt}`}>
                 {row.name}
                 {row.csvFilename ? ` · ${row.csvFilename}` : ""} ·{" "}
-                {new Date(row.archivedAt).toLocaleString()}
+                {formatStamp(row.archivedAt)}
               </li>
             ))}
           </ul>
@@ -226,7 +222,7 @@ export function MtgBuylistLogs({
                       row.lookedAt ? " text-[var(--muted)]" : ""
                     }`}
                   >
-                    <td className={nameCell}>{new Date(row.createdAt).toLocaleString()}</td>
+                    <td className={nameCell}>{formatStamp(row.createdAt)}</td>
                     <td className={metaCell}>{row.csvFilename}</td>
                     <td className={metaCell}>{row.reviewFilename}</td>
                     <td className={nameCell}>{row.name}</td>

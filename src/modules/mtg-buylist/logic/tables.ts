@@ -8,7 +8,6 @@ import {
   resolveMateOffer,
 } from "./allocate";
 import { mateImageUrl, scryfallImageUrl } from "./images";
-import { csvFinishToMate, normalizeCardName, normalizeFinish, normalizeSetCode } from "./names";
 import { manaBoxRowsToCsv } from "./parse-csv";
 
 /** Either store lists at least this credit → “money card” for put-aside. */
@@ -353,19 +352,6 @@ export function buildMateStreamRows(
   });
 }
 
-function maxMateListedCredit(row: ManaBoxRow, offers: MateOffer[]): number {
-  const set = normalizeSetCode(row.setCode);
-  const name = normalizeCardName(row.name).name;
-  const finish = normalizeFinish(csvFinishToMate(row.foil));
-  let max = 0;
-  for (const offer of offers) {
-    if (normalizeSetCode(offer.setCode) !== set) continue;
-    if (normalizeCardName(offer.name).name !== name) continue;
-    if (normalizeFinish(offer.finish) !== finish) continue;
-    if (offer.creditPriceCents > max) max = offer.creditPriceCents;
-  }
-  return max;
-}
 
 export function buildCompareRows(
   rows: ManaBoxRow[],
@@ -430,10 +416,10 @@ export function buildCompareRows(
     else if (toMate > 0 && toPm > 0) winner = "split";
 
     const sellable = toMate + toPm > 0;
-    const listedMateCreditCents = Math.max(
-      mateCreditCents,
-      maxMateListedCredit(row, mateOffers),
-    );
+    // Listed Mate $ / Put aside: resolved printing only (Scryfall id + finish,
+    // then set+# + finish — same as Compare / Confirm). Never max a sibling.
+    const listedMateCreditCents =
+      resolved.resolveSource === "none" ? 0 : mateCreditCents;
     const listedMoney =
       listedMateCreditCents >= MONEY_CREDIT_CENTS ||
       playmantisCreditCents >= MONEY_CREDIT_CENTS;

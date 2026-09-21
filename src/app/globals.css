@@ -36,6 +36,24 @@ body {
   font-family: var(--font-sans);
 }
 
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+summary,
+label[for],
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
 .sg-skip {
   position: absolute;
   left: -999px;
@@ -62,6 +80,11 @@ body {
   color: var(--surface);
   font-weight: 600;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-primary:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-primary:hover:not(:disabled) {
@@ -84,6 +107,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--rag-red);
   font-weight: 600;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-danger:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-danger:hover:not(:disabled) {
@@ -103,6 +131,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   font-weight: 600;
   font-size: var(--sg-btn-font);
   transition: background-color 0.12s ease, border-color 0.12s ease;
+  cursor: pointer;
+}
+
+.sg-btn-secondary:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-secondary:hover:not(:disabled) {
@@ -124,10 +157,34 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--ink);
   font-weight: 500;
   font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-ghost:disabled {
+  cursor: not-allowed;
 }
 
 .sg-btn-ghost:hover:not(:disabled) {
   background: var(--surface-muted);
+}
+
+.sg-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--sg-btn-height);
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--rag-amber) 55%, var(--ink));
+  background: color-mix(in srgb, var(--rag-amber) 28%, var(--surface));
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rag-amber) 42%, var(--surface));
 }
 
 .sg-card {
@@ -164,6 +221,11 @@ html[data-sg-primary="border"] .sg-btn-primary {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
+  cursor: pointer;
+}
+
+.sg-tab:disabled {
+  cursor: not-allowed;
 }
 
 .sg-tab:hover {

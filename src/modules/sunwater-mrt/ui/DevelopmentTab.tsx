@@ -64,6 +64,7 @@ export function DevelopmentTab({
       leafOptions={kanbanLeafOptions()}
       defaultTagNodeId="w-sunwater-mrt"
       showTabs
+      showDesignSpec={false}
       initialTab="changelog"
       changelogs={changelogs}
       notes={store.openNotes || ""}

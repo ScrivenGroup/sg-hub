@@ -24,6 +24,7 @@ Live kit. Source: `src/modules/standards/catalog.ts`. Farmed 2026-09-17.
 | obj-btn-primary | object | `sg-btn-primary` |
 | obj-btn-secondary | object | `sg-btn-secondary` |
 | obj-btn-ghost | object | `sg-btn-ghost` |
+| obj-btn-action | object | `sg-btn-action` |
 | obj-input | object | `sg-input` |
 | obj-card | object | `sg-card` |
 | obj-tab | object | `sg-tab` |

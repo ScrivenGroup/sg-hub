@@ -57,9 +57,9 @@ export const seedNodes: RegistryNode[] = [
     href: "/d",
     accessMode: "shared",
     status: "live",
-    hasNetworkMap: false,
+    hasNetworkMap: true,
     description:
-      "Inbox, board, changelog, notes, and design spec. Chrome Feedback lands in Inbox. Filter by leaf.",
+      "Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, and Design spec. Chrome Feedback lands in Ideas/Feedback.",
     order: 3,
   },
   {
@@ -155,6 +155,100 @@ export const seedNodes: RegistryNode[] = [
     description:
       "Harvest Playmantis and MTGMate buylists, then allocate a ManaBox CSV for max store credit.",
     order: 3,
+  },
+  {
+    id: "d-ideas-feedback",
+    hubPrefix: "d",
+    slug: "inbox",
+    title: "Ideas/Feedback",
+    code: "D97850",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/inbox",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "The inbox register. Chrome Feedback is the capture door.",
+    order: 1,
+  },
+  {
+    id: "d-kanban",
+    hubPrefix: "d",
+    slug: "kanban",
+    title: "Kanban",
+    code: "B44A1E",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/kanban",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description: "The board. Column checkbox filter is a later ticket.",
+    order: 2,
+  },
+  {
+    id: "d-train-changelog",
+    hubPrefix: "d",
+    slug: "train-changelog",
+    title: "Train Changelog",
+    code: "8F4A24",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/train-changelog",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Website zip history. Clock is vX.Y. Hotfix chip only on hotfix zips.",
+    order: 3,
+  },
+  {
+    id: "d-sg-hub-changelog",
+    hubPrefix: "d",
+    slug: "changelog",
+    title: "SG Hub Changelog",
+    code: "E08A52",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/changelog",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Wrapping hub / Development suite history. Clock is X.Y.Z. Not the Train.",
+    order: 4,
+  },
+  {
+    id: "d-notes",
+    hubPrefix: "d",
+    slug: "notes",
+    title: "Notes",
+    code: "A0522D",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/notes",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description: "Bulk notes for the Development suite.",
+    order: 5,
+  },
+  {
+    id: "d-design-spec",
+    hubPrefix: "d",
+    slug: "spec",
+    title: "Development Design Spec",
+    code: "6B2E14",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/spec",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Kanban Online design contract. Global only — not copied onto product leaves.",
+    order: 6,
   },
   {
     id: "i-testing",
@@ -945,6 +1039,327 @@ Live remains 1.5 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.5.29",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.29",
+    createdAt: "2026-09-18T02:30:00.000Z",
+    title: "1.5.29 (dev) — Four Run cards",
+    body: `## Publish to localhost (not live)
+
+- Run is Upload → Harvest → Picking → Reupload. Only the active card body is on screen.
+- CSV table is read-only (drop a new file to replace). Mate confirm/reject is unchanged.
+- Deep link \`?run=\` + \`&step=\`. Phone wraps 2×2.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.30",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.30",
+    createdAt: "2026-09-18T03:20:00.000Z",
+    title: "1.5.30 (dev) — Run folder-tab polish",
+    body: `## Publish to localhost (not live)
+
+- **New Run** after a loaded folder is client-only (empty store, \`?step=upload\`) — no idle server round-trip, overlay always clears.
+- Step cards sit on one folder-tab panel (selected tab shares the body fill; chevrons between cards on desktop).
+- Harvest is 2a Playmantis / 2b MTGMate (one table). Picking chrome is one toolbar. Collapse tables only.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.31",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.31",
+    createdAt: "2026-09-18T03:50:00.000Z",
+    title: "1.5.31 (dev) — Run chrome silhouette + shared table toolbar",
+    body: `## Publish to localhost (not live)
+
+- Selected step card and body share one SVG silhouette (concave shoulders; unselected cards stay pills). Equal-width cards, darker selected fill, thicker outline.
+- Shared table toolbar on Upload, Harvest, Picking, and Reupload. Harvest 2a/2b are store sections with RAG/KPI. CSV names use the O hover preview. Collapse headers stick under AppShell.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.32",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.32",
+    createdAt: "2026-09-18T05:10:00.000Z",
+    title: "1.5.32 (dev) — Run metrics grid + table-filter wait",
+    body: `## Publish to localhost (not live)
+
+- Selected step silhouette fill is \`--surface\` (white), lighter than \`--page\`; ink stroke unchanged.
+- Store metrics on cards 2–4 and Harvest 2a/2b use four columns: name | status | RAG | $. Status is not glued to the store name.
+- Table filter chips no longer veil the whole page. Put aside sits above the Picking table and collapses. Toolbar tabs left; legends and buttons right.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.33",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.33",
+    createdAt: "2026-09-18T05:25:00.000Z",
+    title: "1.5.33 (dev) — Development Kanban + Mate listed $",
+    body: `## Publish to localhost (not live)
+
+- Development is Kanban Online only — no Testing tab (parser check stays a staff action).
+- Listed Mate $ and Put aside use the resolved printing (Scryfall id + finish, then set+# + finish), not the max credit among same-name siblings.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.34",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.34",
+    createdAt: "2026-09-18T05:55:00.000Z",
+    title: "1.5.34 (dev) — Leaf tabs keep chrome; changelog groups",
+    body: `## Publish to localhost (not live)
+
+- Run / Logs / Development keep PageNav, title, and L1 tabs. Only the pane below swaps. L1 tabs are buttons (not Links), so they do not trip the hub nav veil.
+- Leaf loading waits in the pane. Development Inbox / board / Changelog / Notes / Spec no longer wrap the page veil.
+- Changelog groups by live milestone X.Y (1.5 with 1.5.x; 1.4 with 1.4.x). Newest group starts open; click a version row to expand or collapse.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.5.35",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.5.35",
+    createdAt: "2026-09-18T08:05:00.000Z",
+    title: "1.5.35 (dev) — 1.5 wrap: copy, timestamps, leftover Testing remap",
+    body: `## Publish to localhost (not live)
+
+- Development intent matches the host (Inbox, board, Changelog, Notes, Design spec). Leftover \`?tab=testing\` remap is gone.
+- Changelog, Logs, and Run stamps use a fixed Brisbane format. Logs no longer shows a dummy diffs tab. CSV rows table is read-only by name too.
+
+Live remains 1.5 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6",
+    createdAt: "2026-09-18T09:00:00.000Z",
+    title: "1.6 — Four-step Run, owned run folders, leftover join",
+    body: `## Live
+
+Ships the 1.5.1–1.5.35 localhost slices.
+
+- Run is four cards (Upload → Harvest → Picking → Reupload) with a folder-tab join. Parallel runs are owned folders.
+- Leftover / Step 5: store submissions, one outer-join table, re-import. Logs hold harvest vs Import Review.
+- Development is Kanban Online. Leaf tabs keep chrome. Changelog groups by live milestone. Brisbane stamps.
+
+Zip does not copy \`data/\`. Azure store stays on the App Service.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.1",
+    createdAt: "2026-09-21T01:15:00.000Z",
+    title: "1.6.1 (dev) — Decks tab: precon catalog, dated harvest, shop-ask ladder",
+    body: `## Publish to localhost (not live)
+
+- New L1 tab Decks: search and add ManaBox CSV/TXT lists. Turtle Power! is seeded from the official 100-card export.
+- Harvest Mate and Playmantis writes a shared dated book under \`data/mtg-buylist/precons/\` — not a Run session. First pass is a mock book with live types.
+- Select a deck, type the shop ask. Buy now if Mate cash covers; consider now if you would spend the cash gap for Playmantis credit and leftover CK paper value; hard pass if deck CK 1.0 is below the ask. CK 0.7 sell-proxy is out of this pass.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.2",
+    createdAt: "2026-09-21T01:50:00.000Z",
+    title: "1.6.2 (dev) — Decks table: Mate/PM columns, want-zero, sort, rarity",
+    body: `## Publish to localhost (not live)
+
+- Decks card table matches Run Compare: Mate and PM as columns, winner highlighted, loser muted.
+- A store can list a price with want 0 — “would offer $x but not buying right now.”
+- Card preview (owned / Scryfall). Columns sort A–Z or high–low. Filter Rare+mythic vs Common+uncommon so leftover value is the bulk-rare pile, not bulk commons.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.3",
+    createdAt: "2026-09-21T02:05:00.000Z",
+    title: "1.6.3 (dev) — Decks: badges, uid, Mate cash break-even, tighter chrome",
+    body: `## Publish to localhost (not live)
+
+- Rarity is M/R/U/C badges (white / silver / gold / orange). Finish is holographic F vs regular N. Headers are bold. uid is import order.
+- Asking price sits beside the verdict. Mate cash break-even is the first summary tile (other cash stores later).
+- Rarity filters on the column badges. Visual legend replaces the prose above the table.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.4",
+    createdAt: "2026-09-21T02:30:00.000Z",
+    title: "1.6.4 (dev) — Decks chrome: legend filters, sticky header, rarity $ mix",
+    body: `## Publish to localhost (not live)
+
+- Rarity / Finish are plain sortable headers. Surge foil is its own holographic S. Legend chips filter the table; Win shows every allocated row.
+- Asking and verdict sit larger under the deck name. Mate cash break-even is advisory beside Asking. Mate tile shows cash and credit.
+- Leftover and CK tiles list qty and $ per rarity, with a hover bar. Table footer totals wanted Mate/PM and a muted not-wanted sum. Deck chrome plus column headers stay put while rows scroll.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.5",
+    createdAt: "2026-09-21T02:50:00.000Z",
+    title: "1.6.5 (dev) — Decks table scroll, Show all, clearer ask result",
+    body: `## Publish to localhost (not live)
+
+- Deck table scrolls again: the pane is height-capped so rows move under sticky chrome and column headers.
+- Legend chips share one size. Want / rarity / finish are grouped. Show all appears when any filter is on.
+- Mate and PM tiles stay a pair; leftover and CK are a wider pair so rarity qty/$ stays on one line.
+- Asking result names the trade: convert the cash gap into PM credit, or gain Mate cash plus Playmantis when the ask is under break-even.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.6",
+    createdAt: "2026-09-21T03:05:00.000Z",
+    title: "1.6.6 (dev) — Decks table-first chrome, overlay catalog, solid totals",
+    body: `## Publish to localhost (not live)
+
+- Breadcrumb, tab title, badge, and version sit in the existing AppShell title slot. Leaf chrome is tabs only.
+- Decks list is a collapsible overlay. Name, ask, break-even, result, and rarity mixes share one compact toolbar.
+- Legend chips match table text height (16px). Reset is a reserved icon on the left of the legend.
+- Rarity hover chart is fixed to the page. Totals sit on a solid bar under the scroll (rows + have qty + Mate/PM/CK).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.7",
+    createdAt: "2026-09-21T04:00:00.000Z",
+    title: "1.6.7 (dev) — 2× credit consider, MRT header, export as-shown",
+    body: `## Publish to localhost (not live)
+
+- Consider now requires credit ≥ 2.0× the remaining cash spend, and names cash spent, store credit, and the ratio.
+- Page chrome matches Sunwater MRT: product title, version pill, badge, status. No breadcrumb.
+- Totals sit in table columns. Sticky to the visible bottom on a long table; sit under the last row when filtered short.
+- Legend chips show unfiltered qty underneath. Mate / PM / leftover / CK are compact bordered chips. Export icon (as-shown CSV/TXT, ManaBox when the deck came from ManaBox).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.8",
+    createdAt: "2026-09-21T04:15:00.000Z",
+    title: "1.6.8 (dev) — Cash-neutral buy, Pass on bad ratio, MM cash vs credit",
+    body: `## Publish to localhost (not live)
+
+- Spend $0 / cash covered is Buy now · Cash neutral. Highest Mate cash cards cover the ask first; the rest go to the better of Mate credit vs Playmantis credit.
+- Credit/cash below 2.0× is Pass, with the ratio named as the reason.
+- Table splits MM cash and MM credit. Export is a square bordered button; click outside closes the menu.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.9",
+    createdAt: "2026-09-21T05:45:00.000Z",
+    title: "1.6.9 (dev) — Desktop harvest prep, Neon book",
+    body: `## Publish to localhost (not live)
+
+- Decks pane groups by set (newest first). Checkbox a deck or a whole group to prep, then harvest only those lists.
+- No-list placeholders are grey and disabled; a list gets harvest RAG (red / mock amber).
+- Catalog and the shared harvest book write Neon rows and merge into the existing book. Mock writer this sitting.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.10",
+    createdAt: "2026-09-21T06:30:00.000Z",
+    title: "1.6.10 (dev) — Year > group > deck catalog",
+    body: `## Publish to localhost (not live)
+
+- Decks pane is Year, then product group, then deck. Commander backbone is seeded as no-list placeholders. Turtle Power! keeps its ManaBox CSV.
+- Wizards decklist links are citations only — lists attach from ManaBox CSV, not from those pages.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.11",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    title: "1.6.11 (dev) — Deck SKU search, harvest popup, compact rows",
+    body: `## Publish to localhost (not live)
+
+- Product SKU sits on each group (TMC, SOC, …) and is searchable. Prep checkboxes stay as you change the search.
+- Win / $·w0 / Null legend quantities sum to 100. Search and harvest stay sticky; year and group headers collapse (open by default).
+- Deck-page Harvest and pane Harvest share one popup. Options: compact card rows, lists-only. Pointer cursor on clickable chrome.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.12",
+    createdAt: "2026-09-21T10:55:00.000Z",
+    title: "1.6.12 (dev) — Compact pane rows, listed counts, Escape stack",
+    body: `## Publish to localhost (not live)
+
+- Small card rows also shrink the decks pane. Year and group counts show listed/total (1/20).
+- Legend reset also restores uid sort. Clear checkboxes sits beside Harvest.
+- Escape closes the newest overlay first (Add deck before the pane).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
@@ -1406,11 +1821,11 @@ Out of this version
     version: "0.0.1",
     createdAt: "2026-09-07T06:00:00.000Z",
     title: "Inbox attachments + compact Raise (localhost WIP toward 0.2)",
-    body: `Kanban Online plan 0.0.1. Localhost / save-slot wip/kanban only. Not live. Live stays 0.1.6 until Bill says make it live (then 0.2 from station main).
+    body: `SG Hub suite plan 0.0.1. Localhost / save-slot only. Not a product-leaf row.
 
 - Inbox notes can hold files (Neon bytea / local JSON+bin). Tickets inherit via sourceIdeaId. No Azure Blob.
 - Raise / Inbox leaf tag is a label until click (nested Site network popup). Details grow. Save/Cancel stay on screen.
-- Kanban Online CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
+- Kanban CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
   },
   {
     id: "cl-kanban-online-0.1.1",
@@ -1419,11 +1834,11 @@ Out of this version
     version: "0.1.1",
     createdAt: "2026-09-05T02:20:00.000Z",
     title: "Compact chrome — more body, leaf dropdown, underline tabs",
-    body: `Kanban Online chrome (0.1.1). Layout only. Same columns and leaf tags. Not deployed.
+    body: `SG Hub suite chrome 0.1.1. Layout only. Same columns and leaf tags.
 
-- Short Internal header. Leafs dropdown of tags that already have a row. Empty sketched leaves stay out.
-- Inbox / KanBan underline tabs. Compact column / category / layout. More options modal.
-- Shared host on mtg-buylist Development uses the same board/inbox chrome. No schema change.`,
+- Short header. Leafs dropdown of tags that already have a row. Empty sketched leaves stay out.
+- Inbox / Kanban underline tabs. Compact column / category / layout. More options modal.
+- Shared host on leaf Development uses the same board/inbox chrome. No schema change.`,
   },
   {
     id: "cl-kanban-online-0.1.2",
@@ -1432,10 +1847,10 @@ Out of this version
     version: "0.1.2",
     createdAt: "2026-09-05T04:10:00.000Z",
     title: "Tab strip — Inbox | All Kanban | Later+Open …",
-    body: `Kanban Online chrome (0.1.2). Layout only. Same columns and leaf tags. Not deployed.
+    body: `SG Hub suite chrome 0.1.2. Layout only. Same columns and leaf tags.
 
-- One tab strip: Inbox | All Kanban | Later + Open | Open + Done | Later | Open | Archived. No parent KanBan tab.
-- Leafs on row 2 (Internal). Raise an idea on every tab. Layout = Columns | Swimlanes toggle.`,
+- One tab strip: Inbox | All Kanban | Later + Open | Open + Done | Later | Open | Archived. (Later replaced by column checkboxes in 0.2.6.)
+- Leafs on row 2. Raise an idea on every tab. Layout = Columns | Swimlanes toggle.`,
   },
   {
     id: "cl-kanban-online-0.1.3",
@@ -1444,7 +1859,7 @@ Out of this version
     version: "0.1.3",
     createdAt: "2026-09-05T05:50:00.000Z",
     title: "Visual density — toggle-height chrome, one Inbox row",
-    body: `Kanban Online chrome (0.1.3). Layout only. Same store. Not deployed.
+    body: `SG Hub suite chrome 0.1.3. Layout only. Same store.
 
 - Chrome controls match the Layout Columns | Swimlanes toggle height (min-h-8). Raise an idea sits before Leafs.
 - Inbox Sort / Show archived / More options share that row. Show archived is a bordered button with a pressed state.`,
@@ -1456,7 +1871,7 @@ Out of this version
     version: "0.1.4",
     createdAt: "2026-09-05T06:00:00.000Z",
     title: "Changelog tab — stepped 0.1.x chunks",
-    body: `Kanban Online chrome (0.1.4). Same changelogs store (nodeId i-kanban). Not deployed.
+    body: `SG Hub suite chrome 0.1.4. Same changelogs store (then nodeId i-kanban).
 
 - Changelog tab at the end of the strip. Four stepped release rows 0.1.1–0.1.4 with datetime.
 - Later register reads changelogs by nodeId / all nodes. No second changelog table.`,
@@ -1468,11 +1883,11 @@ Out of this version
     version: "0.1.5",
     createdAt: "2026-09-05T08:00:00.000Z",
     title: "Raise right + Changelog inline + all-leaf picker",
-    body: `Kanban Online chrome (0.1.5). Same changelogs store (nodeId i-kanban). Not deployed.
+    body: `SG Hub suite chrome 0.1.5. Same changelogs store (then nodeId i-kanban).
 
 - Raise an idea sits on the tab strip, far right, on Inbox, Kanban tabs, and Changelog.
 - Leafs filter hidden on Changelog. Inbox and Kanban column tabs still have it.
-- Raise leaf picker uses the Site network nested list (Global + every hub’s children). Not Work/Projects only.
+- Raise leaf picker uses the Site network nested list (Global + every hub’s children).
 - Changelog newest version on top. One inline detail row under the selected version (latest open on first paint).`,
   },
   {
@@ -1481,12 +1896,12 @@ Out of this version
     kind: "release",
     version: "0.1.6",
     createdAt: "2026-09-05T09:15:00.000Z",
-    title: "Published to Azure live",
-    body: `Kanban Online (0.1.6). Zip-deployed to Azure App Service. Live at /i/kanban.
+    title: "0.1.6 — Suite first live at /i/kanban",
+    body: `SG Hub suite 0.1.6. First live zip of this register (then at /i/kanban; now /d).
 
-- Inbox, column tabs, Changelog, and Raise an idea are on the live origin.
-- Same changelogs store (nodeId i-kanban). 0.1.1–0.1.5 ids unchanged.
-- Whole app zip (Kanban cannot ship alone). Laptop data/ not in the zip.`,
+- Inbox, column tabs, Changelog, and Raise an idea were on the live origin.
+- Same changelogs store (ids 0.1.1–0.1.5 unchanged).
+- Whole-app zip. Laptop data/ not in the zip.`,
   },
   {
     id: "cl-kanban-online-0.0.2",
@@ -1495,10 +1910,10 @@ Out of this version
     version: "0.0.2",
     createdAt: "2026-09-08T12:00:00.000Z",
     title: "Development template + Notes + Design spec (localhost WIP)",
-    body: `Kanban Online plan 0.0.2. Localhost / save-slot wip/kanban only. Not live.
+    body: `SG Hub suite plan 0.0.2. Localhost / save-slot only.
 
-- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes, Raise).
-- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec tab is only on /i/kanban.
+- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes).
+- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec is a Development hub card, not a leaf tab.
 - Notes persist in kanban_leaf_notes (Neon when DATABASE_URL is set).
 - Buylist and MRT Development embed the same host. Sketched leaves stay changelog-only.`,
   },
@@ -1506,15 +1921,15 @@ Out of this version
     id: "cl-kanban-online-0.2",
     nodeId: "i-kanban",
     kind: "release",
-    version: "0.2",
+    version: "0.2.0",
     createdAt: "2026-09-09T00:10:00.000Z",
-    title: "0.2 — Development template live (hub 1.6)",
-    body: `Kanban Online 0.2. Zip-deployed with hub 1.6. Live at /i/kanban.
+    title: "0.2.0 — Development template live",
+    body: `SG Hub suite 0.2.0. First 0.2 zip of this register (then at /i/kanban; now /d).
 
-- Development on Buylist and MRT is the same host (Inbox, board, Changelog, Notes, Raise).
-- Design spec tab only on /i/kanban. Chrome labels live in src/core/kanban/chrome.ts.
+- Development on Buylist and MRT used the same host (Inbox, board, Changelog, Notes, Raise).
+- Design spec lived only on the suite page. Chrome labels live in src/core/kanban/chrome.ts.
 - Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
-- Buylist product work on wip/buylist is not in this train.`,
+- Buylist product work on wip/buylist was not in that zip.`,
   },
   {
     id: "cl-kanban-online-0.2.1",
@@ -1523,7 +1938,7 @@ Out of this version
     version: "0.2.1",
     createdAt: "2026-09-09T06:30:00.000Z",
     title: "0.2.1 — Inbox sittings query Neon first (localhost)",
-    body: `Kanban Online 0.2.1. Localhost until the next hub train. Ticket kt-notes-survive-publish.
+    body: `SG Hub suite 0.2.1. Localhost until the next Train zip. Ticket kt-notes-survive-publish.
 
 - Feedback and Kanban rows on Neon survive zip (data/ is stripped). Seed only adds missing ids; empty MRT seed ideas is not an empty inbox.
 - Inbox sittings: scripts/inspect-neon-inbox.ts then /i/feedback then seed. Do not call getKanbanBoard for forensics.
@@ -1538,7 +1953,7 @@ Out of this version
     version: "0.2.2",
     createdAt: "2026-09-09T06:50:00.000Z",
     title: "0.2.2 — One inbox for Feedback and Ideas (localhost)",
-    body: `Kanban Online 0.2.2. Localhost until the next hub train. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
+    body: `SG Hub suite 0.2.2. Localhost until the next Train zip. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
 
 - One Neon table (kanban_ideas) for Feedback and Ideas. Kind + leaf tag + optional page breadcrumb.
 - Chrome Feedback is the bug/help door (Idea allowed, not advertised). Raise is the idea door.
@@ -1552,7 +1967,7 @@ Out of this version
     version: "0.2.3",
     createdAt: "2026-09-09T08:20:00.000Z",
     title: "0.2.3 — Kanban is the Internal register (localhost)",
-    body: `Kanban 0.2.3. Localhost until the next hub train.
+    body: `SG Hub suite 0.2.3. Localhost until the next Train zip.
 
 - Dropped Internal cards for Feedback, Ideas, and Notes. Chrome Feedback and Raise stay as doors. Notes live on the Kanban Notes tab.
 - Card title is Kanban. Old URLs /i/feedback, /i/ideas, /i/notes redirect here.`,
@@ -1564,11 +1979,261 @@ Out of this version
     version: "0.2.4",
     createdAt: "2026-09-09T08:48:00.000Z",
     title: "0.2.4 — Development hub and one capture door (localhost)",
-    body: `Development 0.2.4. Localhost until the next hub train.
+    body: `SG Hub suite 0.2.4. Localhost until the next Train zip.
 
 - Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
 - /i/kanban redirects here. Internal keeps Testing and Development choices.
 - Chrome Feedback is the only capture door (Raise-style popup). Leaf Development tabs no longer show Raise.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.5",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.5",
+    createdAt: "2026-09-21T03:12:00.000Z",
+    title: "0.2.5 — Development hub is cards (localhost)",
+    body: `SG Hub suite 0.2.5. Localhost until the next Train zip. Ticket kt-dev-hub-cards.
+
+- /d is a Hub landing. Cards: Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Development Design Spec.
+- Old /d?tab= URLs and /i/feedback /i/ideas /i/notes /i/kanban redirect into those rooms.
+- Train Changelog is a sketched shell (kt-train-changelog). SG Hub combine/relabel is later (kt-sg-hub-changelog).
+- Product leaves keep Layout 2 tabs (kt-leaf-dev-tabs).`,
+  },
+  {
+    id: "cl-dev-hub-0.2.6",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.6",
+    createdAt: "2026-09-21T04:08:00.000Z",
+    title: "0.2.6 — Leaf Development tabs + Kanban column checkboxes (localhost)",
+    body: `SG Hub suite 0.2.6. Localhost until the next Train zip. Tickets kt-leaf-dev-tabs, kt-kanban-column-filter.
+
+- Layout 2: leaf Development L2 is Inbox, Kanban, Changelog (this leaf), Notes. Design spec stays a hub card.
+- Kanban (hub card and leaf tab): checkbox row above the buckets. Default Later + Open. All shows or hides every column.
+- Old Later+Open / All Kanban tabs are gone. Old ?tab=later-open URLs still open Kanban.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.7",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.7",
+    createdAt: "2026-09-21T05:15:00.000Z",
+    title: "0.2.7 — SG Hub Changelog combine and X.Y.Z clock (localhost)",
+    body: `SG Hub suite 0.2.7. Localhost until the next Train zip. Ticket kt-sg-hub-changelog.
+
+- /d/changelog is one list from hub-development + i-kanban. Clock is X.Y.Z (two-part versions pad to .0). Not the Train.
+- Existing row titles/bodies read as suite history. Ids kept. No invented features.
+- Product-leaf Layout 2 Changelog stays that leaf only.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.8",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.8",
+    createdAt: "2026-09-21T05:20:00.000Z",
+    title: "0.2.8 — Train version in page chrome (localhost)",
+    body: `SG Hub suite 0.2.8. Localhost until the next Train zip. Ticket kt-train-chrome.
+
+- AppShell always shows vX.Y plus a Train or Hotfix chip (today v1.14 Train from tag hub-1.14).
+- The version is the link to /d/train-changelog. MRT guests see the clock without that door.
+- One module src/core/train/version.ts. Not leaf X.Y.Z. Train history rows stay kt-train-changelog.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.9",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.9",
+    createdAt: "2026-09-21T05:40:00.000Z",
+    title: "0.2.9 — Train history + Hotfix chip only on hotfix (localhost)",
+    body: `SG Hub suite 0.2.9. Localhost until the next Train zip. Tickets kt-train-changelog, kt-train-chrome feedback.
+
+- /d/train-changelog lists named hub-* zips (v1.6–v1.14). Clock is vX.Y. Hotfix chip only on hotfix zips.
+- Chrome version stays vX.Y with no Train badge on a regular release.
+- Not SG Hub Changelog. Not a product-leaf changelog.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.10",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.10",
+    createdAt: "2026-09-21T06:25:00.000Z",
+    title: "0.2.10 — Two-clock versioning locked in dc-versioning (localhost)",
+    body: `SG Hub suite 0.2.10. Localhost until the next Train zip. Ticket kt-hub-version-homes.
+
+- Train is vX.Y (chrome → /d/train-changelog). Hotfix chip only on hotfix zips. Git tag hub-X.Y.
+- Leaf and SG Hub stay X.Y.Z. Localhost PATCH is a leaf slice, not a Train segment.
+- Locked in docs/DEV_CHOICES.md, docs/GIT_AND_RELEASE.md, and /i/dev-choices.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.11",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.11",
+    createdAt: "2026-09-21T10:20:00.000Z",
+    title: "0.2.11 — Open Inbox in the Feedback popup (localhost)",
+    body: `SG Hub suite 0.2.11. Localhost until the next Train zip. Ticket kt-feedback-open-register.
+
+- Feedback popup footer has Open Inbox. Goes to /d/inbox. Always shown, not only after save.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.12",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.12",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    title: "0.2.12 — WIP desk badge + Feedback actions (desk wrap)",
+    body: `SG Hub suite 0.2.12. This save-slot is ready for station. Train stays v1.14 until make-it-live.
+
+- WIP_DESK in .env.local shows a yellow wip-hub (etc.) badge in chrome and on login. Station/Azure omit it.
+- Feedback footer: Cancel is bordered secondary. Open Inbox is right-aligned sg-btn-action.
+- Route loading veil is ticket kt-route-loading-veil (Later). Behaviour card is on Standards.`,
+  },
+  {
+    id: "cl-train-changelog-plan",
+    nodeId: "d-train-changelog",
+    kind: "plan",
+    createdAt: "2026-09-21T05:40:00.000Z",
+    title: "Going forward — one row per make-it-live zip",
+    body: `Each make-it-live is vX.Y. Git tag hub-X.Y. Hotfix still takes the next X.Y; show a Hotfix chip, not a PATCH / letter suffix.
+
+- Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted.
+- Expand Hotfix: hotfix notes only.
+- Do not invent unnamed zips. Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
+  },
+  {
+    id: "cl-train-1.16",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.16",
+    createdAt: "2026-09-21T11:30:00.000Z",
+    title: "v1.16 — MTG Buylist 1.6.12 Decks tab and shared Neon harvest book",
+    body: `Train v1.16. Tag hub-1.16.
+
+- MTG Buylist 1.6.12: Decks tab assesses a sealed precon against a dated harvest. Cash-neutral Mate first, leftover to better credit. Shared Neon harvest book.
+`,
+  },
+  {
+    id: "cl-train-1.15",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.15",
+    createdAt: "2026-09-21T11:00:00.000Z",
+    title: "v1.15 — SG Hub 0.2.12: Development cards, two clocks, WIP badge",
+    body: `Train v1.15. Tag hub-1.15.
+
+- SG Hub 0.2.12: Development is a hub of cards, leaf Layout 2 tabs, Train vs SG Hub clocks, WIP desk badge, Feedback footer actions.
+- Train chrome shows vX.Y and links to /d/train-changelog.
+`,
+  },
+  {
+    id: "cl-train-1.14",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.14",
+    createdAt: "2026-09-18T08:59:07.000Z",
+    title: "v1.14 — MTG Buylist 1.6 live milestone",
+    body: `Train v1.14. Tag hub-1.14.
+
+- MTG Buylist 1.6: live milestone for the 1.5.x train.`,
+  },
+  {
+    id: "cl-train-1.13",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.13",
+    createdAt: "2026-09-18T08:40:02.000Z",
+    title: "v1.13 — MTG Buylist 1.5.35",
+    body: `Train v1.13. Tag hub-1.13.
+
+- MTG Buylist 1.5.35: leaf tabs keep chrome, changelog groups by milestone, Brisbane stamps.`,
+  },
+  {
+    id: "cl-train-1.12",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.12",
+    createdAt: "2026-09-18T05:07:30.000Z",
+    title: "v1.12 — MTG Buylist 1.5.32",
+    body: `Train v1.12. Tag hub-1.12.
+
+- MTG Buylist 1.5.32: four-step Run cards with folder-tab join and store metrics grid.`,
+  },
+  {
+    id: "cl-train-1.11",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.11",
+    createdAt: "2026-09-17T07:10:54.000Z",
+    title: "v1.11 — Sunwater MRT 1.5.8",
+    body: `Train v1.11. Tag hub-1.11.
+
+- Sunwater MRT 1.5.8: Gantt as a camera over one picture; shell-first load.`,
+  },
+  {
+    id: "cl-train-1.10",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.10",
+    createdAt: "2026-09-17T06:40:50.000Z",
+    title: "v1.10 — MTG Buylist 1.5.28",
+    body: `Train v1.10. Tag hub-1.10.
+
+- MTG Buylist 1.5.28: parallel runs as owned documents, CSV editor, loading veils.`,
+  },
+  {
+    id: "cl-train-1.9",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.9",
+    createdAt: "2026-09-17T04:43:56.000Z",
+    title: "v1.9 — System Standards",
+    body: `Train v1.9. Tag hub-1.9.
+
+- System Standards: Design Library, Behaviours, Process, and Hold pile on Neon.`,
+  },
+  {
+    id: "cl-train-1.8.1",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.8.1",
+    createdAt: "2026-09-10T08:04:22.000Z",
+    title: "v1.8.1 — Development hub replaces stale Azure .next",
+    body: `Hotfix zip. Tag hub-1.8.1 (historic PATCH tag; going forward a hotfix takes the next X.Y).
+
+- Zip so Development hub replaces stale Azure .next.`,
+  },
+  {
+    id: "cl-train-1.8",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.8",
+    createdAt: "2026-09-10T06:20:30.000Z",
+    title: "v1.8 — Development hub and Buylist Run",
+    body: `Train v1.8. Tag hub-1.8.
+
+- Development hub and Buylist Run.`,
+  },
+  {
+    id: "cl-train-1.7",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.7",
+    createdAt: "2026-09-09T06:35:25.000Z",
+    title: "v1.7 — Feedback and Kanban notes survive publish",
+    body: `Train v1.7. Tag hub-1.7.
+
+- Feedback and Kanban notes survive publish.`,
+  },
+  {
+    id: "cl-train-1.6",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.6",
+    createdAt: "2026-09-09T00:13:48.000Z",
+    title: "v1.6 — Kanban 0.2 Development template",
+    body: `Train v1.6. Tag hub-1.6.
+
+- Kanban 0.2 Development template.`,
   },
   {
     id: "cl-s-standards-plan",
@@ -1766,7 +2431,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "publish",
     status: "locked",
     decision:
-      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to dev_main is never implied), you say make it live. Make it live = fast-forward main to dev_main, then tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge dev_main is not live. Fast-forward main without the zip is not Azure. Details: docs/GIT_AND_RELEASE.md.",
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to dev_main is never implied), you say make it live. A desk is dev_main or wip/<leaf>: wip only hands over a clean save-slot; station only takes finished blocks and never produces product. Prepare / handover is not merge. Make it live = fast-forward main to dev_main, then tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge dev_main is not live. Fast-forward main without the zip is not Azure. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-versioning",
@@ -1774,7 +2439,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "versioning",
     status: "locked",
     decision:
-      "Hub train is SemVer MAJOR.MINOR: each live publish bumps MINOR; PATCH is an emergency hotfix; MAJOR only if Bill asks. Each leaf has its own SemVer; unchanged leaves do not bump. Localhost slices may use PATCH until that leaf ships in a hub train. Details: docs/GIT_AND_RELEASE.md.",
+      "Two clocks. Train (website zip) is vX.Y: each make-it-live bumps to the next X.Y; MAJOR only if Bill asks. A hotfix still takes the next X.Y and shows a Hotfix chip only (not on regular Trains). No Train PATCH segment, no a/b/c. Git tag hub-X.Y. Home: chrome version → /d/train-changelog. Leaf (hub suite included) is always X.Y.Z (pad 1.6 → 1.6.0). Unchanged leaves do not bump. Y when that leaf ships in a Train; Z on the wip desk per slice. Localhost slices may use PATCH until that leaf ships in a Train. Homes: leaf Development Changelog; wrapping suite → /d/changelog (SG Hub). Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-great-merge",

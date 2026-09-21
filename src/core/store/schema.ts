@@ -24,7 +24,7 @@ const bytea = customType<{ data: Buffer; driverData: Uint8Array }>({
   },
 });
 
-/** Simple hub registers + MRT relational plan + share. Sandbox and mtg-buylist stay JSON. */
+/** Simple hub registers + MRT relational plan + share. Run-session buylist cache stays JSON; Decks catalog/harvest are Neon. */
 
 export const feedback = pgTable("feedback", {
   id: text("id").primaryKey(),
@@ -447,4 +447,73 @@ export const playmantisHarvestDiff = pgTable("playmantis_harvest_diff", {
   verdict: text("verdict").notNull(),
   note: text("note").notNull(),
   lookedAt: text("looked_at").notNull().default(""),
+});
+
+export const preconDecks = pgTable("precon_decks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  productName: text("product_name").notNull().default(""),
+  year: text("year").notNull().default(""),
+  setCode: text("set_code").notNull().default(""),
+  releasedAt: text("released_at").notNull().default(""),
+  faceCommander: text("face_commander").notNull().default(""),
+  source: text("source").notNull(),
+  sourceUrl: text("source_url").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+  lastHarvestedAt: text("last_harvested_at").notNull().default(""),
+});
+
+export const preconCards = pgTable("precon_cards", {
+  id: text("id").primaryKey(),
+  deckId: text("deck_id").notNull(),
+  idx: integer("idx").notNull(),
+  name: text("name").notNull(),
+  setCode: text("set_code").notNull().default(""),
+  setName: text("set_name").notNull().default(""),
+  collectorNumber: text("collector_number").notNull().default(""),
+  foil: text("foil").notNull(),
+  quantity: integer("quantity").notNull(),
+  scryfallId: text("scryfall_id").notNull().default(""),
+  rarity: text("rarity").notNull().default(""),
+  purchasePriceCents: integer("purchase_price_cents").notNull().default(0),
+  purchaseCurrency: text("purchase_currency").notNull().default(""),
+  frameEffects: text("frame_effects").notNull().default(""),
+});
+
+export const preconHarvestMeta = pgTable("precon_harvest_meta", {
+  id: text("id").primaryKey(),
+  harvestedAt: text("harvested_at").notNull().default(""),
+  source: text("source").notNull().default("mock"),
+  mateHarvestedAt: text("mate_harvested_at").notNull().default(""),
+  mateSource: text("mate_source").notNull().default(""),
+  mateSets: text("mate_sets").notNull().default(""),
+  pmFetchedAt: text("pm_fetched_at").notNull().default(""),
+  pmError: text("pm_error").notNull().default(""),
+});
+
+export const preconMateOffers = pgTable("precon_mate_offers", {
+  mateUuid: text("mate_uuid").primaryKey(),
+  name: text("name").notNull(),
+  setCode: text("set_code").notNull().default(""),
+  finish: text("finish").notNull().default(""),
+  buyPriceCents: integer("buy_price_cents").notNull(),
+  creditPriceCents: integer("credit_price_cents").notNull(),
+  quantity: integer("quantity").notNull(),
+  normalisedName: text("normalised_name").notNull(),
+  collectorNumber: text("collector_number").notNull().default(""),
+  imageUrl: text("image_url").notNull().default(""),
+  rarity: text("rarity").notNull().default(""),
+});
+
+export const preconPmOffers = pgTable("precon_pm_offers", {
+  id: text("id").primaryKey(),
+  scryfallId: text("scryfall_id").notNull(),
+  title: text("title").notNull().default(""),
+  finish: text("finish").notNull().default(""),
+  creditCents: integer("credit_cents").notNull(),
+  limit: integer("limit").notNull(),
+  missing: boolean("missing").notNull().default(false),
+  fetchedAt: text("fetched_at").notNull(),
+  imageUrl: text("image_url").notNull().default(""),
+  setName: text("set_name").notNull().default(""),
 });

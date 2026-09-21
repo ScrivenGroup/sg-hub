@@ -1,6 +1,6 @@
 /**
- * Neon-only ticket. Does not write data/kanban JSON.
- * npx --yes tsx scripts/upsert-hub-page-loading-ticket.ts
+ * Do not run. kt-hub-page-loading is archived; pickup is kt-route-loading-veil in seed.
+ * Historical Neon-only upsert. npx --yes tsx scripts/upsert-hub-page-loading-ticket.ts
  */
 import { existsSync, readFileSync } from "fs";
 import path from "path";

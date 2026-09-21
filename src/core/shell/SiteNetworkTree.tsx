@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import type { ReactNode } from "react";
 import type { RegistryNode } from "@/core/contracts/types";
 

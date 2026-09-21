@@ -25,6 +25,11 @@ import {
   mrtShare,
   notes,
   playmantisHarvestDiff,
+  preconCards,
+  preconDecks,
+  preconHarvestMeta,
+  preconMateOffers,
+  preconPmOffers,
   standardsChoices,
   standardsHolds,
 } from "@/core/store/schema";
@@ -45,6 +50,8 @@ import type {
   StandardsHoldRecord,
 } from "@/modules/standards/schema";
 import { STANDARDS_HOLD_KINDS } from "@/modules/standards/schema";
+import type { ManaBoxRow, MateOffer, PlaymantisOffer, PreconCatalog, PreconDeck, PreconHarvestBook } from "@/modules/mtg-buylist/schema";
+import { emptyPreconHarvestBook } from "@/modules/mtg-buylist/schema";
 import {
   kanbanAttachmentStoreRowSchema,
   kanbanInboxNoteSchema,
@@ -69,7 +76,7 @@ export type MrtShareRow = {
 
 type SimpleSchema = typeof schema;
 
-const DDL_VERSION = 5;
+const DDL_VERSION = 7;
 
 const DDL = [
   `CREATE TABLE IF NOT EXISTS feedback (
@@ -226,6 +233,71 @@ const DDL = [
   )`,
   `CREATE INDEX IF NOT EXISTS playmantis_harvest_diff_batch ON playmantis_harvest_diff (batch_id)`,
   `ALTER TABLE playmantis_harvest_diff ADD COLUMN IF NOT EXISTS looked_at text NOT NULL DEFAULT ''`,
+  `CREATE TABLE IF NOT EXISTS precon_decks (
+    id text PRIMARY KEY,
+    name text NOT NULL,
+    product_name text NOT NULL DEFAULT '',
+    set_code text NOT NULL DEFAULT '',
+    released_at text NOT NULL DEFAULT '',
+    face_commander text NOT NULL DEFAULT '',
+    source text NOT NULL,
+    source_url text NOT NULL DEFAULT '',
+    created_at text NOT NULL,
+    last_harvested_at text NOT NULL DEFAULT ''
+  )`,
+  `ALTER TABLE precon_decks ADD COLUMN IF NOT EXISTS year text NOT NULL DEFAULT ''`,
+  `CREATE TABLE IF NOT EXISTS precon_cards (
+    id text PRIMARY KEY,
+    deck_id text NOT NULL,
+    idx integer NOT NULL,
+    name text NOT NULL,
+    set_code text NOT NULL DEFAULT '',
+    set_name text NOT NULL DEFAULT '',
+    collector_number text NOT NULL DEFAULT '',
+    foil text NOT NULL,
+    quantity integer NOT NULL,
+    scryfall_id text NOT NULL DEFAULT '',
+    rarity text NOT NULL DEFAULT '',
+    purchase_price_cents integer NOT NULL DEFAULT 0,
+    purchase_currency text NOT NULL DEFAULT '',
+    frame_effects text NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS precon_cards_deck_id ON precon_cards (deck_id)`,
+  `CREATE TABLE IF NOT EXISTS precon_harvest_meta (
+    id text PRIMARY KEY,
+    harvested_at text NOT NULL DEFAULT '',
+    source text NOT NULL DEFAULT 'mock',
+    mate_harvested_at text NOT NULL DEFAULT '',
+    mate_source text NOT NULL DEFAULT '',
+    mate_sets text NOT NULL DEFAULT '',
+    pm_fetched_at text NOT NULL DEFAULT '',
+    pm_error text NOT NULL DEFAULT ''
+  )`,
+  `CREATE TABLE IF NOT EXISTS precon_mate_offers (
+    mate_uuid text PRIMARY KEY,
+    name text NOT NULL,
+    set_code text NOT NULL DEFAULT '',
+    finish text NOT NULL DEFAULT '',
+    buy_price_cents integer NOT NULL,
+    credit_price_cents integer NOT NULL,
+    quantity integer NOT NULL,
+    normalised_name text NOT NULL,
+    collector_number text NOT NULL DEFAULT '',
+    image_url text NOT NULL DEFAULT '',
+    rarity text NOT NULL DEFAULT ''
+  )`,
+  `CREATE TABLE IF NOT EXISTS precon_pm_offers (
+    id text PRIMARY KEY,
+    scryfall_id text NOT NULL,
+    title text NOT NULL DEFAULT '',
+    finish text NOT NULL DEFAULT '',
+    credit_cents integer NOT NULL,
+    "limit" integer NOT NULL,
+    missing boolean NOT NULL DEFAULT false,
+    fetched_at text NOT NULL,
+    image_url text NOT NULL DEFAULT '',
+    set_name text NOT NULL DEFAULT ''
+  )`,
 ];
 
 type PgGlobal = {
@@ -279,9 +351,10 @@ export async function pgGetFeedback(): Promise<FeedbackRecord[]> {
   return rows as FeedbackRecord[];
 }
 
-export async function pgInsertFeedback(row: FeedbackRecord): Promise<void> {
-  const db = await getDb();
-  await db.insert(feedback).values(row);
+export async function pgInsertFeedback(_row: FeedbackRecord): Promise<void> {
+  throw new Error(
+    "feedback table is read-only (copy-forward only). Write kanban_ideas via upsertKanbanIdea.",
+  );
 }
 
 export async function pgDeleteFeedback(id: string): Promise<void> {
@@ -911,5 +984,298 @@ export async function pgMarkPlaymantisHarvestDiffLookedAt(ids: string[]): Promis
     .where(inArray(playmantisHarvestDiff.id, ids))
     .returning({ id: playmantisHarvestDiff.id });
   return updated.length;
+}
+
+const SHARED_HARVEST_ID = "shared";
+
+function framesToText(effects: string[] | undefined): string {
+  return (effects || []).filter(Boolean).join(",");
+}
+
+function framesFromText(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function deckRow(deck: PreconDeck) {
+  return {
+    id: deck.id,
+    name: deck.name,
+    productName: deck.productName || "",
+    year: deck.year || "",
+    setCode: deck.setCode || "",
+    releasedAt: deck.releasedAt || "",
+    faceCommander: deck.faceCommander || "",
+    source: deck.source,
+    sourceUrl: deck.sourceUrl || "",
+    createdAt: deck.createdAt,
+    lastHarvestedAt: deck.lastHarvestedAt || "",
+  };
+}
+
+function cardRows(deck: PreconDeck) {
+  return deck.rows.map((row, idx) => ({
+    id: `${deck.id}:${idx}`,
+    deckId: deck.id,
+    idx,
+    name: row.name,
+    setCode: row.setCode || "",
+    setName: row.setName || "",
+    collectorNumber: row.collectorNumber || "",
+    foil: row.foil,
+    quantity: row.quantity,
+    scryfallId: row.scryfallId || "",
+    rarity: row.rarity || "",
+    purchasePriceCents: row.purchasePriceCents || 0,
+    purchaseCurrency: row.purchaseCurrency || "",
+    frameEffects: framesToText(row.frameEffects),
+  }));
+}
+
+function cardToRow(row: typeof preconCards.$inferSelect): ManaBoxRow {
+  return {
+    name: row.name,
+    setCode: row.setCode,
+    setName: row.setName,
+    collectorNumber: row.collectorNumber,
+    foil: row.foil,
+    quantity: row.quantity,
+    scryfallId: row.scryfallId,
+    rarity: row.rarity,
+    purchasePriceCents: row.purchasePriceCents,
+    purchaseCurrency: row.purchaseCurrency,
+    frameEffects: framesFromText(row.frameEffects),
+  };
+}
+
+export async function pgGetPreconCatalog(): Promise<PreconCatalog> {
+  const db = await getDb();
+  const [decks, cards] = await Promise.all([db.select().from(preconDecks), db.select().from(preconCards)]);
+  const byDeck = new Map<string, ManaBoxRow[]>();
+  const sorted = [...cards].sort((a, b) => a.idx - b.idx);
+  for (const card of sorted) {
+    const list = byDeck.get(card.deckId) || [];
+    list.push(cardToRow(card));
+    byDeck.set(card.deckId, list);
+  }
+  return {
+    updatedAt: decks.map((deck) => deck.createdAt).sort().at(-1) || new Date().toISOString(),
+    decks: decks.map((deck) => ({
+      id: deck.id,
+      name: deck.name,
+      productName: deck.productName,
+      year: deck.year,
+      setCode: deck.setCode,
+      releasedAt: deck.releasedAt,
+      faceCommander: deck.faceCommander,
+      source: deck.source as PreconDeck["source"],
+      sourceUrl: deck.sourceUrl,
+      createdAt: deck.createdAt,
+      lastHarvestedAt: deck.lastHarvestedAt,
+      rows: byDeck.get(deck.id) || [],
+    })),
+  };
+}
+
+export async function pgUpsertPreconDecks(decks: PreconDeck[]): Promise<void> {
+  if (!decks.length) return;
+  const db = await getDb();
+  for (const deck of decks) {
+    await db
+      .insert(preconDecks)
+      .values(deckRow(deck))
+      .onConflictDoUpdate({
+        target: preconDecks.id,
+        set: {
+          name: deck.name,
+          productName: deck.productName || "",
+          year: deck.year || "",
+          setCode: deck.setCode || "",
+          releasedAt: deck.releasedAt || "",
+          faceCommander: deck.faceCommander || "",
+          source: deck.source,
+          sourceUrl: deck.sourceUrl || "",
+          lastHarvestedAt: deck.lastHarvestedAt || "",
+        },
+      });
+    await db.delete(preconCards).where(eq(preconCards.deckId, deck.id));
+    const rows = cardRows(deck);
+    if (rows.length) await db.insert(preconCards).values(rows);
+  }
+}
+
+export async function pgDeletePreconDecks(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const db = await getDb();
+  await db.delete(preconCards).where(inArray(preconCards.deckId, ids));
+  await db.delete(preconDecks).where(inArray(preconDecks.id, ids));
+}
+
+export async function pgSavePreconCatalog(catalog: PreconCatalog): Promise<void> {
+  const db = await getDb();
+  const existing = await db.select({ id: preconDecks.id }).from(preconDecks);
+  const keep = new Set(catalog.decks.map((deck) => deck.id));
+  const gone = existing.map((row) => row.id).filter((id) => !keep.has(id));
+  if (gone.length) {
+    await db.delete(preconCards).where(inArray(preconCards.deckId, gone));
+    await db.delete(preconDecks).where(inArray(preconDecks.id, gone));
+  }
+  await pgUpsertPreconDecks(catalog.decks);
+}
+
+export async function pgStampPreconHarvested(deckIds: string[], at: string): Promise<void> {
+  if (!deckIds.length) return;
+  const db = await getDb();
+  await db.update(preconDecks).set({ lastHarvestedAt: at }).where(inArray(preconDecks.id, deckIds));
+}
+
+function pmOfferId(offer: PlaymantisOffer): string {
+  return `${offer.scryfallId}|${offer.finish}`;
+}
+
+export async function pgGetPreconHarvestBook(): Promise<PreconHarvestBook> {
+  const db = await getDb();
+  const [metaRows, mateRows, pmRows] = await Promise.all([
+    db.select().from(preconHarvestMeta).where(eq(preconHarvestMeta.id, SHARED_HARVEST_ID)),
+    db.select().from(preconMateOffers),
+    db.select().from(preconPmOffers),
+  ]);
+  const meta = metaRows[0];
+  if (!meta) return emptyPreconHarvestBook();
+  const mateOffers: MateOffer[] = mateRows.map((row) => ({
+    mateUuid: row.mateUuid,
+    name: row.name,
+    setCode: row.setCode,
+    finish: row.finish,
+    buyPriceCents: row.buyPriceCents,
+    creditPriceCents: row.creditPriceCents,
+    quantity: row.quantity,
+    normalisedName: row.normalisedName,
+    collectorNumber: row.collectorNumber,
+    imageUrl: row.imageUrl,
+    rarity: row.rarity,
+  }));
+  const pmOffers: PlaymantisOffer[] = pmRows.map((row) => ({
+    scryfallId: row.scryfallId,
+    title: row.title,
+    finish: row.finish,
+    creditCents: row.creditCents,
+    limit: row.limit,
+    missing: row.missing,
+    fetchedAt: row.fetchedAt,
+    imageUrl: row.imageUrl,
+    setName: row.setName,
+  }));
+  return {
+    harvestedAt: meta.harvestedAt,
+    source: meta.source === "live" ? "live" : "mock",
+    mate: mateOffers.length
+      ? {
+          harvestedAt: meta.mateHarvestedAt || meta.harvestedAt,
+          source: meta.mateSource === "bookmarklet" ? "bookmarklet" : "upload",
+          sets: meta.mateSets ? meta.mateSets.split(",").filter(Boolean) : [],
+          offers: mateOffers,
+        }
+      : null,
+    playmantis: pmOffers.length
+      ? {
+          fetchedAt: meta.pmFetchedAt || meta.harvestedAt,
+          offers: pmOffers,
+          error: meta.pmError || undefined,
+        }
+      : null,
+  };
+}
+
+export async function pgSavePreconHarvestBook(book: PreconHarvestBook): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(preconHarvestMeta)
+    .values({
+      id: SHARED_HARVEST_ID,
+      harvestedAt: book.harvestedAt || "",
+      source: book.source || "mock",
+      mateHarvestedAt: book.mate?.harvestedAt || "",
+      mateSource: book.mate?.source || "",
+      mateSets: (book.mate?.sets || []).join(","),
+      pmFetchedAt: book.playmantis?.fetchedAt || "",
+      pmError: book.playmantis?.error || "",
+    })
+    .onConflictDoUpdate({
+      target: preconHarvestMeta.id,
+      set: {
+        harvestedAt: book.harvestedAt || "",
+        source: book.source || "mock",
+        mateHarvestedAt: book.mate?.harvestedAt || "",
+        mateSource: book.mate?.source || "",
+        mateSets: (book.mate?.sets || []).join(","),
+        pmFetchedAt: book.playmantis?.fetchedAt || "",
+        pmError: book.playmantis?.error || "",
+      },
+    });
+  for (const offer of book.mate?.offers || []) {
+    await db
+      .insert(preconMateOffers)
+      .values({
+        mateUuid: offer.mateUuid,
+        name: offer.name,
+        setCode: offer.setCode,
+        finish: offer.finish,
+        buyPriceCents: offer.buyPriceCents,
+        creditPriceCents: offer.creditPriceCents,
+        quantity: offer.quantity,
+        normalisedName: offer.normalisedName,
+        collectorNumber: offer.collectorNumber || "",
+        imageUrl: offer.imageUrl || "",
+        rarity: offer.rarity || "",
+      })
+      .onConflictDoUpdate({
+        target: preconMateOffers.mateUuid,
+        set: {
+          name: offer.name,
+          setCode: offer.setCode,
+          finish: offer.finish,
+          buyPriceCents: offer.buyPriceCents,
+          creditPriceCents: offer.creditPriceCents,
+          quantity: offer.quantity,
+          normalisedName: offer.normalisedName,
+          collectorNumber: offer.collectorNumber || "",
+          imageUrl: offer.imageUrl || "",
+          rarity: offer.rarity || "",
+        },
+      });
+  }
+  for (const offer of book.playmantis?.offers || []) {
+    await db
+      .insert(preconPmOffers)
+      .values({
+        id: pmOfferId(offer),
+        scryfallId: offer.scryfallId,
+        title: offer.title || "",
+        finish: offer.finish,
+        creditCents: offer.creditCents,
+        limit: offer.limit,
+        missing: offer.missing || false,
+        fetchedAt: offer.fetchedAt,
+        imageUrl: offer.imageUrl || "",
+        setName: offer.setName || "",
+      })
+      .onConflictDoUpdate({
+        target: preconPmOffers.id,
+        set: {
+          scryfallId: offer.scryfallId,
+          title: offer.title || "",
+          finish: offer.finish,
+          creditCents: offer.creditCents,
+          limit: offer.limit,
+          missing: offer.missing || false,
+          fetchedAt: offer.fetchedAt,
+          imageUrl: offer.imageUrl || "",
+          setName: offer.setName || "",
+        },
+      });
+  }
 }
 

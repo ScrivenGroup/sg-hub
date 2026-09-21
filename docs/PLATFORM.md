@@ -27,20 +27,21 @@ Do **not** start Vite, CRA, a second Next app, or a parallel theme/design system
 Login → Home
   ├── Work         /w     client-context (org only, no client logins)
   ├── Projects     /p     personal / spin-out capable
-  ├── Development  /d     suite (Inbox, board, changelog, notes, design spec)
+  ├── Development  /d     hub of suite cards (Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Design spec)
   ├── Internal     /i     leftover tools (`/i/dev-choices`, `/i/testing`)
   └── System       /s     Definition + Appearance + Standards
 ```
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.
 
-The wrapping website is **the hub** (this app — the building, not a room). Persistent header is **chrome**. The five floors are **Hubs**. Each named place on a floor is a **card** (registry node: sub-hub or tool). Development `/d` is a Hub that **is** the suite (no child cards). Login → Home → Hubs → cards is **the site map**. Product interiors sit *inside* a card and are not the wrapping hub.
+The wrapping website is **the hub** (this app — the building, not a room). Persistent header is **chrome**. The five floors are **Hubs**. Each named place on a floor is a **card** (registry node: sub-hub or tool). Development `/d` is a Hub whose cards are the suite rooms (Layout 1). Product leaves keep Development as an L1 tab (Layout 2). Login → Home → Hubs → cards is **the site map**. Product interiors sit *inside* a card and are not the wrapping hub.
 
 Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`](./hub-atlas.html).
 
 ## Chrome and UI
 
-- Global shell: [`AppShell`](../src/core/shell/AppShell.tsx) — Home, Site network, Feedback, Profile.
+- Global shell: [`AppShell`](../src/core/shell/AppShell.tsx) — Train version (link to Train Changelog; Hotfix chip only on hotfix zips), Home, Site network, Feedback, Profile.
+- Two clocks (`dc-versioning`): Train is `vX.Y` → `/d/train-changelog`; leaf and SG Hub are always `X.Y.Z`. Details: [`docs/GIT_AND_RELEASE.md`](./GIT_AND_RELEASE.md).
 - Page trail: [`PageNav`](../src/core/shell/PageNav.tsx) (Back + breadcrumbs).
 - Sketched products: [`SubHubShell`](../src/core/shell/SubHubShell.tsx) + changelog plan — no fake feature UI while `sketched`.
 - Tokens: System → Appearance (`--ink`, `--page`, surfaces, Manrope). Hex codes colour the **badge only** unless an explicit ThemeContract override is added for that sub-hub.
@@ -57,7 +58,7 @@ Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`
 
 ## Data
 
-- **Now:** Simple stores can use Neon/Postgres when `DATABASE_URL` is set (`feedback`, `ideas`, `notes`, `changelogs`, `dependencies`, `dev_choices` via [`src/core/store/json-store.ts`](../src/core/store/json-store.ts)). **MRT live plan** is relational rows (`mrt_plan` + catalog/maps/occurrences/hours) assembled into `getSunwaterMrtStore`; **guest share door** is `mrt_share` rows. Same URL via [`json-store`](../src/core/store/json-store.ts) / [`mrt-share`](../src/core/store/mrt-share.ts). **Kanban Online** is Postgres **rows** (`kanban_ideas`, `kanban_tickets`, `kanban_meta`) with a `node_id` leaf tag — not one JSONB blob per leaf. No URL → JSON files under `data/` that **mirror the same columns**. Sandboxes, guest activity, and mtg-buylist **product** cache stay JSON. Zip/standalone excludes `data/`. The `< 20 dams` rewrite never runs on Postgres reads.
+- **Now:** Simple stores can use Neon/Postgres when `DATABASE_URL` is set (`feedback`, `ideas`, `notes`, `changelogs`, `dependencies`, `dev_choices` via [`src/core/store/json-store.ts`](../src/core/store/json-store.ts)). **MRT live plan** is relational rows (`mrt_plan` + catalog/maps/occurrences/hours) assembled into `getSunwaterMrtStore`; **guest share door** is `mrt_share` rows. Same URL via [`json-store`](../src/core/store/json-store.ts) / [`mrt-share`](../src/core/store/mrt-share.ts). **Kanban Online** is Postgres **rows** (`kanban_ideas`, `kanban_tickets`, `kanban_meta`) with a `node_id` leaf tag — not one JSONB blob per leaf. No URL → JSON files under `data/` that **mirror the same columns**. Sandboxes, guest activity, and mtg-buylist **Run session** cache stay JSON. Decks catalog + shared harvest book are Neon rows (`precon_decks` / `precon_cards` / `precon_*_offers`) when `DATABASE_URL` is set. Zip/standalone excludes `data/`. The `< 20 dams` rewrite never runs on Postgres reads.
 - **Later:** MRT guest sandbox + activity on Postgres (`docs/NEON_CUTOVER.md` pass 2). Live zip-deploy of this wiring is a separate “make it live” ticket. Simple-store wwwroot migrate still follow-up.
 - Temp/demo/dummy data must use the **same** types, store patterns, and routes so it can graduate without a rewrite.
 
@@ -84,7 +85,7 @@ npm run deploy:azure
 
 ## Feedback → housekeeping
 
-Open bugs/housekeeping: chrome Feedback writes Development Inbox (`/d?tab=inbox`). Inspect: `scripts/inspect-neon-inbox.ts`. See [`docs/FEEDBACK.md`](./FEEDBACK.md) and `.cursor/rules/feedback-register.mdc`.
+Open bugs/housekeeping: chrome Feedback writes Development Inbox (`/d/inbox`). Inspect: `scripts/inspect-neon-inbox.ts`. See [`docs/FEEDBACK.md`](./FEEDBACK.md) and `.cursor/rules/feedback-register.mdc`.
 
 ## Development choices
 

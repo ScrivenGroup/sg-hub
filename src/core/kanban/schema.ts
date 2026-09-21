@@ -16,6 +16,9 @@ export const KANBAN_LANES = KANBAN_CATEGORIES;
 export const KANBAN_COLUMNS = ["later", "open", "done", "archived"] as const;
 export type KanbanColumn = (typeof KANBAN_COLUMNS)[number];
 
+/** Default board buckets (kt-kanban-column-filter). */
+export const DEFAULT_VISIBLE_COLUMNS: KanbanColumn[] = ["later", "open"];
+
 export const KANBAN_VISIBLE_COLUMNS = ["later", "open", "done"] as const;
 
 export const INBOX_STATUSES = ["open", "archived"] as const;
