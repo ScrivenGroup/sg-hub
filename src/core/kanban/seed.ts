@@ -867,35 +867,28 @@ Train history: kt-train-changelog. Combine/relabel: kt-sg-hub-changelog. Column 
     id: "kt-leaf-dev-tabs",
     nodeId: "global",
     title: "Leaf Development Layout 2 — tabs Inbox / Kanban / Changelog / Notes",
-    body: `sourceIdeaId IN-20260921-01. Ask 1. This is the template every new leaf still gets.
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost with kt-kanban-column-filter.
 
-Layout 2: Development is an L1 tab (not a hub). L2 tabs (not cards): Inbox, Kanban, Changelog (this leaf only), Notes. No Train, no SG Hub Changelog, no Design spec.
-
-Kanban L2 uses the same column checkbox filter as the hub (kt-kanban-column-filter).
-
-Today KanbanOnlineHost is already close. Delta: shared filter, changelog clearly this-leaf-only, do not grow hub-only cards onto leaves.
-
-Blocked on / alongside kt-dev-hub-cards so the two layouts do not drift.`,
+Layout 2: Development is an L1 tab. L2 tabs: Inbox, Kanban, Changelog (this leaf only), Notes. No Train, no SG Hub Changelog, no Design spec.
+Shared Kanban checkbox filter is kt-kanban-column-filter.`,
     lane: "structure",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T04:08:00.000Z",
   },
   {
     id: "kt-kanban-column-filter",
     nodeId: "global",
     title: "Kanban column checkboxes (default Later+Open)",
-    body: `sourceIdeaId IN-20260921-01. Shared by Layout 1 Kanban card and Layout 2 Kanban tab.
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost with kt-leaf-dev-tabs.
 
-A filter row above the buckets: checkbox per column (Later, Open, Done, Archived) plus show-all / hide-all. Default: Later and Open checked.
-
-Replace the current tab-style column filters (Later+Open, Open+Done, …) with this. Same behaviour on hub and leaf hosts.`,
+Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) plus All (show-all / hide-all). Default Later and Open. Same on /d/kanban and leaf Kanban.`,
     lane: "experience",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T04:08:00.000Z",
   },
   {
     id: "kt-sg-hub-changelog",

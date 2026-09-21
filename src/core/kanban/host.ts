@@ -1,26 +1,21 @@
-import { COLUMN_FILTERS, type ColumnFilterId } from "./schema";
+import { COLUMN_FILTERS } from "./schema";
 
 export type DevHostKind = "live" | "localhost" | "other";
 
-export type DevTab = "changelog" | "notes" | "inbox" | "spec" | ColumnFilterId;
+export type DevTab = "changelog" | "notes" | "inbox" | "spec" | "kanban";
 
 const COLUMN_IDS = new Set<string>(COLUMN_FILTERS.map((f) => f.id));
 
-export function isBoardDevTab(tab: DevTab): tab is ColumnFilterId {
-  return COLUMN_IDS.has(tab);
+export function isBoardDevTab(tab: DevTab): boolean {
+  return tab === "kanban";
 }
 
 export function parseDevTab(raw: string | undefined): DevTab {
-  if (
-    raw === "notes" ||
-    raw === "changelog" ||
-    raw === "inbox" ||
-    raw === "spec"
-  ) {
+  if (raw === "notes" || raw === "changelog" || raw === "inbox" || raw === "kanban") {
     return raw;
   }
-  if (raw === "kanban") return "all";
-  if (raw && COLUMN_IDS.has(raw)) return raw as ColumnFilterId;
+  if (raw === "spec") return "changelog";
+  if (raw && COLUMN_IDS.has(raw)) return "kanban";
   return "changelog";
 }
 

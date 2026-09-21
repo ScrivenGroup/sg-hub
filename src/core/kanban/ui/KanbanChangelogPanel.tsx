@@ -41,7 +41,13 @@ function groupByMilestone(rows: ChangelogEntry[]): MilestoneGroup[] {
 }
 
 /** Later hub Changelog register reads the same `changelogs` store by nodeId / all nodes. */
-export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntry[] }) {
+export function KanbanChangelogPanel({
+  changelogs,
+  leafOnly = false,
+}: {
+  changelogs: ChangelogEntry[];
+  leafOnly?: boolean;
+}) {
   const rows = useMemo(
     () =>
       [...changelogs]
@@ -72,6 +78,9 @@ export function KanbanChangelogPanel({ changelogs }: { changelogs: ChangelogEntr
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           Versions
         </h2>
+        {leafOnly ? (
+          <p className="mb-2 text-xs text-[var(--muted)]">This leaf only.</p>
+        ) : null}
         {rows.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No version rows yet.</p>
         ) : (

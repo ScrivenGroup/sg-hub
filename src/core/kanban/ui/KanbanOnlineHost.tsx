@@ -6,34 +6,30 @@ import type { DevHostKind } from "../host";
 import { leafOptionsWithRows, type KanbanLeafOption } from "../leaves";
 import {
   CATEGORY_LABELS,
+  COLUMN_FILTERS,
   INBOX_KIND_LABELS,
   INBOX_KINDS,
   KANBAN_CATEGORIES,
   KANBAN_GLOBAL_NODE_ID,
-  type ColumnFilterId,
   type InboxKind,
   type KanbanBoard as KanbanBoardData,
   type KanbanCategory,
+  type KanbanColumn,
 } from "../schema";
 import { KANBAN_CHROME } from "../chrome";
 import { type SortKey } from "./bits";
 import { InboxPanel } from "./InboxPanel";
 import { KanbanBoard, type LayoutMode } from "./KanbanBoard";
 import { KanbanChangelogPanel } from "./KanbanChangelogPanel";
+import { KanbanColumnFilter, defaultVisibleColumns } from "./KanbanColumnFilter";
 import { KanbanDesignSpec } from "./KanbanDesignSpec";
 import { KanbanNotesPanel } from "./KanbanNotesPanel";
 import { RaiseIdeaButton } from "./RaiseIdeaButton";
 
 export type KanbanOnlineScope = "all" | "leaf";
 export type KanbanOnlinePanel = "inbox" | "kanban";
-export type KanbanOnlineStart =
-  | "inbox"
-  | "kanban"
-  | "changelog"
-  | "notes"
-  | "spec"
-  | ColumnFilterId;
-export type ChromeTab = "inbox" | "changelog" | "notes" | "spec" | ColumnFilterId;
+export type ChromeTab = "inbox" | "kanban" | "changelog" | "notes" | "spec";
+export type KanbanOnlineStart = ChromeTab | (typeof COLUMN_FILTERS)[number]["id"];
 
 const chromeSelect =
   "min-h-8 h-8 w-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs font-medium normal-case tracking-normal text-[var(--ink)]";
@@ -61,25 +57,19 @@ function layoutToggleClass(on: boolean) {
 function initialChromeTab(
   panel?: KanbanOnlinePanel,
   initialTab?: KanbanOnlineStart,
+  showDesignSpec = false,
 ): ChromeTab {
   const start = panel ?? initialTab ?? "inbox";
-  if (start === "kanban") return "all";
   if (start === "changelog") return "changelog";
   if (start === "notes") return "notes";
-  if (start === "spec") return "spec";
+  if (start === "spec") return showDesignSpec ? "spec" : "changelog";
   if (start === "inbox") return "inbox";
-  if (KANBAN_CHROME.labels.boardFilters.some((f) => f.id === start)) {
-    return start;
-  }
+  if (start === "kanban" || COLUMN_FILTERS.some((f) => f.id === start)) return "kanban";
   return "inbox";
 }
 
 function urlTabFor(next: ChromeTab): string {
-  if (next === "inbox") return "inbox";
-  if (next === "changelog") return "changelog";
-  if (next === "notes") return "notes";
-  if (next === "spec") return "spec";
-  return "kanban";
+  return next;
 }
 
 export function KanbanOnlineHost({
@@ -101,7 +91,7 @@ export function KanbanOnlineHost({
   hideRaise = true,
   forcedTab,
   notes = "",
-  showDesignSpec = true,
+  showDesignSpec = false,
   onSaveNotes,
 }: {
   board: KanbanBoardData;
@@ -116,7 +106,7 @@ export function KanbanOnlineHost({
   defaultTagNodeId: string;
   panel?: KanbanOnlinePanel;
   showTabs?: boolean;
-  /** suite = leaf Layout 2. board = hub Kanban card filters. none = a single room. */
+  /** suite = leaf Layout 2 tabs. none = a single hub room. board is treated as none. */
   tabSet?: "suite" | "board" | "none";
   hideRaise?: boolean;
   forcedTab?: ChromeTab;
@@ -126,14 +116,16 @@ export function KanbanOnlineHost({
   showDesignSpec?: boolean;
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const resolvedTabSet = tabSet ?? (showTabs ? "suite" : "none");
+  const resolvedTabSet =
+    tabSet === "board" ? "none" : (tabSet ?? (showTabs ? "suite" : "none"));
   const [chromeTabState, setChromeTab] = useState<ChromeTab>(() =>
-    initialChromeTab(panel, initialTab),
+    initialChromeTab(panel, initialTab, showDesignSpec),
   );
   const chromeTab = forcedTab ?? chromeTabState;
   const [leafFilter, setLeafFilter] = useState(scope === "all" ? "all" : nodeId);
   const [layout, setLayout] = useState<LayoutMode>("columns");
   const [categoryFilter, setCategoryFilter] = useState<KanbanCategory | "all">("all");
+  const [visibleColumns, setVisibleColumns] = useState<KanbanColumn[]>(defaultVisibleColumns);
   const [boardMoreOpen, setBoardMoreOpen] = useState(false);
   const [inboxSort, setInboxSort] = useState<SortKey>("date-desc");
   const [inboxKind, setInboxKind] = useState<"all" | InboxKind>(() =>
@@ -146,8 +138,7 @@ export function KanbanOnlineHost({
   const changelogOn = chromeTab === "changelog";
   const notesOn = chromeTab === "notes";
   const specOn = chromeTab === "spec";
-  const boardOn = !inboxOn && !changelogOn && !notesOn && !specOn;
-  const columnFilter: ColumnFilterId = boardOn ? chromeTab : "all";
+  const boardOn = chromeTab === "kanban";
   const filtered = useMemo(
     () => (scope === "all" ? filterBoard(board, leafFilter) : board),
     [board, leafFilter, scope],
@@ -186,7 +177,7 @@ export function KanbanOnlineHost({
       return;
     }
     if (panel === "kanban") {
-      setChromeTab((prev) => (prev === "inbox" || prev === "changelog" ? "all" : prev));
+      setChromeTab("kanban");
     }
   }, [panel, forcedTab]);
 
@@ -220,18 +211,17 @@ export function KanbanOnlineHost({
                 {openInbox > 0 ? ` (${openInbox})` : ""}
               </button>
             ) : null}
-            {KANBAN_CHROME.labels.boardFilters.map((f) => (
+            {resolvedTabSet === "suite" ? (
               <button
-                key={f.id}
                 type="button"
                 role="tab"
-                aria-selected={boardOn && chromeTab === f.id}
+                aria-selected={boardOn}
                 className="sg-tab"
-                onClick={() => selectChrome(f.id)}
+                onClick={() => selectChrome("kanban")}
               >
-                {f.label}
+                {KANBAN_CHROME.labels.kanban}
               </button>
-            ))}
+            ) : null}
             {resolvedTabSet === "suite" && showChangelogTab ? (
               <button
                 type="button"
@@ -445,7 +435,10 @@ export function KanbanOnlineHost({
         </div>
       ) : changelogOn ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <KanbanChangelogPanel changelogs={changelogs ?? []} />
+          <KanbanChangelogPanel
+            changelogs={changelogs ?? []}
+            leafOnly={scope === "leaf"}
+          />
         </div>
       ) : notesOn ? (
         <KanbanNotesPanel
@@ -457,7 +450,8 @@ export function KanbanOnlineHost({
       ) : specOn ? (
         <KanbanDesignSpec />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <KanbanColumnFilter visible={visibleColumns} onChange={setVisibleColumns} />
           <KanbanBoard
             board={filtered}
             nodeId={actionNodeId}
@@ -467,7 +461,7 @@ export function KanbanOnlineHost({
             hostKind={hostKind}
             leafOptions={leafOptions}
             showLeafTag={showLeafTag}
-            columnFilter={columnFilter}
+            visibleColumns={visibleColumns}
             layout={layout}
             categoryFilter={categoryFilter}
             moreOpen={boardMoreOpen}

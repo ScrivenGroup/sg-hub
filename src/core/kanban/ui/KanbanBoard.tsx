@@ -21,10 +21,8 @@ import {
   CATEGORY_BADGE,
   CATEGORY_LABELS,
   COLUMN_ACCENT,
-  COLUMN_FILTERS,
   COLUMN_LABELS,
   KANBAN_CATEGORIES,
-  type ColumnFilterId,
   type KanbanBoard,
   type KanbanCategory,
   type KanbanColumn,
@@ -61,7 +59,7 @@ export function KanbanBoard({
   hostKind,
   leafOptions,
   showLeafTag = false,
-  columnFilter,
+  visibleColumns,
   layout,
   categoryFilter,
   moreOpen,
@@ -75,7 +73,7 @@ export function KanbanBoard({
   hostKind: DevHostKind;
   leafOptions: KanbanLeafOption[];
   showLeafTag?: boolean;
-  columnFilter: ColumnFilterId;
+  visibleColumns: KanbanColumn[];
   layout: LayoutMode;
   categoryFilter: KanbanCategory | "all";
   moreOpen: boolean;
@@ -96,15 +94,13 @@ export function KanbanBoard({
   const showPresence = hostKind === "localhost";
   const categories = board.lanes.length ? board.lanes : [...KANBAN_CATEGORIES];
 
-  const filterSpec =
-    COLUMN_FILTERS.find((f) => f.id === columnFilter) || COLUMN_FILTERS[0];
   const visibleCols: KanbanColumn[] = focusCol
     ? [focusCol as KanbanColumn]
-    : [...filterSpec.columns];
+    : visibleColumns;
 
   useEffect(() => {
     setFocusCol(null);
-  }, [columnFilter]);
+  }, [visibleColumns]);
 
   const ticketsForCategory = useMemo(() => {
     return board.tickets.filter((t) =>
@@ -244,7 +240,9 @@ export function KanbanBoard({
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {flash ? <p className="shrink-0 text-sm text-[var(--muted)]">{flash}</p> : null}
 
-      {layout === "columns" || focusCol ? (
+      {visibleCols.length === 0 ? (
+        <p className="text-sm text-[var(--muted)]">none</p>
+      ) : layout === "columns" || focusCol ? (
         <div
           className={`grid min-h-0 flex-1 items-stretch gap-3 ${colCountClass}`}
           style={{ "--kanban-cols": String(visibleCols.length) } as CSSProperties}

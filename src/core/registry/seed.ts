@@ -1788,6 +1788,19 @@ Out of this version
 - Product leaves keep Layout 2 tabs (kt-leaf-dev-tabs).`,
   },
   {
+    id: "cl-dev-hub-0.2.6",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.6",
+    createdAt: "2026-09-21T04:08:00.000Z",
+    title: "0.2.6 — Leaf Development tabs + Kanban column checkboxes (localhost)",
+    body: `Development 0.2.6. Localhost until the next hub train. Tickets kt-leaf-dev-tabs, kt-kanban-column-filter.
+
+- Layout 2: leaf Development L2 is Inbox, Kanban, Changelog (this leaf), Notes. Design spec stays a hub card.
+- Kanban (hub card and leaf tab): checkbox row above the buckets. Default Later + Open. All shows or hides every column.
+- Old Later+Open / All Kanban tabs are gone. Old ?tab=later-open URLs still open Kanban.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",

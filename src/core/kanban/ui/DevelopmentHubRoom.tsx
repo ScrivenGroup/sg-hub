@@ -44,7 +44,7 @@ const PANEL_HOST: Record<
   },
   kanban: {
     initialTab: "kanban",
-    tabSet: "board",
+    tabSet: "none",
     showDesignSpec: false,
     passChangelogs: false,
   },
