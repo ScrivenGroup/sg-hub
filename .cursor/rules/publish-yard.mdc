@@ -12,6 +12,6 @@ Read [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md) before commit, push, o
 - **Station** takes finished blocks (ff-merge the named `wip/<leaf>` when asked). Sweep. Make it live when asked. Do not produce product interiors on station.
 - **Station** = `dev_main` (keep it clean). **Live lane** = `main` (most behind; matches Azure after make it live). **Save-slot** = `wip/<leaf>`. **Locker** = GitHub `ScrivenGroup/sg-hub`. **Shop window** = Azure `app-scrivengroup`.
 - One chat = one desk. `move_agent_to_root` to that worktree before disk. Do not `git init` in a leaf.
-- Preview on **this desk’s port**. Station is `:3000`. WIP desks are `:3001+`. `AUTH_URL` in that desk’s `.env.local` must match. Do not copy station `AUTH_URL` onto a wip desk. Do not send the user to `localhost:3000` from a `wip/` chat.
+- Preview on **this desk’s port**. Station is `:3000`. WIP desks are `:3001+`. `AUTH_URL` in that desk’s `.env.local` must match. Set `WIP_DESK` (e.g. `wip-hub`) so chrome shows a yellow badge. Station and Azure omit `WIP_DESK`. Do not copy station `AUTH_URL` onto a wip desk. Do not send the user to `localhost:3000` from a `wip/` chat.
 - Never zip-deploy from a wip desk. Publish only after merge to `dev_main` and a spoken **make it live**.
 - Push / merge `dev_main` is **not** live. **Make it live** = fast-forward `main` to `dev_main`, then tag `hub-*`/`v*` or GitHub **Run workflow**. Hand zip from the station desk is fallback.

@@ -29,6 +29,13 @@ export function BehavioursTab() {
           <p className="text-sm font-medium">Guest</p>
           <p className="text-sm text-[var(--muted)]">Hide chrome. Do not disable-in-place.</p>
         </div>
+        <div className="sg-card space-y-2">
+          <p className="text-sm font-medium">Route loading</p>
+          <p className="text-sm text-[var(--muted)]">
+            Never replace the page with a blank spinner. Veil the current view:
+            translucent overlay, chrome stays. Ticket kt-route-loading-veil.
+          </p>
+        </div>
       </div>
     </div>
   );

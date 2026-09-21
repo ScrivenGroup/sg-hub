@@ -120,6 +120,11 @@ export function DesignSuite({ choices }: { choices: StandardsChoices }) {
                     Ghost
                   </button>
                 </KitItem>
+                <KitItem title="Action" use="sg-btn-action">
+                  <button type="button" className="sg-btn-action">
+                    Open Inbox
+                  </button>
+                </KitItem>
               </>
             )}
             {offOnly && !offIds.has("obj-btn-destructive") ? null : (

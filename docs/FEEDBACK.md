@@ -1,7 +1,7 @@
 # Feedback feature (agent notes)
 
 ## User-facing
-- **Any authenticated page:** Feedback in header (desktop) or floating button (mobile/tablet). Raise-style popup (type, title, details, leaf tag, attachments).
+- **Any authenticated page:** Feedback in header (desktop) or floating button (mobile/tablet). Raise-style popup (type, title, details, leaf tag, attachments). **Open Inbox** in that popup goes to the register (`/d/inbox`).
 - **Register:** Development Inbox (`/d/inbox`). Ideas/Feedback is a Development hub card.
 - Types: bug | idea | housekeeping | other.
 

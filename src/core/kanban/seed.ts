@@ -697,25 +697,22 @@ Card: hub (app-scrivengroup) is owned by Cursor; do not zip-deploy the hub from 
     id: "kt-git-three-lane",
     nodeId: "global",
     title: "Git race: live lane vs station vs wip desks",
-    body: `Yard sitting. Bake-in A locked 2026-09-09. Branch name: **dev_main** (not main_dev).
+    body: `Yard sitting. Bake-in A locked 2026-09-09. Two-role desks locked 2026-09-21. Branch name: **dev_main**.
 
-Lanes (after the rename sitting — parked until Bill says go on that plan)
-- main = Azure live (shop window), always most behind.
-- dev_main = station / QA combination, folder scrivengroup, localhost:3000.
-- wip/<leaf> = per-leaf desks, ahead of both.
+Lanes:
+- main = live git lane (shop window after make-it-live), always most behind.
+- dev_main = station, folder scrivengroup, localhost:3000.
+- wip/<leaf> = desks, :3001+. WIP_DESK yellow chrome badge; station and Azure omit it.
 
 Make it live = fast-forward main to dev_main and zip (tag hub-* / v* or GitHub Run workflow).
+Commit / handover = save-slot only. Merge to station is spoken on the station desk.
 
-2026-09-09 catch-up: wip/kanban merged to station main and published (Kanban 0.2 / hub 1.6) so live, locker main, and the kanban desk match. wip/buylist ignored.
-
-Still: one locker ScrivenGroup/sg-hub; never zip from a wip desk; commit ≠ merge ≠ live.
-
-Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc.`,
+Canon: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, .cursor/rules/publish-yard.mdc.`,
     lane: "platform",
-    column: "open",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-09T00:00:00.000Z",
-    updatedAt: "2026-09-09T00:00:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
   },
   {
     id: "kt-inbox-unify-schema",
@@ -849,16 +846,15 @@ Homes exist. Process locked in docs/DEV_CHOICES.md (dc-versioning), docs/GIT_AND
     id: "kt-dev-hub-cards",
     nodeId: "global",
     title: "Development hub Layout 1 — cards, not a tab strip",
-    body: `sourceIdeaId IN-20260921-01. Shipped on localhost 0.2.5. Live after make it live.
+    body: `sourceIdeaId IN-20260921-01. Shipped as SG Hub 0.2.5; Train and SG Hub Changelog filled in 0.2.7–0.2.9.
 
-Layout 1 (only /d). Cards: Ideas/Feedback, Kanban, Train Changelog (sketched), SG Hub Changelog, Notes, Development Design Spec.
-Old /d?tab= URLs redirect. Leaf template stays Layout 2 (kt-leaf-dev-tabs).
-Train history: kt-train-changelog. Combine/relabel: kt-sg-hub-changelog. Column checkboxes: kt-kanban-column-filter.`,
+Layout 1 (only /d). Cards: Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Development Design Spec.
+Old /d?tab= URLs redirect. Leaf template stays Layout 2 (kt-leaf-dev-tabs).`,
     lane: "structure",
     column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T03:12:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
   },
   {
     id: "kt-leaf-dev-tabs",
@@ -937,12 +933,55 @@ Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) 
     id: "kt-feedback-open-register",
     nodeId: "global",
     title: "Feedback popup shortcut to open register",
-    body: "sourceIdeaId IN-20260917-03. Workshop with Wave 2. Button/link in the Feedback popup to /d/inbox.",
+    body: `sourceIdeaId IN-20260917-03. Shipped as SG Hub 0.2.11; footer polish 0.2.12.
+
+Feedback popup: Save primary, Cancel bordered secondary, Open Inbox right-aligned sg-btn-action (amber). Always shown. Goes to /d/inbox.`,
     lane: "experience",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260917-03",
     createdAt: "2026-09-21T00:30:00.000Z",
-    updatedAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T10:40:00.000Z",
+  },
+  {
+    id: "kt-wip-desk-badge",
+    nodeId: "global",
+    title: "WIP desk yellow badge in chrome",
+    body: `Ad-hoc 2026-09-21. Shipped as SG Hub 0.2.12.
+
+WIP_DESK in that desk’s .env.local (e.g. wip-hub). Yellow development badge in AppShell and login. Station and Azure omit the var. Docs: docs/YARD_DESKS.md.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: null,
+    createdAt: "2026-09-21T10:40:00.000Z",
+    updatedAt: "2026-09-21T10:40:00.000Z",
+  },
+  {
+    id: "kt-route-loading-veil",
+    nodeId: "global",
+    title: "Route loading is a translucent veil, not a blank page",
+    body: `Ad-hoc 2026-09-21. Pick up in another session. Behaviour is written on /s/standards?tab=behaviours (Route loading). Supersedes kt-hub-page-loading (archived). sourceIdeaId fb-mtuwhdnu.
+
+Clicked Open Inbox: delay, then the whole page was replaced by a blank screen and a centred spinner (src/app/loading.tsx → UiLoadingScreen). Prefer the current view to stay, partially hidden by a translucent overlay. Chrome must not disappear.
+
+Do not use the opaque full-page replace. UiLoadingOverlay is closer; loading.tsx still blanks the route. Same for leaf loading.tsx copies. Click-immediate chrome (PendingNavLink) can ride the same sitting.`,
+    lane: "experience",
+    column: "later",
+    sourceIdeaId: "fb-mtuwhdnu",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
+  },
+  {
+    id: "kt-hub-page-loading",
+    nodeId: "global",
+    title: "Add loading indicators to all pages in ScrivenGroup Hub",
+    body: `Superseded 2026-09-21 by kt-route-loading-veil. sourceIdeaId fb-mtuwhdnu.
+
+Original ask: every hub page shows loading feedback as soon as the user clicks; reuse one chrome pattern, not a spinner per leaf. The locked behaviour is a translucent veil, not a blank loading.tsx.`,
+    lane: "experience",
+    column: "archived",
+    sourceIdeaId: "fb-mtuwhdnu",
+    createdAt: "2026-09-18T00:00:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
   },
 ];
 
@@ -1188,6 +1227,7 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-changelog-expand",
   "kt-buylist-1.5-wrap",
   "kt-publish-gha",
+  "kt-git-three-lane",
   "kt-yard-wip-not-station",
   "kt-yard-no-pull-station-mu56iw2h",
   "kt-feedback-hub-tags",
@@ -1201,6 +1241,9 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-train-chrome",
   "kt-train-changelog",
   "kt-feedback-open-register",
+  "kt-wip-desk-badge",
+  "kt-route-loading-veil",
+  "kt-hub-page-loading",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

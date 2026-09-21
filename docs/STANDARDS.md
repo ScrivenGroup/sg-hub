@@ -17,8 +17,9 @@ When Bill says “refer standards; if it isn’t the default, drop a note to be 
 ## Kit
 
 - Hex code → **badge colour only**; SG theme default; ThemeContract opt-in per sub-hub
-- Chrome: Home, Site network, **Feedback** (one register), Profile, `PageNav`
-- Starting UI kit: `sg-card`, `sg-btn-primary` / `secondary` / `ghost`, `sg-input`, `sg-tab`, tokens in `globals.css`
+- Chrome: Home, Site network, **Feedback** (one register), Profile, `PageNav`. Localhost WIP desks also show a yellow `WIP_DESK` badge (e.g. `wip-hub`); station and Azure omit it.
+- Starting UI kit: `sg-card`, `sg-btn-primary` / `secondary` / `ghost` / `action`, `sg-input`, `sg-tab`, tokens in `globals.css`
+- Route loading: never blank-replace the page with a spinner. Veil the current view (translucent overlay, chrome stays). Ticket `kt-route-loading-veil`.
 - Use the **named** object (`sg-btn-primary`), not a one-off colour
 - Framing: featureless shell + changelog plan; no fake features while `sketched`
 - Maps update via registry when topology changes (Site network = fast travel)

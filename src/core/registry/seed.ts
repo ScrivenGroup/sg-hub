@@ -1853,6 +1853,30 @@ Out of this version
 - Locked in docs/DEV_CHOICES.md, docs/GIT_AND_RELEASE.md, and /i/dev-choices.`,
   },
   {
+    id: "cl-dev-hub-0.2.11",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.11",
+    createdAt: "2026-09-21T10:20:00.000Z",
+    title: "0.2.11 — Open Inbox in the Feedback popup (localhost)",
+    body: `SG Hub suite 0.2.11. Localhost until the next Train zip. Ticket kt-feedback-open-register.
+
+- Feedback popup footer has Open Inbox. Goes to /d/inbox. Always shown, not only after save.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.12",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.12",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    title: "0.2.12 — WIP desk badge + Feedback actions (desk wrap)",
+    body: `SG Hub suite 0.2.12. This save-slot is ready for station. Train stays v1.14 until make-it-live.
+
+- WIP_DESK in .env.local shows a yellow wip-hub (etc.) badge in chrome and on login. Station/Azure omit it.
+- Feedback footer: Cancel is bordered secondary. Open Inbox is right-aligned sg-btn-action.
+- Route loading veil is ticket kt-route-loading-veil (Later). Behaviour card is on Standards.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",

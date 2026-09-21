@@ -150,6 +150,25 @@ html[data-sg-primary="border"] .sg-btn-primary {
   background: var(--surface-muted);
 }
 
+.sg-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--sg-btn-height);
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--rag-amber) 55%, var(--ink));
+  background: color-mix(in srgb, var(--rag-amber) 28%, var(--surface));
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--sg-btn-font);
+  cursor: pointer;
+}
+
+.sg-btn-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rag-amber) 42%, var(--surface));
+}
+
 .sg-card {
   display: block;
   border: 1px solid var(--border);

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth, authFlags, signIn } from "@/auth";
+import { WipDeskBadge } from "@/core/shell/WipDeskBadge";
 
 export default async function LoginPage() {
   const session = await auth();
@@ -23,6 +24,9 @@ export default async function LoginPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
             Scriven Group
           </h1>
+          <div className="mt-2">
+            <WipDeskBadge />
+          </div>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Plain. Professional. Consistent.
           </p>
