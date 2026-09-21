@@ -7,6 +7,10 @@ import { headers } from "next/headers";
 import { auth, isMrtGuest } from "@/auth";
 import {
   getMtgBuylistWorkspace,
+  getPreconCatalog,
+  getPreconHarvestBook,
+  refreshMockPreconHarvest,
+  savePreconDeck,
   saveMateHarvestToken,
   saveMtgBuylistStore,
   saveMtgBuylistNotes,
@@ -19,10 +23,11 @@ import {
   markPlaymantisHarvestDiffLookedAt,
   type BuylistWorkspacePack,
 } from "@/core/store/json-store";
-import type { BuylistArchive, BuylistRunMeta } from "./schema";
+import type { BuylistArchive, BuylistRunMeta, PreconCatalog, PreconDeck, PreconHarvestBook, PreconSource } from "./schema";
 import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/allocate";
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
+import { parseManaBoxTxt } from "./logic/parse-txt";
 import { parseMateJson, filterMateOffersForCsv } from "./logic/parse-mate";
 import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
 import { harvestDiffRows, type ImportCompareRow } from "./logic/compare-import-review";
@@ -618,4 +623,82 @@ export async function lookupCardIdsAction(lookups: CardLookup[]) {
   } catch {
     return { ok: true as const, ids: {} as Record<string, CardHint> };
   }
+}
+
+function slugDeckId(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "deck";
+}
+
+function uniqueDeckId(name: string, existing: PreconDeck[]) {
+  const base = slugDeckId(name);
+  if (!existing.some((deck) => deck.id === base)) return base;
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+export async function loadPreconWorkspaceAction(): Promise<
+  | { ok: true; catalog: PreconCatalog; harvest: PreconHarvestBook }
+  | { ok: false; error: string }
+> {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false, error: "Staff sign-in required" };
+  const [catalog, harvest] = await Promise.all([getPreconCatalog(), getPreconHarvestBook()]);
+  return { ok: true, catalog, harvest };
+}
+
+export async function addPreconDeckAction(input: {
+  name: string;
+  sourceUrl?: string;
+  filename: string;
+  text: string;
+}): Promise<
+  | { ok: true; catalog: PreconCatalog; harvest: PreconHarvestBook; deckId: string }
+  | { ok: false; error: string }
+> {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false, error: "Staff sign-in required" };
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "Name the deck" };
+  const filename = (input.filename || "").toLowerCase();
+  let rows;
+  let source: PreconSource;
+  try {
+    if (filename.endsWith(".txt") || input.text.trimStart().startsWith("[")) {
+      rows = parseManaBoxTxt(input.text);
+      source = "manabox-txt";
+    } else {
+      rows = parseManaBoxCsv(input.text);
+      source = "manabox-csv";
+    }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not parse the list" };
+  }
+  if (!rows.length) return { ok: false, error: "No cards in that file" };
+  const catalog = await getPreconCatalog();
+  const foilFace = rows.find((row) => row.foil === "foil");
+  const deck: PreconDeck = {
+    id: uniqueDeckId(name, catalog.decks),
+    name,
+    productName: name,
+    setCode: uniqueSetCodes(rows).join("/").toUpperCase(),
+    releasedAt: "",
+    faceCommander: foilFace?.name || rows[0]?.name || "",
+    source,
+    sourceUrl: (input.sourceUrl || "").trim(),
+    createdAt: new Date().toISOString(),
+    rows,
+  };
+  const next = await savePreconDeck(deck);
+  const harvest = await refreshMockPreconHarvest();
+  return { ok: true, catalog: next, harvest, deckId: deck.id };
+}
+
+export async function harvestPreconBookAction(): Promise<
+  | { ok: true; catalog: PreconCatalog; harvest: PreconHarvestBook }
+  | { ok: false; error: string }
+> {
+  const staff = await requireBuylistStaff();
+  if (!staff) return { ok: false, error: "Staff sign-in required" };
+  const harvest = await refreshMockPreconHarvest();
+  const catalog = await getPreconCatalog();
+  return { ok: true, catalog, harvest };
 }

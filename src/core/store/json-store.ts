@@ -71,7 +71,11 @@ import {
   buylistHarvestSchema,
   buylistOwnerIndexSchema,
   buylistRunFileSchema,
+  emptyPreconCatalog,
+  emptyPreconHarvestBook,
   mtgBuylistStoreSchema,
+  preconCatalogSchema,
+  preconHarvestBookSchema,
   type BuylistArchive,
   type BuylistHarvest,
   type BuylistOwnerIndex,
@@ -79,7 +83,12 @@ import {
   type BuylistRunMeta,
   type MtgBuylistStore,
   type PlaymantisHarvestDiffRow,
+  type PreconCatalog,
+  type PreconDeck,
+  type PreconHarvestBook,
 } from "@/modules/mtg-buylist/schema";
+import { loadTurtlePowerDeck, TURTLE_POWER_ID } from "@/modules/mtg-buylist/fixtures/precons/turtle-power";
+import { buildMockPreconHarvest } from "@/modules/mtg-buylist/logic/precon-harvest";
 import type {
   StandardsChoices,
   StandardsHoldRecord,
@@ -904,6 +913,64 @@ export async function clearMtgBuylistStore(
     runs: remaining,
   });
   return loadBuylistPack(userKey, stay);
+}
+
+const PRECON_CATALOG_FILE = path.join("mtg-buylist", "precons", "catalog.json");
+const PRECON_HARVEST_FILE = path.join("mtg-buylist", "precons", "harvest.json");
+
+export async function getPreconCatalog(): Promise<PreconCatalog> {
+  const raw = await readJson<PreconCatalog>(PRECON_CATALOG_FILE, emptyPreconCatalog());
+  let parsed: PreconCatalog;
+  try {
+    parsed = preconCatalogSchema.parse(raw);
+  } catch {
+    parsed = emptyPreconCatalog();
+  }
+  if (!parsed.decks.some((deck) => deck.id === TURTLE_POWER_ID)) {
+    parsed = {
+      updatedAt: new Date().toISOString(),
+      decks: [loadTurtlePowerDeck(), ...parsed.decks],
+    };
+    await writeJson(PRECON_CATALOG_FILE, parsed);
+  }
+  return parsed;
+}
+
+export async function savePreconDeck(deck: PreconDeck): Promise<PreconCatalog> {
+  const catalog = await getPreconCatalog();
+  const next = {
+    updatedAt: new Date().toISOString(),
+    decks: [deck, ...catalog.decks.filter((row) => row.id !== deck.id)],
+  };
+  const parsed = preconCatalogSchema.parse(next);
+  await writeJson(PRECON_CATALOG_FILE, parsed);
+  return parsed;
+}
+
+export async function getPreconHarvestBook(): Promise<PreconHarvestBook> {
+  const raw = await readJson<PreconHarvestBook>(PRECON_HARVEST_FILE, emptyPreconHarvestBook());
+  try {
+    const parsed = preconHarvestBookSchema.parse(raw);
+    if (parsed.harvestedAt) return parsed;
+  } catch {
+    /* seed below */
+  }
+  const catalog = await getPreconCatalog();
+  const seeded = buildMockPreconHarvest(catalog.decks, "2026-09-21T01:00:00.000Z");
+  await writeJson(PRECON_HARVEST_FILE, seeded);
+  return seeded;
+}
+
+export async function savePreconHarvestBook(book: PreconHarvestBook): Promise<PreconHarvestBook> {
+  const parsed = preconHarvestBookSchema.parse(book);
+  await writeJson(PRECON_HARVEST_FILE, parsed);
+  return parsed;
+}
+
+export async function refreshMockPreconHarvest(): Promise<PreconHarvestBook> {
+  const catalog = await getPreconCatalog();
+  const book = buildMockPreconHarvest(catalog.decks, new Date().toISOString());
+  return savePreconHarvestBook(book);
 }
 
 const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");

@@ -17,6 +17,7 @@ import {
 
 const LINKS = [
   { href: MTG_BUYLIST_HREF, label: "Run", tab: "run" },
+  { href: `${MTG_BUYLIST_HREF}/decks`, label: "Decks", tab: "decks" },
   { href: `${MTG_BUYLIST_HREF}/logs`, label: "Logs", tab: "logs" },
   { href: `${MTG_BUYLIST_HREF}/development`, label: "Development", tab: "development" },
 ] as const;
@@ -35,6 +36,11 @@ const LEAF_COPY: Record<
     intent:
       "Four cards on Run — Upload, Harvest, Picking, Reupload — with only the active step on screen. Shared ManaBox CSV, then isolated Playmantis and MTGMate streams. Compare (filters and exports) is available from the first harvested store — credit vs credit when both exist, Mate cash shown. This run is keyed to your login.",
   },
+  decks: {
+    title: "Decks",
+    intent:
+      "Standing precon lists. Search or add a ManaBox CSV/TXT, harvest Mate and Playmantis into a shared dated book (not a Run session), then type the shop ask. Cash covers = buy now. Cash short but cash plus Playmantis credit covers = consider (spend the gap). CK 1.0 is paper value only this pass.",
+  },
   logs: {
     title: "Logs",
     intent: "Your harvest vs Import Review diffs, plus archived runs. Not shared with other logins.",
@@ -47,6 +53,9 @@ const LEAF_COPY: Record<
 };
 
 function leafTabFromPath(pathname: string): LeafTab {
+  if (pathname === `${MTG_BUYLIST_HREF}/decks` || pathname.startsWith(`${MTG_BUYLIST_HREF}/decks/`)) {
+    return "decks";
+  }
   if (pathname === `${MTG_BUYLIST_HREF}/logs` || pathname.startsWith(`${MTG_BUYLIST_HREF}/logs/`)) {
     return "logs";
   }

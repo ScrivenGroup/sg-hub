@@ -1,5 +1,9 @@
 import { allocate, withAllocateResults } from "./allocate";
 import { parseManaBoxCsv, majorityPurchaseCurrency } from "./parse-csv";
+import { manaBoxCopyCount, parseManaBoxTxt } from "./parse-txt";
+import { assessPrecon } from "./precon-assess";
+import { buildMockPreconHarvest } from "./precon-harvest";
+import { loadTurtlePowerDeck } from "../fixtures/precons/turtle-power";
 import { parseMateJson, filterMateOffersForCsv } from "./parse-mate";
 import {
   classifyBuylistSearchHtml,
@@ -1403,6 +1407,32 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
   );
   if (victim?.id !== "old") {
     messages.push("Archive victim should be the oldest run that is not the kept tab");
+  }
+
+  const turtle = loadTurtlePowerDeck();
+  if (manaBoxCopyCount(turtle.rows) !== 100) {
+    messages.push(`Turtle Power CSV should be 100 cards, got ${manaBoxCopyCount(turtle.rows)}`);
+  }
+  const txtCopies = manaBoxCopyCount(
+    parseManaBoxTxt(`1 Escape Tunnel (TMT) 184
+1 Donatello, the Brains (TMC) 2 *F*
+`),
+  );
+  if (txtCopies !== 2) {
+    messages.push("ManaBox TXT should parse qty and *F* foil");
+  }
+  const mockBook = buildMockPreconHarvest([turtle], "2026-09-21T01:00:00.000Z");
+  const buy = assessPrecon(turtle, mockBook, 6000);
+  if (buy.verdict !== "buy-now" || buy.mateCashCents !== 6000) {
+    messages.push(`$60 shop should be buy-now at $60 Mate cash, got ${buy.verdict} ${buy.mateCashCents}`);
+  }
+  const consider = assessPrecon(turtle, mockBook, 9000);
+  if (consider.verdict !== "consider-credit" || consider.cashOutlayCents !== 3000) {
+    messages.push(`$90 shop should be consider-credit spending $30, got ${consider.verdict} ${consider.cashOutlayCents}`);
+  }
+  const pass = assessPrecon(turtle, mockBook, 99900);
+  if (pass.verdict !== "hard-pass") {
+    messages.push(`Huge shop ask should be hard-pass, got ${pass.verdict}`);
   }
 
   return { ok: messages.length === 0, messages };

@@ -1072,6 +1072,22 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.6.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.1",
+    createdAt: "2026-09-21T01:15:00.000Z",
+    title: "1.6.1 (dev) — Decks tab: precon catalog, dated harvest, shop-ask ladder",
+    body: `## Publish to localhost (not live)
+
+- New L1 tab Decks: search and add ManaBox CSV/TXT lists. Turtle Power! is seeded from the official 100-card export.
+- Harvest Mate and Playmantis writes a shared dated book under \`data/mtg-buylist/precons/\` — not a Run session. First pass is a mock book with live types.
+- Select a deck, type the shop ask. Buy now if Mate cash covers; consider now if you would spend the cash gap for Playmantis credit and leftover CK paper value; hard pass if deck CK 1.0 is below the ask. CK 0.7 sell-proxy is out of this pass.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
