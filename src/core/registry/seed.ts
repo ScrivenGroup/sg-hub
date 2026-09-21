@@ -1907,6 +1907,19 @@ Out of this version
 - Do not invent unnamed zips. Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
   },
   {
+    id: "cl-train-1.15",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.15",
+    createdAt: "2026-09-21T11:00:00.000Z",
+    title: "v1.15 — SG Hub 0.2.12: Development cards, two clocks, WIP badge",
+    body: `Train v1.15. Tag hub-1.15.
+
+- SG Hub 0.2.12: Development is a hub of cards, leaf Layout 2 tabs, Train vs SG Hub clocks, WIP desk badge, Feedback footer actions.
+- Train chrome shows vX.Y and links to /d/train-changelog.
+`,
+  },
+  {
     id: "cl-train-1.14",
     nodeId: "d-train-changelog",
     kind: "release",
