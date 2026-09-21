@@ -21,6 +21,7 @@ import {
 } from "../logic/gantt-x-scale";
 import { GanttTimescale, ganttTimescaleHeight, monthGridEdge, weekGridLine } from "./GanttTimescale";
 import { MrtInlineLoading } from "./MrtLoadingPane";
+import { BusySpin, runPaintedBusy } from "./paint-busy";
 
 const DEFAULT_ROW_H = 28;
 const TITLE_H = 28;
@@ -87,6 +88,7 @@ export function ResourceLoadPane({
     label: string;
     personId: string;
   } | null>(null);
+  const [rebalanceBusy, setRebalanceBusy] = useState(false);
 
   const syncNames = useCallback(() => {
     const chart = scrollRef.current;
@@ -98,13 +100,14 @@ export function ResourceLoadPane({
   useEffect(() => {
     if (!pop) return;
     function onDoc(e: PointerEvent) {
+      if (rebalanceBusy) return;
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-mrt-alloc-pop]")) return;
       setPop(null);
     }
     document.addEventListener("pointerdown", onDoc, true);
     return () => document.removeEventListener("pointerdown", onDoc, true);
-  }, [pop]);
+  }, [pop, rebalanceBusy]);
 
   const scale = scaleProp || makeGanttXScale(winStart, months, monthPx, grain);
   const width = scale.width;
@@ -361,11 +364,16 @@ export function ResourceLoadPane({
             <button
               type="button"
               className="mrt-alloc-pop-rebalance"
+              aria-busy={rebalanceBusy}
+              disabled={rebalanceBusy}
               onClick={() => {
-                onRebalanceAll(pop.contributions, pop.personId);
-                setPop(null);
+                void runPaintedBusy(setRebalanceBusy, () => {
+                  onRebalanceAll(pop.contributions, pop.personId);
+                  setPop(null);
+                });
               }}
             >
+              <BusySpin on={rebalanceBusy} />
               Rebalance all
             </button>
           ) : null}

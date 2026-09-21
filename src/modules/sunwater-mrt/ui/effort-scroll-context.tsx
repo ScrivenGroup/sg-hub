@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type RefObject } from "react";
+import { createContext, useContext, type MutableRefObject, type RefObject } from "react";
 
 export type EffortFreeze = {
   xRoot: RefObject<HTMLDivElement | null>;
@@ -8,6 +8,7 @@ export type EffortFreeze = {
   chartHost: HTMLDivElement | null;
   chromeTop: HTMLDivElement | null;
   chromeBottom: HTMLDivElement | null;
+  panDownRef: MutableRefObject<((e: PointerEvent) => void) | null>;
 };
 
 export const EffortScrollCtx = createContext<EffortFreeze | null>(null);

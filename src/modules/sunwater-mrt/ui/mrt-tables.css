@@ -335,6 +335,9 @@
 }
 
 .mrt-zoom-chip-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 22px;
   min-width: 22px;
   padding: 0 6px;
@@ -466,6 +469,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   min-height: 22px;
   height: 22px;
   padding: 0 6px;
@@ -480,7 +484,16 @@
   white-space: nowrap;
 }
 
-.mrt-gantt-tool.on {
+.mrt-gantt-tool .mrt-inline-loading-spin,
+.mrt-zoom-chip-row button .mrt-inline-loading-spin {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  margin: 0;
+}
+
+.mrt-gantt-tool.on,
+.is-avail [data-effort-avail].mrt-gantt-tool {
   background: color-mix(in srgb, var(--rag-amber) 35%, var(--surface));
   border-color: var(--rag-amber);
 }
@@ -632,8 +645,33 @@
   min-width: 72px;
 }
 
+.mrt-effort-popup,
+.effort-gantt,
+[data-effort-ui] {
+  --effort-week: 56px;
+  --effort-head: 22px;
+  --effort-sum-head: 52px;
+}
+
+.is-week-narrow {
+  --effort-head: 32px;
+  --effort-sum-head: 56px;
+}
+
 .effort-gantt {
   min-height: 280px;
+  overflow-x: hidden;
+}
+
+.effort-gantt .effort-gantt-grid[data-effort-cam] {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(calc(-1 * var(--effort-cam-x, 0px)), 0, 0);
+}
+
+.effort-gantt .effort-gantt-fn,
+.effort-gantt .effort-gantt-labels {
+  transform: translate3d(var(--effort-cam-x, 0px), 0, 0);
 }
 
 .effort-gantt.is-embed {
@@ -902,8 +940,119 @@
   user-select: none;
 }
 
+.effort-gantt-weekcell {
+  width: var(--effort-week);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.effort-week-a,
+.effort-week-b {
+  display: none;
+}
+
+.is-week-narrow .effort-week-full {
+  display: none;
+}
+
+.is-week-narrow .effort-week-a,
+.is-week-narrow .effort-week-b {
+  display: block;
+}
+
+.mrt-hour-cell {
+  width: var(--effort-week);
+}
+
+.mrt-hour-cell .effort-gantt-hour {
+  width: calc(var(--effort-week) - 6px);
+}
+
+.mrt-sum-week {
+  width: var(--effort-week);
+  flex-shrink: 0;
+}
+
+[data-effort-live-layer] {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+[data-effort-live-layer] > * {
+  pointer-events: auto;
+}
+
+[data-effort-live-layer] .effort-gantt-stuck-cap,
+[data-effort-live-layer] .effort-gantt-stuck-join {
+  pointer-events: none;
+}
+
+.is-all-collapsed [data-effort-l2] {
+  display: none;
+}
+
+.effort-collapse-label-on {
+  display: none;
+}
+
+.is-all-collapsed .effort-collapse-label-off {
+  display: none;
+}
+
+.is-all-collapsed .effort-collapse-label-on {
+  display: inline;
+}
+
+.effort-avail-rem {
+  display: none;
+}
+
+.is-avail .effort-avail-rem {
+  display: block;
+}
+
 .effort-gantt-weekhead {
   cursor: grab;
+  touch-action: pan-y;
+}
+
+.effort-gantt,
+.mrt-effort-timescale,
+.effort-chart-stack {
+  cursor: grab;
+}
+
+.mrt-effort-frozen {
+  cursor: default;
+}
+
+.mrt-effort-frozen input {
+  cursor: text;
+}
+
+.mrt-effort-frozen button,
+.mrt-effort-frozen select {
+  cursor: pointer;
+}
+
+.effort-gantt input,
+.mrt-effort-timescale input,
+.effort-chart-stack input {
+  cursor: text;
+}
+
+.effort-gantt select,
+.mrt-effort-timescale select,
+.effort-chart-stack select,
+.effort-gantt-collapse,
+.effort-gantt-sort {
+  cursor: pointer;
 }
 
 .effort-gantt-stuck-cap {
@@ -1355,7 +1504,10 @@ tr.mrt-person-flash {
 }
 
 .mrt-alloc-pop-rebalance {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   margin-top: 8px;
   padding: 6px 8px;
@@ -1422,6 +1574,7 @@ tr.mrt-person-flash {
   display: flex;
   align-items: flex-start;
   width: 100%;
+  min-width: 0;
 }
 
 .mrt-effort-frozen {
@@ -1432,10 +1585,22 @@ tr.mrt-person-flash {
   box-shadow: 2px 0 6px color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
+/* Clip the week strip here. flex 1 1 0% + min-width 0 keeps clientWidth as the
+   visible pane (if this grows to content width, camera max is 0 and pan dies).
+   Do not add .mrt-effort-timescale.is-panning * — that restyles every hour cell. */
 .mrt-effort-timescale {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.mrt-effort-timescale [data-effort-cam] {
+  width: max-content;
+  min-width: 100%;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(calc(-1 * var(--effort-cam-x, 0px)), 0, 0);
 }
 
 .mrt-effort-chrome-top:empty,

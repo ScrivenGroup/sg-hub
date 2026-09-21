@@ -3,6 +3,7 @@
 import {
   Fragment,
   createContext,
+  memo,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -29,8 +30,6 @@ import {
   dueColumnIndex,
   dueColumnOnLive,
   ensureEffortDemo,
-  extendViewport,
-  VIEW_EXTEND_WEEKS,
   padViewportToFill,
   groupHasHours,
   hourRuns,
@@ -83,6 +82,7 @@ import {
   type EffortGroupMode,
   type EffortLayoutRow,
   type HourSpan,
+  type ResizeSpanScope,
 } from "../logic/effort-gantt";
 import {
   personWeekContributorCountEverywhere,
@@ -92,12 +92,314 @@ import { formatHours, parseDecimal, round2 } from "../logic/numbers";
 import { createPortal } from "react-dom";
 import { PersonOverHover } from "./PersonOverHover";
 import { useEffortFreeze, useEffortScrollRoot } from "./effort-scroll-context";
+import { BusySpin, usePaintedBusy } from "./paint-busy";
 
 function maybePortal(node: ReactNode, host: HTMLElement | null | undefined, waitHost?: boolean) {
   if (!node) return null;
   if (waitHost && !host) return null;
   if (host) return createPortal(node, host);
   return node;
+}
+
+type LiveSnap = { el: HTMLElement; left: number; width: number };
+type BarKind = "l0" | "l1-task" | "l1-group" | "l2";
+
+function chartRowFromTarget(root: HTMLElement | null, target: EventTarget | null): HTMLElement | null {
+  if (!root || !(target instanceof Element)) return null;
+  const row = target.closest("[data-effort-row]");
+  if (!(row instanceof HTMLElement) || !root.contains(row)) return null;
+  return row;
+}
+
+function liveLayerInRow(root: HTMLElement | null, target: EventTarget | null): HTMLElement | null {
+  const row = chartRowFromTarget(root, target);
+  if (!row) return null;
+  const layer = row.querySelector("[data-effort-live-layer]");
+  return layer instanceof HTMLElement ? layer : null;
+}
+
+function snapshotLiveEl(el: HTMLElement | null | undefined): LiveSnap | undefined {
+  return el ? { el, left: el.offsetLeft, width: el.offsetWidth } : undefined;
+}
+
+function applyShiftTransforms(layers: HTMLElement[], deltaPx: number) {
+  const t = deltaPx ? `translate3d(${deltaPx}px,0,0)` : "";
+  for (const layer of layers) layer.style.transform = t;
+}
+
+function collectShiftLayers(
+  root: HTMLElement | null,
+  kind: BarKind,
+  meta: { taskId?: string; resourceId?: string; groupKey?: string },
+): HTMLElement[] {
+  if (!root) return [];
+  const wantGroup = (meta.groupKey || "").toLowerCase();
+  const out: HTMLElement[] = [];
+  const seen = new Set<HTMLElement>();
+  for (const row of root.querySelectorAll<HTMLElement>("[data-effort-row]")) {
+    const id = row.dataset.effortRow;
+    if (!id || id === "milestone") continue;
+    let ok = false;
+    if (kind === "l0") ok = true;
+    else if (kind === "l1-task") ok = row.dataset.effortTask === meta.taskId;
+    else if (kind === "l1-group") ok = (row.dataset.effortGroup || "").toLowerCase() === wantGroup;
+    else if (kind === "l2") {
+      ok =
+        row.dataset.effortTask === meta.taskId &&
+        row.dataset.effortResource === meta.resourceId;
+    }
+    if (!ok) continue;
+    const layer = row.querySelector<HTMLElement>("[data-effort-live-layer]");
+    if (layer && !seen.has(layer)) {
+      seen.add(layer);
+      out.push(layer);
+    }
+  }
+  return out;
+}
+
+function rowMatchesResizeScope(row: HTMLElement, scope: ResizeSpanScope) {
+  const id = row.dataset.effortRow;
+  if (!id || id === "milestone") return false;
+  if (scope.kind === "all") return true;
+  if (scope.kind === "task") return row.dataset.effortTask === scope.taskId;
+  return (row.dataset.effortGroup || "").toLowerCase() === scope.groupKey.toLowerCase();
+}
+
+function handleMatchesEdge(
+  pair: { bar?: HTMLElement; handle: HTMLElement },
+  edge: "start" | "end",
+) {
+  if (!pair.bar) return true;
+  const left = pair.bar.offsetLeft;
+  const right = left + pair.bar.offsetWidth;
+  const mid = pair.handle.offsetLeft + pair.handle.offsetWidth / 2;
+  return edge === "start"
+    ? Math.abs(mid - left) <= Math.abs(mid - right)
+    : Math.abs(mid - right) <= Math.abs(mid - left);
+}
+
+type ResizeSnap = { bar?: LiveSnap; handle?: LiveSnap };
+
+function collectResizePreview(
+  root: HTMLElement | null,
+  scope: ResizeSpanScope,
+  edge: "start" | "end",
+): ResizeSnap[] {
+  if (!root) return [];
+  const out: ResizeSnap[] = [];
+  const seenBar = new Set<HTMLElement>();
+  const seenHandle = new Set<HTMLElement>();
+  for (const row of root.querySelectorAll<HTMLElement>("[data-effort-row]")) {
+    if (!rowMatchesResizeScope(row, scope)) continue;
+    for (const handle of row.querySelectorAll<HTMLElement>('[data-effort-live="handle"]')) {
+      const pair = resizePair(handle);
+      if (!handleMatchesEdge(pair, edge) || seenHandle.has(handle)) continue;
+      seenHandle.add(handle);
+      if (pair.bar) seenBar.add(pair.bar);
+      out.push({
+        bar: snapshotLiveEl(pair.bar),
+        handle: snapshotLiveEl(handle),
+      });
+    }
+    for (const bar of row.querySelectorAll<HTMLElement>(
+      '[data-effort-live="bar"], [data-effort-live="run"]',
+    )) {
+      if (seenBar.has(bar)) continue;
+      seenBar.add(bar);
+      out.push({ bar: snapshotLiveEl(bar) });
+    }
+  }
+  return out;
+}
+
+/**
+ * Effort Gantt pan — locked (all-obligations Rebalance / Occurrence popup).
+ *
+ * Rebalance stacks many hour-cell grids into one freeze.chartHost. Pan must stay
+ * a camera over that strip, not a restyle of every cell.
+ *
+ * DO
+ * - One translate3d on freeze.chartHost per frame. Nested stacks ride it.
+ * - Native pointerdown on .mrt-effort-timescale (portaled weeks are not React
+ *   children of chartHost, so React onPointerDown there never fires).
+ * - Also startPan on the portaled week header / chart stack.
+ * - Cache cam layers, contentW, viewW, maxTop on pointerdown. rAF only writes
+ *   transform + integer scrollTop when the value changed.
+ * - Store cam x on the clip expando. Set --effort-cam-x only on .effort-gantt
+ *   (Defaults label counter-shift). Never on .mrt-effort-timescale.
+ *
+ * DO NOT (these made all-obligations pan dead or stall)
+ * - querySelectorAll("[data-effort-cam]") every frame (walks every hour cell).
+ * - Inherit --effort-cam-x from the freeze clip (style recalc of the whole stack).
+ * - .mrt-effort-popup.is-panning * / overlay inset:0 (grab restyle; half-second
+ *   start or release hitch).
+ * - scrollHeight / getBoundingClientRect / getComputedStyle during move.
+ * - commit() or setState on pointermove. Native overflow-x on the timescale
+ *   (overflow-x:hidden + max pan 0 = pan deleted).
+ * - content-visibility on the first stack (kills week-header hit testing).
+ */
+/** Direct cam hosts only. Nested [data-effort-cam] ride the parent transform. */
+function topCamLayers(clip: HTMLElement): HTMLElement[] {
+  if (clip.hasAttribute("data-effort-cam")) return [clip];
+  const out: HTMLElement[] = [];
+  for (const el of clip.querySelectorAll<HTMLElement>("[data-effort-cam]")) {
+    const parentCam = el.parentElement?.closest("[data-effort-cam]");
+    if (parentCam && clip.contains(parentCam)) continue;
+    out.push(el);
+  }
+  return out;
+}
+
+const CAM_X = "--effort-cam-x";
+
+function clampCamX(x: number, contentW: number, viewW: number): number {
+  const view = Math.max(80, viewW);
+  const max = Math.max(0, contentW - view);
+  return Math.max(0, Math.min(max, Math.round(x)));
+}
+
+type CamClip = HTMLElement & { _effortCamX?: number };
+
+export function readEffortCamX(clip: HTMLElement | null): number {
+  if (!clip) return 0;
+  const fast = (clip as CamClip)._effortCamX;
+  if (typeof fast === "number") return fast;
+  const n = Number.parseFloat(clip.style.getPropertyValue(CAM_X));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function paintCamX(clip: HTMLElement, x: number, layers: HTMLElement[]) {
+  (clip as CamClip)._effortCamX = x;
+  // Inherited --effort-cam-x on the freeze clip restyles every hour cell each
+  // frame. Only the Defaults scroller needs it (sticky label counter-shift).
+  if (clip.classList.contains("effort-gantt")) {
+    clip.style.setProperty(CAM_X, `${x}px`);
+  }
+  const t = `translate3d(${-x}px,0,0)`;
+  for (const layer of layers) layer.style.transform = t;
+}
+
+export function writeEffortCamX(
+  clip: HTMLElement | null,
+  x: number,
+  contentW: number,
+  viewW?: number,
+): number {
+  if (!clip) return 0;
+  const next = clampCamX(x, contentW, viewW ?? clip.clientWidth);
+  paintCamX(clip, next, topCamLayers(clip));
+  return next;
+}
+
+function applyResizePreview(
+  bar: LiveSnap | undefined,
+  handle: LiveSnap | undefined,
+  edge: "start" | "end",
+  deltaPx: number,
+) {
+  if (handle) handle.el.style.transform = deltaPx ? `translate3d(${deltaPx}px,0,0)` : "";
+  if (!bar) return;
+  if (edge === "start") {
+    bar.el.style.transform = deltaPx ? `translate3d(${deltaPx}px,0,0)` : "";
+    bar.el.style.width = `${Math.max(8, bar.width - deltaPx)}px`;
+  } else {
+    bar.el.style.width = `${Math.max(8, bar.width + deltaPx)}px`;
+  }
+}
+
+function applyResizePreviews(snaps: ResizeSnap[], edge: "start" | "end", deltaPx: number) {
+  for (const snap of snaps) applyResizePreview(snap.bar, snap.handle, edge, deltaPx);
+}
+
+function applyTailPreview(bar: LiveSnap | undefined, handle: LiveSnap | undefined, deltaPx: number) {
+  if (handle) handle.el.style.transform = deltaPx ? `translate3d(${deltaPx}px,0,0)` : "";
+  if (bar) {
+    bar.el.style.transform = deltaPx ? `translate3d(${deltaPx}px,0,0)` : "";
+    bar.el.style.width = `${Math.max(8, bar.width - deltaPx)}px`;
+  }
+}
+
+function resizePair(handle: HTMLElement): { bar?: HTMLElement; handle: HTMLElement } {
+  const parent = handle.parentElement;
+  const bar =
+    parent?.querySelector<HTMLElement>(
+      '[data-effort-live="bar"], [data-effort-live="run"]',
+    ) ?? undefined;
+  return { bar, handle };
+}
+
+function weekLeft(col: number, extraPx = 0) {
+  return extraPx
+    ? `calc(${col} * var(--effort-week) + ${extraPx}px)`
+    : `calc(${col} * var(--effort-week))`;
+}
+
+function weekSpan(cols: number, extraPx = 0) {
+  const extra = extraPx ? ` + ${extraPx}px` : "";
+  return `max(8px, calc(${cols} * var(--effort-week)${extra}))`;
+}
+
+function weekMid(col: number) {
+  return `calc((${col} + 0.5) * var(--effort-week))`;
+}
+
+function weeksWidth(count: number) {
+  return `calc(${count} * var(--effort-week))`;
+}
+
+function effortUiRoot(from: HTMLElement | null): HTMLElement | null {
+  if (!from) return null;
+  return (
+    (from.closest(".mrt-effort-popup") as HTMLElement | null) ||
+    (from.closest("[data-effort-ui]") as HTMLElement | null) ||
+    from
+  );
+}
+
+export function writeEffortWeekPx(from: HTMLElement | null, px: number) {
+  const root = effortUiRoot(from);
+  if (!root) return;
+  root.style.setProperty("--effort-week", `${px}px`);
+  root.classList.toggle("is-week-narrow", px < WEEK_WRAP_BELOW);
+}
+
+export function toggleEffortUiClass(from: HTMLElement | null, className: string, on?: boolean) {
+  const root = effortUiRoot(from);
+  if (!root) return false;
+  const next = on ?? !root.classList.contains(className);
+  root.classList.toggle(className, next);
+  return next;
+}
+
+export function readEffortWeekPx(from: HTMLElement | null, fallback = WEEK_PX_DEFAULT) {
+  const root = effortUiRoot(from);
+  if (!root) return fallback;
+  const n = Number.parseFloat(getComputedStyle(root).getPropertyValue("--effort-week"));
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export function scrollEffortChartToSpan(
+  box: HTMLElement,
+  demo: EffortDemo,
+  weekPx: number,
+  align: "mid" | "start" = "mid",
+  frozenPx = 0,
+) {
+  const n = Math.max(1, demo.weekCount || 1);
+  const dueCol = dueColumnIndex(demo);
+  const tailStartCol = tailStartColumnIndex(demo);
+  const span = allSpan(demo);
+  let start = span.start ?? tailStartCol;
+  let end = span.finish ?? dueCol;
+  start = Math.min(start, tailStartCol, dueCol);
+  end = Math.max(end, dueCol);
+  start = Math.max(0, start - 1);
+  end = Math.min(n - 1, Math.max(start, end + 1));
+  const view = Math.max(80, box.clientWidth - frozenPx);
+  const target =
+    align === "start" ? start * weekPx : ((start + end + 1) / 2) * weekPx - view / 2;
+  writeEffortCamX(box, target, n * weekPx, view);
 }
 
 export const WEEK_PX_DEFAULT = 56;
@@ -129,7 +431,6 @@ const ADD_OTHER = "__add_other__";
 
 type ChartPlace = "defaults" | "milestone";
 type EffortPane = "frozen" | "chart" | "both";
-type BarKind = "l0" | "l1-task" | "l1-group" | "l2";
 type SortKey = "task" | "resource" | "person" | "start" | "finish" | "dur" | "hours" | "cost";
 type DropSlot = { key: string; edge: "before" | "after" };
 export type MetaCols = {
@@ -176,30 +477,94 @@ export function WeekZoomChip({
   weekPx: number;
   onWeekPx: (next: number) => void;
 }) {
+  const { busyId, run } = usePaintedBusy();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(weekPx);
+  function apply(dir: number) {
+    const next = nextWeekPx(shown, dir);
+    writeEffortWeekPx(rootRef.current, next);
+    setShown(next);
+    onWeekPx(next);
+  }
   return (
-    <div className="mrt-zoom-chip is-inline" title="Week column width">
+    <div ref={rootRef} className="mrt-zoom-chip is-inline" title="Week column width">
       <span className="mrt-zoom-chip-label">Weeks</span>
       <div className="mrt-zoom-chip-row">
         <button
           type="button"
           aria-label="Narrow week columns"
-          disabled={weekPx <= WEEK_PX_STEPS[0]}
-          onClick={() => onWeekPx(nextWeekPx(weekPx, -1))}
+          aria-busy={busyId === "out"}
+          disabled={shown <= WEEK_PX_STEPS[0] || !!busyId}
+          onClick={() => run("out", () => apply(-1))}
         >
-          −
+          {busyId === "out" ? <BusySpin on /> : "−"}
         </button>
         <span className="mrt-zoom-chip-val">
-          {Math.round((weekPx / WEEK_PX_DEFAULT) * 100)}%
+          {Math.round((shown / WEEK_PX_DEFAULT) * 100)}%
         </span>
         <button
           type="button"
           aria-label="Widen week columns"
-          disabled={weekPx >= WEEK_PX_STEPS[WEEK_PX_STEPS.length - 1]}
-          onClick={() => onWeekPx(nextWeekPx(weekPx, 1))}
+          aria-busy={busyId === "in"}
+          disabled={shown >= WEEK_PX_STEPS[WEEK_PX_STEPS.length - 1] || !!busyId}
+          onClick={() => run("in", () => apply(1))}
         >
-          +
+          {busyId === "in" ? <BusySpin on /> : "+"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function EffortQuickTools({
+  mode,
+  onCentre,
+  onCollapse,
+  onAvailability,
+}: {
+  mode: EffortGroupMode;
+  onCentre: () => void;
+  onCollapse: () => void;
+  onAvailability: () => void;
+}) {
+  const { busyId, run } = usePaintedBusy();
+  return (
+    <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
+      <button
+        type="button"
+        className="mrt-gantt-tool"
+        title="Scroll so hours, tail, and due sit in the middle of the visible chart"
+        aria-busy={busyId === "centre"}
+        disabled={!!busyId}
+        onClick={() => run("centre", onCentre)}
+      >
+        <BusySpin on={busyId === "centre"} />
+        Centre around Gantt
+      </button>
+      <button
+        type="button"
+        className="mrt-gantt-tool"
+        disabled={mode === "flat" || !!busyId}
+        title="Collapse or expand all groups"
+        aria-busy={busyId === "collapse"}
+        onClick={() => run("collapse", onCollapse)}
+      >
+        <BusySpin on={busyId === "collapse"} />
+        <span className="effort-collapse-label-off">Collapse</span>
+        <span className="effort-collapse-label-on">Expand</span>
+      </button>
+      <button
+        type="button"
+        className="mrt-gantt-tool"
+        data-effort-avail
+        title="Show availability overlay on named rows"
+        aria-busy={busyId === "availability"}
+        disabled={!!busyId}
+        onClick={() => run("availability", onAvailability)}
+      >
+        <BusySpin on={busyId === "availability"} />
+        Availability
+      </button>
     </div>
   );
 }
@@ -289,23 +654,19 @@ function sumHeadHeight(weekPx: number) {
 
 function WeekHeadCell({
   label,
-  weekPx,
 }: {
   label: string;
-  weekPx: number;
 }) {
-  const wrap = weekPx < WEEK_WRAP_BELOW;
   const parts = label.split(" ");
   return (
-    <div className="effort-gantt-weekcell border-r border-[var(--border)]/50 text-[10px]" style={{ width: weekPx }}>
-      {wrap && parts.length > 1 ? (
+    <div className="effort-gantt-weekcell border-r border-[var(--border)]/50 text-[10px]">
+      <span className="effort-week-full">{label}</span>
+      {parts.length > 1 ? (
         <>
-          <span>{parts[0]}</span>
-          <span>{parts.slice(1).join(" ")}</span>
+          <span className="effort-week-a">{parts[0]}</span>
+          <span className="effort-week-b">{parts.slice(1).join(" ")}</span>
         </>
-      ) : (
-        label
-      )}
+      ) : null}
     </div>
   );
 }
@@ -769,12 +1130,15 @@ export function EffortGantt({
     const val = typeof next === "function" ? next(metaCols) : next;
     (onMetaCols ?? setMetaColsState)(val);
   };
-  const [weekPxState, setWeekPxState] = useState(WEEK_PX_DEFAULT);
+  const [weekPxState] = useState(WEEK_PX_DEFAULT);
   const weekPx = weekPxProp ?? weekPxState;
-  const setWeekPx = onWeekPx ?? setWeekPxState;
+  const weekPxRef = useRef(weekPx);
   const pendingWeekZoomFrac = useRef<number | null>(null);
-  const panEdgePx = weekPx * 2;
-  const headH = weekHeadHeight(weekPx);
+  const headH = "var(--effort-head)";
+  const uiRootRef = useRef<HTMLDivElement>(null);
+  function currentWeekPx() {
+    return readEffortWeekPx(uiRootRef.current, weekPxRef.current);
+  }
   const [colsOpenState, setColsOpenState] = useState(false);
   const colsOpen = colsOpenProp ?? colsOpenState;
   const setColsOpen = (next: boolean | ((cur: boolean) => boolean)) => {
@@ -814,17 +1178,35 @@ export function EffortGantt({
   const embedScroller = useEffortScrollRoot();
   const localScroller = useRef<HTMLDivElement>(null);
   const scrollerRef = embedScroller ?? localScroller;
+  const chartRootRef = useRef<HTMLDivElement>(null);
   const timescaleOnly = !!embedScroller;
+  const { busyId: toolBusy, run: runTool } = usePaintedBusy();
   const panRef = useRef<{
     startX: number;
     startY: number;
-    startLeft: number;
+    startCam: number;
     startTop: number;
+    clip: HTMLElement;
+    layers: HTMLElement[];
+    contentW: number;
+    viewW: number;
+    yTarget: HTMLElement | null;
+    maxTop: number;
+    lastCam: number;
+    lastTop: number;
   } | null>(null);
+  const panPtRef = useRef({ x: 0, y: 0 });
+  const panRaf = useRef(0);
+  const startPanRef = useRef<(e: ReactPointerEvent | PointerEvent) => void>(() => {});
   const centredOnce = useRef(false);
-  const extendingRef = useRef(false);
-  const pendingPanAdj = useRef(0);
-  const [panning, setPanning] = useState(false);
+  const deferGridRef = useRef(false);
+  const holdLiveRef = useRef(false);
+  const gridHoursRef = useRef<Map<string, number[]>>(new Map());
+  const gridLoadRef = useRef<Map<string, number[]> | undefined>(undefined);
+  const gridNRef = useRef(0);
+  const [gridEpoch, setGridEpoch] = useState(0);
+  const nRef = useRef(0);
+  const labelWRef = useRef(0);
 
   const weeks = useMemo(() => demoWeeks(demo, place === "defaults"), [demo, place]);
   const n = weeks.length;
@@ -872,22 +1254,53 @@ export function EffortGantt({
     (costColOn(metaCols, pmOn) ? COST_W + (pmOn ? ACTUAL_COST_W + FAC_COST_W + VAC_COST_W : 0) : 0);
   const labelW = nameW + metaW;
   const chartW = n * weekPx;
+  nRef.current = n;
+  labelWRef.current = labelW;
   const dueCol = dueColumnIndex(demo);
   const tailStartCol = tailStartColumnIndex(demo);
   const todayCol = todayColumnIndex(demo);
   const showToday = place === "milestone" && todayCol >= 0 && todayCol < n;
   const weekLoad = useMemo(() => personWeekLoad(demo), [demo]);
+  void gridEpoch;
+  if (!deferGridRef.current) {
+    gridNRef.current = n;
+    gridLoadRef.current = weekLoad;
+    const nextHours = new Map<string, number[]>();
+    for (const row of visibleRows) {
+      if (row.type === "l2") nextHours.set(row.key, row.hours);
+    }
+    gridHoursRef.current = nextHours;
+  }
+
+  function clipEl() {
+    return scrollerRef.current;
+  }
+
+  function camView(clip: HTMLElement) {
+    if (timescaleOnly) {
+      const split = clip.closest(".mrt-effort-split") as HTMLElement | null;
+      const frozenW = freeze?.frozenHost?.getBoundingClientRect().width ?? 0;
+      const fromSplit = split ? split.clientWidth - frozenW : 0;
+      return Math.max(80, fromSplit > 80 ? fromSplit : clip.clientWidth);
+    }
+    return Math.max(80, clip.clientWidth - FN_W - labelWRef.current);
+  }
+
+  function camContent(clip: HTMLElement) {
+    const weeksW = nRef.current * currentWeekPx();
+    const hostW = freeze?.chartHost?.scrollWidth ?? 0;
+    const stackW = chartRootRef.current?.scrollWidth ?? 0;
+    return Math.max(weeksW, hostW, stackW, clip.scrollWidth || 0);
+  }
+
+  function applyCamera(clip: HTMLElement | null, x: number) {
+    if (!clip) return 0;
+    return writeEffortCamX(clip, x, camContent(clip), camView(clip));
+  }
 
   useEffect(() => {
     if (!foldNonce || foldNonce.n === 0) return;
-    if (foldNonce.all) {
-      const keys = rows.filter((r) => r.type === "l1").map((r) => r.key);
-      setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
-      setAllCollapsed(true);
-    } else {
-      setCollapsed({});
-      setAllCollapsed(false);
-    }
+    toggleEffortUiClass(uiRootRef.current, "is-all-collapsed", foldNonce.all);
     // Only react to the shared toolbar signal, not every row rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [foldNonce]);
@@ -910,33 +1323,29 @@ export function EffortGantt({
     onChange(next);
   }
 
-  function commit(nextDemo: EffortDemo) {
+  function commit(nextDemo: EffortDemo, opts?: { keepLive?: boolean }) {
     if (readOnly) return;
     const d = ensureEffortDemo(nextDemo);
     demoRef.current = d;
     skipDemoSync.current = true;
+    if (opts?.keepLive) {
+      deferGridRef.current = true;
+      holdLiveRef.current = true;
+    }
     setLiveDemo(d);
     onDemoChange(d);
   }
 
   useLayoutEffect(() => {
-    const adj = pendingPanAdj.current;
-    if (adj) {
-      pendingPanAdj.current = 0;
-      const box = scrollerRef.current;
-      if (box) box.scrollLeft += adj;
-      if (panRef.current) panRef.current.startLeft += adj;
-    }
-    extendingRef.current = false;
-    const el = scrollerRef.current;
+    const el = clipEl();
     if (!el || n < 1) return;
     if (place === "milestone") {
       const unconstrained =
         el.clientWidth > (typeof window !== "undefined" ? window.innerWidth - 24 : 1e9);
-      const alreadyOverflows = el.scrollWidth > el.clientWidth + 8;
+      const alreadyOverflows = n * currentWeekPx() > el.clientWidth + 8;
       if (!unconstrained && !alreadyOverflows) {
-        const view = Math.max(80, el.clientWidth - (timescaleOnly ? 0 : FN_W + labelW));
-        const needed = Math.min(104, Math.ceil(view / weekPx));
+        const view = camView(el);
+        const needed = Math.min(104, Math.ceil(view / currentWeekPx()));
         if (n < needed) {
           const padded = padViewportToFill(demoRef.current, needed);
           if ((padded.weekCount || 0) > n) commit(padded);
@@ -944,14 +1353,43 @@ export function EffortGantt({
         }
       }
     }
-    if (centredOnce.current) return;
+    if (centredOnce.current) {
+      applyCamera(el, readEffortCamX(el));
+      return;
+    }
     centreChart(el);
     centredOnce.current = true;
-  }, [n, chartW, labelW, place, weekPx]);
+  }, [n, labelW, place]);
+
+  useLayoutEffect(() => {
+    const root = chartRootRef.current;
+    if (root) {
+      root.querySelectorAll<HTMLElement>("[data-effort-live-layer]").forEach((el) => {
+        el.style.transform = "";
+      });
+      root.querySelectorAll<HTMLElement>("[data-effort-live]").forEach((el) => {
+        el.style.transform = "";
+      });
+    }
+    holdLiveRef.current = false;
+    if (!deferGridRef.current) return;
+    let inner = 0;
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => {
+        deferGridRef.current = false;
+        setGridEpoch((x) => x + 1);
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
+  }, [demo]);
 
   function centreChart(el?: HTMLDivElement | null, align: "mid" | "start" = centreAlign) {
-    const box = el || scrollerRef.current;
+    const box = el || clipEl();
     if (!box) return;
+    const px = currentWeekPx();
     const span = allSpan(demo);
     let start = span.start ?? tailStartCol;
     let end = span.finish ?? dueCol;
@@ -961,21 +1399,14 @@ export function EffortGantt({
     }
     start = Math.max(0, start - 1);
     end = Math.min(n - 1, Math.max(start, end + 1));
-    const frozen = timescaleOnly ? 0 : FN_W + labelW;
-    const view = Math.max(80, box.clientWidth - frozen);
-    if (align === "start") {
-      box.scrollLeft = Math.max(0, start * weekPx);
-      onScrollLeft?.(Math.round(box.scrollLeft));
-      return;
-    }
-    const spanMid = ((start + end + 1) / 2) * weekPx;
-    box.scrollLeft = Math.max(0, spanMid - view / 2);
-    onScrollLeft?.(Math.round(box.scrollLeft));
+    const view = camView(box);
+    const target = align === "start" ? start * px : ((start + end + 1) / 2) * px - view / 2;
+    applyCamera(box, target);
   }
 
   useLayoutEffect(() => {
     if (centreNonce == null) return;
-    centreChart(scrollerRef.current, centreAlign);
+    centreChart(clipEl(), centreAlign);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centreNonce]);
 
@@ -983,22 +1414,17 @@ export function EffortGantt({
     const frac = pendingWeekZoomFrac.current;
     if (frac == null) return;
     pendingWeekZoomFrac.current = null;
-    const box = scrollerRef.current;
+    const box = clipEl();
     if (!box) return;
-    box.scrollLeft = Math.max(0, frac * chartW - box.clientWidth / 2);
-    onScrollLeft?.(Math.round(box.scrollLeft));
-  }, [weekPx, chartW, onScrollLeft]);
+    applyCamera(box, frac * chartW - camView(box) / 2);
+  }, [weekPx, chartW]);
 
-  const applyingScroll = useRef(false);
   useLayoutEffect(() => {
     if (embedScroller) return;
-    if (scrollLeft == null || !scrollerRef.current) return;
-    if (Math.abs(scrollerRef.current.scrollLeft - scrollLeft) < 1) return;
-    applyingScroll.current = true;
-    scrollerRef.current.scrollLeft = scrollLeft;
-    requestAnimationFrame(() => {
-      applyingScroll.current = false;
-    });
+    if (scrollLeft == null) return;
+    const box = clipEl();
+    if (!box) return;
+    applyCamera(box, scrollLeft);
   }, [scrollLeft]);
 
   useEffect(() => {
@@ -1012,9 +1438,63 @@ export function EffortGantt({
     return () => window.removeEventListener("pointerdown", onDown);
   }, [colsOpen, setColsOpen]);
 
-  function startPan(e: ReactPointerEvent) {
+  function startWeekPreview(
+    startX: number,
+    applyDelta: (delta: number) => void,
+    commitDelta: (delta: number) => void,
+    onDone?: () => void,
+  ) {
+    let lastDelta = 0;
+    let latestX = startX;
+    let raf = 0;
+    const weekPx = currentWeekPx();
+    const applyFrame = () => {
+      raf = 0;
+      const delta = Math.round((latestX - startX) / weekPx);
+      lastDelta = delta;
+      applyDelta(delta);
+    };
+    const onMove = (ev: PointerEvent) => {
+      latestX = ev.clientX;
+      if (!raf) raf = window.requestAnimationFrame(applyFrame);
+    };
+    const onUp = () => {
+      if (raf) {
+        window.cancelAnimationFrame(raf);
+        applyFrame();
+      }
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (lastDelta !== 0) commitDelta(lastDelta);
+      onDone?.();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  function applyPanFrame() {
+    panRaf.current = 0;
+    const p = panRef.current;
+    if (!p) return;
+    const { x, y } = panPtRef.current;
+    const next = clampCamX(p.startCam - (x - p.startX), p.contentW, p.viewW);
+    if (next !== p.lastCam) {
+      p.lastCam = next;
+      paintCamX(p.clip, next, p.layers);
+    }
+    if (!p.yTarget) return;
+    const top = Math.max(0, Math.min(p.maxTop, Math.round(p.startTop - (y - p.startY))));
+    if (top !== p.lastTop) {
+      p.yTarget.scrollTop = top;
+      p.lastTop = top;
+    }
+  }
+
+  function startPan(e: ReactPointerEvent | PointerEvent) {
     if (e.button !== 0) return;
-    const target = e.target as HTMLElement;
+    if (panRef.current) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
     if (
       target.closest("input") ||
       target.closest("select") ||
@@ -1033,44 +1513,46 @@ export function EffortGantt({
     ) {
       return;
     }
-    const el = scrollerRef.current;
-    if (!el) return;
+    const el = clipEl();
+    if (!el || panRef.current) return;
     e.preventDefault();
     const yBox = timescaleOnly
       ? (el.closest("[data-mrt-effort-body]") as HTMLElement | null)
       : el;
-    const pan = {
+    const startCam = readEffortCamX(el);
+    const startTop = yBox?.scrollTop ?? 0;
+    const host = freeze?.chartHost;
+    const maxTop = yBox ? Math.max(0, yBox.scrollHeight - yBox.clientHeight) : 0;
+    panRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      startLeft: el.scrollLeft,
-      startTop: yBox?.scrollTop ?? 0,
+      startCam,
+      startTop,
+      clip: el,
+      layers: timescaleOnly && host ? [host] : topCamLayers(el),
+      contentW: nRef.current * currentWeekPx(),
+      viewW: timescaleOnly ? Math.max(80, el.clientWidth) : camView(el),
+      yTarget: yBox,
+      maxTop,
+      lastCam: startCam,
+      lastTop: startTop,
     };
-    panRef.current = pan;
-    setPanning(true);
+    panPtRef.current = { x: e.clientX, y: e.clientY };
+    const grabEl = target instanceof HTMLElement ? target : el;
+    const prevCursor = grabEl.style.cursor;
+    grabEl.style.cursor = "grabbing";
     const onMove = (ev: PointerEvent) => {
-      const p = panRef.current;
-      const box = scrollerRef.current;
-      if (!p || !box) return;
-      const wantLeft = p.startLeft - (ev.clientX - p.startX);
-      box.scrollLeft = wantLeft;
-      const yTarget = timescaleOnly
-        ? (box.closest("[data-mrt-effort-body]") as HTMLElement | null)
-        : box;
-      if (yTarget) yTarget.scrollTop = p.startTop - (ev.clientY - p.startY);
-      if (place !== "milestone" || extendingRef.current || readOnly) return;
-      const maxScroll = Math.max(0, box.scrollWidth - box.clientWidth);
-      if (wantLeft < panEdgePx) {
-        extendingRef.current = true;
-        pendingPanAdj.current = VIEW_EXTEND_WEEKS * weekPx;
-        commit(extendViewport(demoRef.current, "start"));
-      } else if (wantLeft > maxScroll - panEdgePx) {
-        extendingRef.current = true;
-        commit(extendViewport(demoRef.current, "end"));
-      }
+      panPtRef.current = { x: ev.clientX, y: ev.clientY };
+      if (!panRaf.current) panRaf.current = window.requestAnimationFrame(applyPanFrame);
     };
     const onUp = () => {
+      if (panRaf.current) {
+        window.cancelAnimationFrame(panRaf.current);
+        panRaf.current = 0;
+        applyPanFrame();
+      }
       panRef.current = null;
-      setPanning(false);
+      grabEl.style.cursor = prevCursor;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
@@ -1078,56 +1560,69 @@ export function EffortGantt({
     window.addEventListener("pointerup", onUp);
   }
 
+  startPanRef.current = startPan;
+  useLayoutEffect(() => {
+    if (!timescaleOnly || hideWeekHeader || !freeze?.panDownRef) return;
+    const fn = (ev: PointerEvent) => startPanRef.current(ev);
+    freeze.panDownRef.current = fn;
+    return () => {
+      if (freeze.panDownRef.current === fn) freeze.panDownRef.current = null;
+    };
+  }, [timescaleOnly, hideWeekHeader, freeze]);
+
   function startDueDrag(e: ReactPointerEvent) {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
     const snapshot = JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo;
     const base = snapshot.milestone.due;
-    let lastDelta = 0;
-    const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / weekPx);
-      if (delta === lastDelta) return;
-      lastDelta = delta;
-      const dt = new Date(base.y, base.m - 1, base.d);
-      dt.setDate(dt.getDate() + 7 * delta);
-      commit(
-        setMilestoneDue(snapshot, {
-          y: dt.getFullYear(),
-          m: dt.getMonth() + 1,
-          d: dt.getDate(),
-        }),
-      );
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    const layer = liveLayerInRow(chartRootRef.current, e.currentTarget);
+    const layers: HTMLElement[] = [];
+    if (layer) layers.push(layer);
+    if (snapshot.stick === "tail-start" || snapshot.stick === "tail-end") {
+      for (const live of collectShiftLayers(chartRootRef.current, "l0", {})) {
+        if (live !== layer) layers.push(live);
+      }
+    }
+    const px = currentWeekPx();
+    startWeekPreview(
+      e.clientX,
+      (delta) => applyShiftTransforms(layers, delta * px),
+      (delta) => {
+        const dt = new Date(base.y, base.m - 1, base.d);
+        dt.setDate(dt.getDate() + 7 * delta);
+        commit(
+          setMilestoneDue(snapshot, {
+            y: dt.getFullYear(),
+            m: dt.getMonth() + 1,
+            d: dt.getDate(),
+          }),
+          { keepLive: true },
+        );
+      },
+    );
   }
 
   function startTailDrag(e: ReactPointerEvent) {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
     const snapshot = JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo;
     const baseTail = Math.max(1, snapshot.milestone.tailWeeks);
-    let lastDelta = 0;
-    const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / weekPx);
-      if (delta === lastDelta) return;
-      lastDelta = delta;
-      commit(setTailWeeks(snapshot, Math.max(1, baseTail - delta)));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    const handleEl = e.currentTarget instanceof HTMLElement ? e.currentTarget : null;
+    const row = chartRowFromTarget(chartRootRef.current, handleEl);
+    const bar = snapshotLiveEl(
+      row?.querySelector<HTMLElement>('[data-effort-live="tail-bar"]') ?? undefined,
+    );
+    const handle = snapshotLiveEl(
+      row?.querySelector<HTMLElement>('[data-effort-live="tail"]') ?? handleEl ?? undefined,
+    );
+    const px = currentWeekPx();
+    startWeekPreview(
+      e.clientX,
+      (delta) => applyTailPreview(bar, handle, delta * px),
+      (delta) => commit(setTailWeeks(snapshot, Math.max(1, baseTail - delta)), { keepLive: true }),
+    );
   }
 
   function startRunResize(
@@ -1141,28 +1636,30 @@ export function EffortGantt({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
     const snapshot = JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo;
     const base = edge === "start" ? runStart : runEnd;
-    let lastIndex = base;
-    const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / weekPx);
-      const newIndex = base + delta;
-      if (newIndex === lastIndex) return;
-      lastIndex = newIndex;
-      commit(resizeHourRun(snapshot, taskId, resourceId, runStart, runEnd, edge, newIndex));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    const handleEl = e.currentTarget as HTMLElement;
+    const row = chartRowFromTarget(chartRootRef.current, handleEl);
+    if (row && !row.contains(handleEl)) return;
+    const pair = resizePair(handleEl);
+    const barSnap = snapshotLiveEl(pair.bar);
+    const handleSnap = snapshotLiveEl(pair.handle);
+    if (!handleSnap) return;
+    const px = currentWeekPx();
+    startWeekPreview(
+      e.clientX,
+      (delta) => applyResizePreview(barSnap, handleSnap, edge, delta * px),
+      (delta) =>
+        commit(
+          resizeHourRun(snapshot, taskId, resourceId, runStart, runEnd, edge, base + delta),
+          { keepLive: true },
+        ),
+    );
   }
 
   function startSummaryResize(
     e: ReactPointerEvent,
-    scope: { kind: "all" } | { kind: "task"; taskId: string } | { kind: "group"; groupKey: string },
+    scope: ResizeSpanScope,
     spanStart: number,
     spanEnd: number,
     edge: "start" | "end",
@@ -1170,60 +1667,64 @@ export function EffortGantt({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
     const snapshot = JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo;
     const base = edge === "start" ? spanStart : spanEnd;
-    let lastIndex = base;
-    const onMove = (ev: PointerEvent) => {
-      const delta = Math.round((ev.clientX - startX) / weekPx);
-      const newIndex = base + delta;
-      if (newIndex === lastIndex) return;
-      lastIndex = newIndex;
-      commit(resizeMatchingSpan(snapshot, scope, edge, newIndex));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    const handleEl = e.currentTarget as HTMLElement;
+    const row = chartRowFromTarget(chartRootRef.current, handleEl);
+    if (row && !row.contains(handleEl)) return;
+    const pair = resizePair(handleEl);
+    const snaps = collectResizePreview(chartRootRef.current, scope, edge);
+    if (snaps.length === 0) {
+      const barSnap = snapshotLiveEl(pair.bar);
+      const handleSnap = snapshotLiveEl(pair.handle);
+      if (!handleSnap) return;
+      snaps.push({ bar: barSnap, handle: handleSnap });
+    }
+    const px = currentWeekPx();
+    startWeekPreview(
+      e.clientX,
+      (delta) => applyResizePreviews(snaps, edge, delta * px),
+      (delta) => commit(resizeMatchingSpan(snapshot, scope, edge, base + delta), { keepLive: true }),
+    );
   }
 
   function startBarDrag(
-    startX: number,
+    e: ReactPointerEvent,
     kind: BarKind,
     meta: { taskId?: string; resourceId?: string; groupKey?: string },
   ) {
     if (readOnly) return;
+    const snapshot = JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo;
+    const layers = collectShiftLayers(chartRootRef.current, kind, meta);
+    if (layers.length === 0) {
+      const fallback = liveLayerInRow(chartRootRef.current, e.currentTarget);
+      if (fallback) layers.push(fallback);
+    }
     barDrag.current = {
       kind,
       ...meta,
-      startX,
-      snapshot: JSON.parse(JSON.stringify(demoRef.current)) as EffortDemo,
+      startX: e.clientX,
+      snapshot,
       lastDelta: 0,
     };
-    const onMove = (ev: PointerEvent) => {
-      const d = barDrag.current;
-      if (!d) return;
-      const delta = Math.round((ev.clientX - d.startX) / weekPx);
-      if (delta === d.lastDelta) return;
-      d.lastDelta = delta;
-      if (d.kind === "l0") commit(shiftAll(d.snapshot, delta));
-      else if (d.kind === "l1-task" && d.taskId) {
-        commit(shiftTask(d.snapshot, d.taskId, delta));
-      } else if (d.kind === "l1-group" && d.groupKey) {
-        commit(shiftResourceGroup(d.snapshot, d.groupKey, delta));
-      } else if (d.kind === "l2" && d.taskId && d.resourceId) {
-        commit(shiftResource(d.snapshot, d.taskId, d.resourceId, delta));
-      }
-    };
-    const onUp = () => {
-      barDrag.current = null;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    const px = currentWeekPx();
+    startWeekPreview(
+      e.clientX,
+      (delta) => applyShiftTransforms(layers, delta * px),
+      (delta) => {
+        if (kind === "l0") commit(shiftAll(snapshot, delta), { keepLive: true });
+        else if (kind === "l1-task" && meta.taskId) {
+          commit(shiftTask(snapshot, meta.taskId, delta), { keepLive: true });
+        } else if (kind === "l1-group" && meta.groupKey) {
+          commit(shiftResourceGroup(snapshot, meta.groupKey, delta), { keepLive: true });
+        } else if (kind === "l2" && meta.taskId && meta.resourceId) {
+          commit(shiftResource(snapshot, meta.taskId, meta.resourceId, delta), { keepLive: true });
+        }
+      },
+      () => {
+        barDrag.current = null;
+      },
+    );
   }
 
   function onBarDown(
@@ -1234,7 +1735,7 @@ export function EffortGantt({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    startBarDrag(e.clientX, kind, meta);
+    startBarDrag(e, kind, meta);
   }
 
   function applyRowDrop(src: NonNullable<typeof rowDrag.current>, slot: DropSlot) {
@@ -1602,13 +2103,15 @@ export function EffortGantt({
           {pane !== "frozen" ? (
           <div
             className="effort-gantt-head effort-gantt-weekhead relative flex border-b border-[var(--border)] text-[10px]"
+            data-effort-pan
+            onPointerDown={startPan}
             style={{ height: headH, position: pane === "both" ? "sticky" : undefined, top: pane === "both" ? 0 : undefined, zIndex: pane === "both" ? 12 : undefined }}
           >
             {weeks.map((w) => (
-              <WeekHeadCell key={w.idx} label={w.label} weekPx={weekPx} />
+              <WeekHeadCell key={w.idx} label={w.label} />
             ))}
             {showToday ? (
-              <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} title="Today" />
+              <div className="effort-gantt-today" style={{ left: weekMid(todayCol) }} title="Today" />
             ) : null}
           </div>
           ) : null}
@@ -1657,6 +2160,7 @@ export function EffortGantt({
 
           {visibleRows.map((row) => {
             const meta = barMeta(row);
+            const deferGrid = deferGridRef.current;
             return (
               <RowTriple
                 key={row.key}
@@ -1670,6 +2174,13 @@ export function EffortGantt({
                 metaCols={metaCols}
                 baselineHours={baselineHoursForRow(demo, baselineDemo, row)}
                 n={n}
+                hourPaintN={row.type === "l2" && deferGrid ? gridNRef.current : undefined}
+                hourPaintHours={
+                  row.type === "l2" && deferGrid
+                    ? gridHoursRef.current.get(row.key)
+                    : undefined
+                }
+                hourPaintLoad={deferGrid ? gridLoadRef.current : undefined}
                 stick={demo.stick}
                 dueCol={dueCol}
                 tailStartCol={tailStartCol}
@@ -1845,7 +2356,7 @@ export function EffortGantt({
 
   return (
     <WeekPxContext.Provider value={weekPx}>
-    <div>
+    <div ref={uiRootRef} data-effort-ui>
       {maybePortal(
         hideToolbar ? null : (
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1885,12 +2396,17 @@ export function EffortGantt({
               key={id}
               type="button"
               className={`mrt-gantt-tool ${mode === id ? "on" : ""}`}
+              aria-busy={toolBusy === id}
+              disabled={!!toolBusy}
               onClick={() => {
-                setMode(id);
-                setCollapsed({});
-                setAllCollapsed(false);
+                runTool(id, () => {
+                  setMode(id);
+                  setCollapsed({});
+                  setAllCollapsed(false);
+                });
               }}
             >
+              <BusySpin on={toolBusy === id} />
               {label}
             </button>
           ))}
@@ -1908,6 +2424,8 @@ export function EffortGantt({
                 key={id}
                 type="button"
                 className={`mrt-gantt-tool ${demo.stick === id ? "on" : ""}`}
+                aria-busy={toolBusy === id}
+                disabled={!!toolBusy}
                 title={
                   id === "unstick"
                     ? "Milestone and tail move independently of Task/Res hours"
@@ -1916,10 +2434,13 @@ export function EffortGantt({
                       : "Keep the gap from latest work to due"
                 }
                 onClick={() => {
-                  onStick?.(id as EffortStick);
-                  commit(setStick(demo, id as EffortStick));
+                  runTool(id, () => {
+                    onStick?.(id as EffortStick);
+                    commit(setStick(demo, id as EffortStick));
+                  });
                 }}
               >
+                <BusySpin on={toolBusy === id} />
                 {label}
               </button>
             ))}
@@ -1962,54 +2483,34 @@ export function EffortGantt({
             ) : null}
           </div>
         </div>
-        <div className="mrt-gantt-tools rounded-md border border-[var(--border)]">
-          <button
-            type="button"
-            className="mrt-gantt-tool"
-            title="Scroll so hours, tail, and due sit in the middle of the visible chart"
-            onClick={() => centreChart()}
-          >
-            Centre around Gantt
-          </button>
-          <button
-            type="button"
-            className="mrt-gantt-tool"
-            disabled={mode === "flat"}
-            title="Collapse or expand all groups"
-            onClick={() => {
-              if (mode === "flat") return;
-              if (allCollapsed) {
-                setCollapsed({});
-                setAllCollapsed(false);
-              } else {
-                const keys = rows.filter((r) => r.type === "l1").map((r) => r.key);
-                setCollapsed(Object.fromEntries(keys.map((k) => [k, true])));
-                setAllCollapsed(true);
-              }
-            }}
-          >
-            {allCollapsed ? "Expand" : "Collapse"}
-          </button>
-          <button
-            type="button"
-            className={`mrt-gantt-tool${metaCols.availability ? " on" : ""}`}
-            title="Show availability overlay on named rows"
-            onClick={() =>
-              setMetaCols((cur) => ({ ...cur, availability: !cur.availability }))
-            }
-          >
-            Availability
-          </button>
-        </div>
+        <EffortQuickTools
+          mode={mode}
+          onCentre={() => centreChart()}
+          onCollapse={() => {
+            if (mode === "flat") return;
+            toggleEffortUiClass(uiRootRef.current, "is-all-collapsed");
+          }}
+          onAvailability={() => {
+            toggleEffortUiClass(uiRootRef.current, "is-avail");
+          }}
+        />
         <WeekZoomChip
           weekPx={weekPx}
           onWeekPx={(next) => {
-            const box = scrollerRef.current;
+            const box = clipEl();
+            const prev = weekPxRef.current;
             if (box && n > 0) {
-              pendingWeekZoomFrac.current =
-                (box.scrollLeft + box.clientWidth / 2) / Math.max(1, n * weekPx);
+              const view = camView(box);
+              const frac =
+                (readEffortCamX(box) + view / 2) / Math.max(1, n * prev);
+              weekPxRef.current = next;
+              writeEffortWeekPx(uiRootRef.current, next);
+              applyCamera(box, frac * n * next - view / 2);
+            } else {
+              weekPxRef.current = next;
+              writeEffortWeekPx(uiRootRef.current, next);
             }
-            setWeekPx(next);
+            onWeekPx?.(next);
           }}
         />
         {place === "milestone" ? (
@@ -2055,9 +2556,11 @@ export function EffortGantt({
           )}
           {createPortal(
             <div
-              className={`effort-chart-stack${panning ? " is-panning" : ""}`}
-              style={{ width: chartW }}
+              ref={chartRootRef}
+              className="effort-chart-stack"
+              data-effort-chart
               onPointerDown={startPan}
+              style={{ width: weeksWidth(n) }}
             >
               {tableBands("chart")}
             </div>,
@@ -2084,22 +2587,23 @@ export function EffortGantt({
         </>
       ) : freeze ? null : (
       <div
-        ref={localScroller}
+        ref={(el) => {
+          localScroller.current = el;
+          chartRootRef.current = el;
+        }}
         className={`effort-gantt bg-[var(--surface)]${
           stackedCompact
-            ? " w-full max-w-full overflow-x-auto overflow-y-hidden is-embed"
-            : " overflow-auto rounded-[10px] border border-[var(--border)] pb-6"
-        }${panning ? " is-panning" : ""}`}
+            ? " w-full max-w-full overflow-x-hidden overflow-y-hidden is-embed"
+            : " overflow-x-hidden overflow-y-auto rounded-[10px] border border-[var(--border)] pb-6"
+        }`}
+        data-effort-chart
         onPointerDown={startPan}
-        onScroll={(e) => {
-          if (applyingScroll.current) return;
-          onScrollLeft?.(e.currentTarget.scrollLeft);
-        }}
       >
         <div
           className="effort-gantt-grid grid"
+          data-effort-cam
           style={{
-            gridTemplateColumns: `${FN_W}px ${labelW}px ${chartW}px`,
+            gridTemplateColumns: `${FN_W}px ${labelW}px ${weeksWidth(n)}`,
           }}
         >
           {tableBands("both")}
@@ -2219,9 +2723,8 @@ export function EffortLoadSummary({
   scrollLeft?: number;
   onScrollLeft?: (left: number) => void;
 }) {
-  const weekPx = useWeekPx();
-  const headH = weekHeadHeight(weekPx);
-  const sumHeadH = sumHeadHeight(weekPx);
+  const headH = "var(--effort-head)";
+  const sumHeadH = "var(--effort-sum-head)";
   const [everywhere, setEverywhere] = useState(false);
   const [availOver, setAvailOver] = useState(false);
   const freeze = useEffortFreeze();
@@ -2251,17 +2754,13 @@ export function EffortLoadSummary({
   );
   const liveStart = calendarWindow(demo).start;
   const sumScrollRef = useRef<HTMLDivElement>(null);
-  const applying = useRef(false);
   useLayoutEffect(() => {
     if (embedScroller) return;
     if (scrollLeft == null || !sumScrollRef.current) return;
-    if (Math.abs(sumScrollRef.current.scrollLeft - scrollLeft) < 1) return;
-    applying.current = true;
-    sumScrollRef.current.scrollLeft = scrollLeft;
-    requestAnimationFrame(() => {
-      applying.current = false;
-    });
-  }, [scrollLeft]);
+    const clip = sumScrollRef.current.closest(".effort-gantt") as HTMLElement | null;
+    if (!clip) return;
+    writeEffortCamX(clip, scrollLeft, n * readEffortWeekPx(clip), clip.clientWidth);
+  }, [scrollLeft, embedScroller, n]);
 
   const rows = [...new Set([...thisLoad.keys(), ...allLoad.keys()])]
     .map((id) => {
@@ -2325,7 +2824,6 @@ export function EffortLoadSummary({
   const vacHoursSum = rows.reduce((s, r) => s + r.vacHours, 0);
   const facCostSum = rows.reduce((s, r) => s + r.facCost, 0);
   const vacCostSum = rows.reduce((s, r) => s + r.vacCost, 0);
-  const chartW = n * weekPx;
 
   function weekCell(
     h: number,
@@ -2348,7 +2846,6 @@ export function EffortLoadSummary({
         className={`mrt-sum-week relative flex shrink-0 items-center justify-center text-[10px] tabular-nums${
           over ? ` ${rag}` : ""
         }${multi ? " is-multi" : ""}${tint ? " is-this-ms" : ""}`}
-        style={{ width: weekPx }}
         title={
           everywhere
             ? `This milestone ${formatHours(thisH, true)} h · All ${formatHours(h, true)} h${
@@ -2428,7 +2925,7 @@ export function EffortLoadSummary({
         style={{ height: sumHeadH }}
       >
         {weeks.map((w, i) => (
-          <WeekHeadCell key={i} label={w.label} weekPx={weekPx} />
+          <WeekHeadCell key={i} label={w.label} />
         ))}
       </div>
       ) : null}
@@ -2710,8 +3207,7 @@ export function EffortLoadSummary({
             {weekTotals.map((h, i) => (
               <div
                 key={i}
-                className="flex shrink-0 items-center justify-center text-[10px] tabular-nums"
-                style={{ width: weekPx }}
+                className="mrt-sum-week flex shrink-0 items-center justify-center text-[10px] tabular-nums"
               >
                 {h ? formatHours(availOver ? 0 : h) : ""}
               </div>
@@ -2738,7 +3234,7 @@ export function EffortLoadSummary({
           freeze!.frozenHost!,
         )}
         {createPortal(
-          <div className="effort-chart-stack border-t border-[var(--border)]" style={{ width: chartW }}>
+          <div className="effort-chart-stack border-t border-[var(--border)]" style={{ width: weeksWidth(n) }}>
             {sumBands("chart")}
           </div>,
           freeze!.chartHost!,
@@ -2750,15 +3246,12 @@ export function EffortLoadSummary({
   return (
     <div
       ref={sumScrollRef}
-      className="overflow-x-auto overflow-y-visible"
-      onScroll={(e) => {
-        if (applying.current) return;
-        onScrollLeft?.(e.currentTarget.scrollLeft);
-      }}
+      className="overflow-x-hidden overflow-y-visible"
     >
     <div
       className="effort-gantt-grid grid border-t border-[var(--border)]"
-      style={{ gridTemplateColumns: `${FN_W}px ${labelW}px ${chartW}px` }}
+      data-effort-cam
+      style={{ gridTemplateColumns: `${FN_W}px ${labelW}px ${weeksWidth(n)}` }}
     >
       {sumBands("both")}
     </div>
@@ -2904,6 +3397,9 @@ function RowTriple({
   todayCol,
   dropSlot,
   weekLoad,
+  hourPaintN,
+  hourPaintHours,
+  hourPaintLoad,
   overrunPercent,
   highlight,
   store,
@@ -2935,6 +3431,9 @@ function RowTriple({
   demo: EffortDemo;
   baselineHours?: number[];
   n: number;
+  hourPaintN?: number;
+  hourPaintHours?: number[];
+  hourPaintLoad?: Map<string, number[]>;
   stick: EffortStick;
   dueCol: number;
   tailStartCol: number;
@@ -2979,6 +3478,7 @@ function RowTriple({
       <div
         className="effort-gantt-fn relative"
         data-effort-row={row.key}
+        {...(row.type === "l2" ? { "data-effort-l2": "" } : {})}
         style={{ height: h, position: stickCols ? "sticky" : undefined, left: stickCols ? 0 : undefined, zIndex: stickCols ? 30 : undefined }}
       >
         <DropMark slot={dropSlot} rowKey={row.key} />
@@ -3006,6 +3506,7 @@ function RowTriple({
       <div
         className={`relative min-w-0 effort-gantt-labels${row.type === "l2" ? "" : " is-summary"}`}
         data-effort-row={row.key}
+        {...(row.type === "l2" ? { "data-effort-l2": "" } : {})}
         style={{ position: stickCols ? "sticky" : undefined, left: stickCols ? FN_W : undefined, zIndex: stickCols ? 20 : undefined }}
       >
         <DropMark slot={dropSlot} rowKey={row.key} />
@@ -3033,17 +3534,26 @@ function RowTriple({
       </div>
       ) : null}
       {chart ? (
-      <div className="relative" data-effort-row={row.key} style={{ zIndex: 1 }}>
+      <div
+        className="relative"
+        data-effort-row={row.key}
+        data-effort-task={"taskId" in row ? row.taskId : undefined}
+        data-effort-resource={row.type === "l2" ? row.resourceId : undefined}
+        data-effort-group={"groupKey" in row ? row.groupKey : undefined}
+        {...(row.type === "l2" ? { "data-effort-l2": "" } : {})}
+        style={{ zIndex: 1 }}
+      >
         <DropMark slot={dropSlot} rowKey={row.key} />
         <TimelineRow
           row={row}
-          n={n}
+          n={hourPaintN ?? n}
           stick={place === "milestone" ? stick : "unstick"}
           dueCol={dueCol}
           tailStartCol={tailStartCol}
           todayCol={todayCol}
           baselineHours={baselineHours}
-          weekLoad={weekLoad}
+          weekLoad={hourPaintLoad ?? weekLoad}
+          hoursPaint={hourPaintHours}
           overrunPercent={overrunPercent}
           highlight={highlight}
           cap={
@@ -3524,68 +4034,73 @@ function MilestoneLane({
   onDueDrag: (e: ReactPointerEvent) => void;
   onTailDrag: (e: ReactPointerEvent) => void;
 }) {
-  const weekPx = useWeekPx();
   const dueCol = dueColumnIndex(demo);
   const tail = Math.max(1, demo.milestone.tailWeeks);
   const startCol = dueCol - tail + 1;
-  const left = startCol * weekPx;
-  const dueX = diamondX(dueCol, weekPx);
-  const tailCapX = stick === "tail-start" ? left : dueX;
+  const tailCapLeft =
+    stick === "tail-start" ? weekLeft(startCol, -1) : `calc(${weekMid(dueCol)} - 1px)`;
   const base = baseline ? ensureEffortDemo(baseline) : null;
   const baseDueCol = base ? dueColumnOnLive(demo, base) : null;
   const baseTail = base ? Math.max(1, base.milestone.tailWeeks) : 0;
   const baseStartCol =
     baseDueCol !== null ? baseDueCol - baseTail + 1 : 0;
-  const baseLeft = baseStartCol * weekPx;
-  const baseDueX = baseDueCol !== null ? diamondX(baseDueCol, weekPx) : 0;
   return (
-    <div className="relative border-b border-[var(--border)]" style={{ height: MS_H, zIndex: 1 }}>
+    <div
+      className="relative border-b border-[var(--border)]"
+      data-effort-row="milestone"
+      style={{ height: MS_H, zIndex: 1 }}
+    >
       {baseline && baseDueCol !== null ? (
         <>
           <div
             className="effort-gantt-baseline-bar absolute top-1/2 h-2 -translate-y-1/2 rounded-sm"
             style={{
-              left: baseLeft + 4,
-              width: Math.max(8, baseDueX - baseLeft - 4),
+              left: weekLeft(baseStartCol, 4),
+              width: weekSpan(baseTail, -8),
             }}
             title="Default milestone and tail"
           />
           <div
             className="effort-gantt-baseline-diamond absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45"
-            style={{ left: baseDueX }}
+            style={{ left: weekMid(baseDueCol) }}
             title="Default due"
           />
         </>
       ) : null}
+      {todayCol !== null ? (
+        <div className="effort-gantt-today" style={{ left: weekMid(todayCol) }} />
+      ) : null}
+      <div data-effort-live-layer>
       <div
+        data-effort-live="tail-bar"
         className="absolute top-1/2 h-2 -translate-y-1/2 rounded-sm"
         style={{
-          left: left + 4,
-          width: Math.max(8, dueX - left - 4),
+          left: weekLeft(startCol, 4),
+          width: weekSpan(tail, -8),
           background: "color-mix(in srgb, var(--ink) 72%, transparent)",
         }}
         title={`${demo.milestone.tailWeeks} week tail`}
       />
       <div
         data-effort-tail
+        data-effort-live="tail"
         className="effort-gantt-resize is-bar"
-        style={{ left: left + 4 - 3, top: 15, height: 8 }}
+        style={{ left: weekLeft(startCol, 1), top: 15, height: 8 }}
         title="Drag to change tail length"
         onPointerDown={onTailDrag}
       />
       {stick !== "unstick" ? (
-        <div className="effort-gantt-stuck-cap is-tail-top" style={{ left: tailCapX - 1 }} />
+        <div className="effort-gantt-stuck-cap is-tail-top" style={{ left: tailCapLeft }} />
       ) : null}
       <div
         data-effort-diamond
+        data-effort-live="diamond"
         className="effort-gantt-diamond absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-[var(--ink)] bg-[var(--rag-green)]"
-        style={{ left: dueX }}
+        style={{ left: weekMid(dueCol) }}
         title="Drag due date"
         onPointerDown={onDueDrag}
       />
-      {todayCol !== null ? (
-        <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} />
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -3599,10 +4114,11 @@ function TimelineRow({
   todayCol,
   baselineHours,
   weekLoad,
+  hoursPaint,
   overrunPercent = 125,
   highlight,
   cap,
-  showAvailability,
+  showAvailability: _showAvailability,
   redHover,
   store,
   liveStart,
@@ -3618,6 +4134,7 @@ function TimelineRow({
   todayCol: number | null;
   baselineHours?: number[];
   weekLoad?: Map<string, number[]>;
+  hoursPaint?: number[];
   overrunPercent?: number;
   highlight?: boolean;
   cap?: number;
@@ -3634,23 +4151,28 @@ function TimelineRow({
     edge: "start" | "end",
   ) => void;
 }) {
-  const weekPx = useWeekPx();
   const h = rowHeight(row.type);
   const span = row.span;
   const isSummary = row.type === "l0" || row.type === "l1";
-  const barLeft =
-    span.start !== null ? span.start * weekPx + 2 : 0;
-  const barWidth =
-    span.start !== null && span.finish !== null
-      ? Math.max(8, (span.finish - span.start + 1) * weekPx - 4)
-      : 0;
-  const dueX = diamondX(dueCol, weekPx);
-  const tailStartX = tailStartCol * weekPx;
-  const barRight = barLeft + barWidth;
-  const allX = stick === "tail-start" ? barLeft : barRight;
-  const tailX = stick === "tail-start" ? tailStartX : dueX;
-  const joinLeft = Math.min(allX, tailX);
-  const joinWidth = Math.abs(tailX - allX);
+  const barLeft = span.start !== null ? weekLeft(span.start, 2) : "0px";
+  const barCols =
+    span.start !== null && span.finish !== null ? span.finish - span.start + 1 : 0;
+  const barWidth = barCols ? weekSpan(barCols, -4) : "0px";
+  const handleStartLeft = span.start !== null ? weekLeft(span.start, -1) : "0px";
+  const handleEndLeft =
+    span.finish !== null ? weekLeft(span.finish + 1, -7) : "0px";
+  const allCapLeft =
+    stick === "tail-start"
+      ? weekLeft(span.start ?? 0, 1)
+      : weekLeft((span.finish ?? 0) + 1, -3);
+  const tailCapLeft =
+    stick === "tail-start" ? weekLeft(tailStartCol, -1) : `calc(${weekMid(dueCol)} - 1px)`;
+  const joinStartCol = stick === "tail-start"
+    ? Math.min(span.start ?? tailStartCol, tailStartCol)
+    : Math.min(span.finish ?? dueCol, dueCol);
+  const joinEndCol = stick === "tail-start"
+    ? Math.max(span.start ?? tailStartCol, tailStartCol)
+    : Math.max(span.finish ?? dueCol, dueCol);
   return (
     <div
       className="relative border-b border-[var(--border)]/60"
@@ -3667,22 +4189,22 @@ function TimelineRow({
         <div
           key={i}
           className="pointer-events-none absolute top-0 bottom-0 border-r border-[var(--border)]/40"
-          style={{ left: i * weekPx }}
+          style={{ left: weekLeft(i) }}
         />
       ))}
       {row.type === "l2" && row.personId && weekLoad
-        ? (weekLoad.get(row.personId) || []).map((h, i) => {
-            const rag = ragStatus(h, cap || 0, overrunPercent);
+        ? (weekLoad.get(row.personId) || []).map((loadH, i) => {
+            const rag = ragStatus(loadH, cap || 0, overrunPercent);
             if (rag !== "yellow" && rag !== "red") return null;
             return (
               <div
                 key={`ov-${i}`}
                 className="pointer-events-none absolute"
-                title={`${h} h / ${cap || 0} h capacity`}
+                title={`${loadH} h / ${cap || 0} h capacity`}
                 style={{
-                  left: i * weekPx + 1,
+                  left: weekLeft(i, 1),
                   top: 1,
-                  width: weekPx - 2,
+                  width: "calc(var(--effort-week) - 2px)",
                   bottom: 1,
                   border: `1.5px solid ${rag === "red" ? "var(--rag-red)" : "var(--rag-amber)"}`,
                   background:
@@ -3695,31 +4217,29 @@ function TimelineRow({
           })
         : null}
       {todayCol !== null ? (
-        <div className="effort-gantt-today" style={{ left: todayCol * weekPx + weekPx / 2 }} />
+        <div className="effort-gantt-today" style={{ left: weekMid(todayCol) }} />
       ) : null}
       {row.type === "l2" && baselineHours
-        ? hourRuns(baselineHours).map((run) => {
-            const left = run.start * weekPx + 2;
-            const width = Math.max(8, (run.end - run.start + 1) * weekPx - 4);
-            return (
-              <div
-                key={`base-${run.start}-${run.end}`}
-                className="effort-gantt-baseline-bar absolute rounded-sm"
-                style={{
-                  left,
-                  top: 9,
-                  width,
-                  height: 14,
-                }}
-                title="Default hours"
-              />
-            );
-          })
+        ? hourRuns(baselineHours).map((run) => (
+            <div
+              key={`base-${run.start}-${run.end}`}
+              className="effort-gantt-baseline-bar absolute rounded-sm"
+              style={{
+                left: weekLeft(run.start, 2),
+                top: 9,
+                width: weekSpan(run.end - run.start + 1, -4),
+                height: 14,
+              }}
+              title="Default hours"
+            />
+          ))
         : null}
+      <div data-effort-live-layer>
       {isSummary && span.start !== null && span.finish !== null ? (
         <>
           <button
             type="button"
+            data-effort-live="bar"
             className="absolute cursor-grab rounded-sm"
             style={{
               left: barLeft,
@@ -3736,9 +4256,10 @@ function TimelineRow({
           />
           <div
             data-effort-resize
+            data-effort-live="handle"
             className="effort-gantt-resize is-bar"
             style={{
-              left: barLeft - 3,
+              left: handleStartLeft,
               top: row.type === "l0" ? 10 : 9,
               height: row.type === "l0" ? 12 : 10,
             }}
@@ -3747,9 +4268,10 @@ function TimelineRow({
           />
           <div
             data-effort-resize
+            data-effort-live="handle"
             className="effort-gantt-resize is-bar"
             style={{
-              left: barLeft + barWidth - 5,
+              left: handleEndLeft,
               top: row.type === "l0" ? 10 : 9,
               height: row.type === "l0" ? 12 : 10,
             }}
@@ -3763,18 +4285,18 @@ function TimelineRow({
           <div
             className="effort-gantt-stuck-join"
             style={{
-              left: joinLeft,
-              width: joinWidth,
+              left: weekLeft(joinStartCol),
+              width: weekSpan(Math.max(1, joinEndCol - joinStartCol + 1)),
             }}
           />
           <div
             className="effort-gantt-stuck-cap is-tail-bottom"
-            style={{ left: tailX - 1 }}
+            style={{ left: tailCapLeft }}
             title={stick === "tail-start" ? "Stuck to tail start" : "Stuck to tail end"}
           />
           <div
             className="effort-gantt-stuck-cap is-all"
-            style={{ left: allX - 1 }}
+            style={{ left: allCapLeft }}
             title={stick === "tail-start" ? "Stuck to tail start" : "Stuck to tail end"}
           />
         </>
@@ -3783,6 +4305,7 @@ function TimelineRow({
         <button
           type="button"
           data-effort-grab
+          data-effort-live="bar"
           className="effort-gantt-grab"
           style={{
             left: barLeft,
@@ -3795,80 +4318,130 @@ function TimelineRow({
         />
       ) : null}
       {row.type === "l2"
-        ? hourRuns(row.hours).map((run) => {
-            const left = run.start * weekPx + 2;
-            const width = Math.max(8, (run.end - run.start + 1) * weekPx - 4);
-            return (
-              <div key={`${run.start}-${run.end}`}>
-                <div
-                  className="pointer-events-none absolute rounded-sm"
-                  style={{
-                    left,
-                    top: 9,
-                    width,
-                    height: 14,
-                    background: row.color,
-                    opacity: 0.85,
-                  }}
-                />
-                <div
-                  data-effort-resize
-                  className="effort-gantt-resize"
-                  style={{ left: left - 3 }}
-                  title="Resize hours"
-                  onPointerDown={(e) => onRunResize(e, run.start, run.end, "start")}
-                />
-                <div
-                  data-effort-resize
-                  className="effort-gantt-resize"
-                  style={{ left: left + width - 5 }}
-                  title="Resize hours"
-                  onPointerDown={(e) => onRunResize(e, run.start, run.end, "end")}
-                />
-              </div>
-            );
-          })
+        ? hourRuns(row.hours).map((run) => (
+            <div key={`${run.start}-${run.end}`}>
+              <div
+                data-effort-live="run"
+                className="pointer-events-none absolute rounded-sm"
+                style={{
+                  left: weekLeft(run.start, 2),
+                  top: 9,
+                  width: weekSpan(run.end - run.start + 1, -4),
+                  height: 14,
+                  background: row.color,
+                  opacity: 0.85,
+                }}
+              />
+              <div
+                data-effort-resize
+                data-effort-live="handle"
+                className="effort-gantt-resize"
+                style={{ left: weekLeft(run.start, -1) }}
+                title="Resize hours"
+                onPointerDown={(e) => onRunResize(e, run.start, run.end, "start")}
+              />
+              <div
+                data-effort-resize
+                data-effort-live="handle"
+                className="effort-gantt-resize"
+                style={{ left: weekLeft(run.end + 1, -7) }}
+                title="Resize hours"
+                onPointerDown={(e) => onRunResize(e, run.start, run.end, "end")}
+              />
+            </div>
+          ))
         : null}
-      {row.type === "l2"
-        ? Array.from({ length: n }, (_, i) => {
-            const load = row.personId && weekLoad ? weekLoad.get(row.personId)?.[i] || 0 : 0;
-            const remaining =
-              showAvailability && row.personId && cap
-                ? cap - load
-                : null;
-            return (
-            <HourCell
-              key={i}
-              hours={row.hours[i] || 0}
-              left={i * weekPx}
-              remaining={remaining}
-              onCommit={(hours) => onHour(i, hours)}
-              overHover={
-                redHover &&
-                store &&
-                liveStart &&
-                row.personId &&
-                ragStatus(load, cap || 0, overrunPercent) === "red"
-                  ? { store, personId: row.personId, liveStart, weekIdx: i }
-                  : null
-              }
-            />
-            );
-          })
-        : null}
+      </div>
+      {row.type === "l2" ? (
+        <HourGrid
+          n={n}
+          hours={hoursPaint ?? row.hours}
+          personId={row.personId}
+          weekLoad={weekLoad}
+          cap={cap}
+          overrunPercent={overrunPercent}
+          redHover={redHover}
+          store={store}
+          liveStart={liveStart}
+          onHour={onHour}
+        />
+      ) : null}
     </div>
   );
 }
 
+const HourGrid = memo(function HourGrid({
+  n,
+  hours,
+  personId,
+  weekLoad,
+  cap,
+  overrunPercent,
+  redHover,
+  store,
+  liveStart,
+  onHour,
+}: {
+  n: number;
+  hours: number[];
+  personId?: string;
+  weekLoad?: Map<string, number[]>;
+  cap?: number;
+  overrunPercent: number;
+  redHover?: boolean;
+  store?: ScheduleStore;
+  liveStart?: { y: number; m: number; d: number };
+  onHour: (week: number, hours: number) => void;
+}) {
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => {
+        const load = personId && weekLoad ? weekLoad.get(personId)?.[i] || 0 : 0;
+        const remaining = personId && cap ? cap - load : null;
+        return (
+          <HourCell
+            key={i}
+            hours={hours[i] || 0}
+            col={i}
+            remaining={remaining}
+            onCommit={(value) => onHour(i, value)}
+            overHover={
+              redHover &&
+              store &&
+              liveStart &&
+              personId &&
+              ragStatus(load, cap || 0, overrunPercent) === "red"
+                ? { store, personId, liveStart, weekIdx: i }
+                : null
+            }
+          />
+        );
+      })}
+    </>
+  );
+}, (prev, next) =>
+  prev.n === next.n &&
+  prev.hours === next.hours &&
+  prev.weekLoad === next.weekLoad &&
+  prev.personId === next.personId &&
+  prev.cap === next.cap &&
+  prev.overrunPercent === next.overrunPercent &&
+  prev.redHover === next.redHover &&
+  prev.store === next.store &&
+  prev.liveStart?.y === next.liveStart?.y &&
+  prev.liveStart?.m === next.liveStart?.m &&
+  prev.liveStart?.d === next.liveStart?.d,
+);
+
 function HourCell({
   hours,
-  left,
+  col,
   remaining,
   onCommit,
   overHover,
 }: {
   hours: number;
-  left: number;
+  col: number;
   remaining?: number | null;
   onCommit: (hours: number) => void;
   overHover?: {
@@ -3878,7 +4451,6 @@ function HourCell({
     weekIdx: number;
   } | null;
 }) {
-  const weekPx = useWeekPx();
   const [draft, setDraft] = useState<string | null>(null);
   const display = draft ?? (hours ? formatHours(hours) : "");
   const rem =
@@ -3888,11 +4460,11 @@ function HourCell({
   return (
     <div
       className="mrt-hour-cell absolute z-[2] flex items-center justify-center"
-      style={{ left, width: weekPx, top: 8, bottom: 0 }}
+      style={{ left: weekLeft(col), top: 8, bottom: 0 }}
     >
       {remaining != null ? (
         <span
-          className="pointer-events-none absolute top-[-7px] text-[8px] tabular-nums text-[var(--muted)]"
+          className="effort-avail-rem pointer-events-none absolute top-[-7px] text-[8px] tabular-nums text-[var(--muted)]"
           title={`Remaining ${rem} h this week`}
         >
           {rem}
@@ -3903,7 +4475,6 @@ function HourCell({
         inputMode="decimal"
         className="effort-gantt-input effort-gantt-hour"
         style={{
-          width: weekPx - 6,
           color: hours > 0 && draft === null ? "#fff" : "var(--ink)",
         }}
         value={display}
