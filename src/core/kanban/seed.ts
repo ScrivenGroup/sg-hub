@@ -824,7 +824,7 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
 
 Locked process (do not build until kt-dev-hub-cards + kt-sg-hub-changelog + kt-train-changelog homes exist):
 
-- Two clocks. Train = the live website zip: vX.Y plus a Train or Hotfix mark on every surface (chrome first: kt-train-chrome). Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
+- Two clocks. Train = the live website zip: vX.Y on every surface (chrome: kt-train-chrome). Hotfix chip only when that zip is a hotfix. Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
 - Train bumps X.Y every make-it-live (every new tip of main). Hotfix still takes the next X.Y; kind chip is Hotfix, not a letter suffix.
 - Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted. Expand Hotfix: hotfix notes only.
 - Leaf Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. No 4th segment a/b/c.
@@ -909,9 +909,9 @@ Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) 
     id: "kt-train-chrome",
     nodeId: "global",
     title: "Train version always in page chrome",
-    body: `sourceIdeaId IN-20260921-01. Shipped on localhost as 0.2.8.
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost as 0.2.8. Feedback 0.2.9: Hotfix chip only.
 
-- AppShell always shows vX.Y plus a Train or Hotfix chip. Version is the link to /d/train-changelog.
+- AppShell always shows vX.Y. Version is the link to /d/train-changelog. Hotfix chip only when that zip is a hotfix — not on regular Trains.
 - One module src/core/train/version.ts (last live tag hub-1.14). Not leaf X.Y.Z. Not SG Hub clock.
 - MRT guests still see the clock; they do not get the Development link.
 - History rows stay kt-train-changelog.`,
@@ -919,24 +919,22 @@ Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) 
     column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T05:20:00.000Z",
-    updatedAt: "2026-09-21T05:20:00.000Z",
+    updatedAt: "2026-09-21T05:40:00.000Z",
   },
   {
     id: "kt-train-changelog",
     nodeId: "global",
     title: "Train Changelog — home plus history from past make-it-live zips",
-    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. House clean. Chrome clock is kt-train-chrome. Process: kt-hub-version-homes.
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. Shipped on localhost as 0.2.9.
 
-Work:
-- New Development hub card. Going forward: each make-it-live is vX.Y with a Train or Hotfix mark. Expand Train: leaf X.Y.Z that changed (hub suite included). Expand Hotfix: hotfix notes only. Git tag hub-X.Y.
-- Create the history: reconstruct past Trains from tags / Azure zips / known make-it-live sittings (hub-* / v*). One row per zip. Do not leave the card empty after this ticket. Do not invent zips we cannot name.
-
-Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
+- /d/train-changelog lists named hub-* zips. Clock is vX.Y. Hotfix chip only on hotfix zips (historic hub-1.8.1).
+- Expand uses the tag subject: leaves we can name. Do not invent unnamed zips or extra leaves.
+- Chrome clock is kt-train-chrome. Not SG Hub Changelog. Not a product-leaf changelog.`,
     lane: "structure",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T02:47:00.000Z",
+    updatedAt: "2026-09-21T05:40:00.000Z",
   },
   {
     id: "kt-feedback-open-register",

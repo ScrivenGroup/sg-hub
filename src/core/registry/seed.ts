@@ -197,10 +197,10 @@ export const seedNodes: RegistryNode[] = [
     parentId: "hub-development",
     href: "/d/train-changelog",
     accessMode: "shared",
-    status: "sketched",
+    status: "live",
     hasNetworkMap: false,
     description:
-      "Empty home for website Train/Hotfix zips until kt-train-changelog.",
+      "Website zip history. Clock is vX.Y. Hotfix chip only on hotfix zips.",
     order: 3,
   },
   {
@@ -1827,17 +1827,139 @@ Out of this version
 - One module src/core/train/version.ts. Not leaf X.Y.Z. Train history rows stay kt-train-changelog.`,
   },
   {
+    id: "cl-dev-hub-0.2.9",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.9",
+    createdAt: "2026-09-21T05:40:00.000Z",
+    title: "0.2.9 — Train history + Hotfix chip only on hotfix (localhost)",
+    body: `SG Hub suite 0.2.9. Localhost until the next Train zip. Tickets kt-train-changelog, kt-train-chrome feedback.
+
+- /d/train-changelog lists named hub-* zips (v1.6–v1.14). Clock is vX.Y. Hotfix chip only on hotfix zips.
+- Chrome version stays vX.Y with no Train badge on a regular release.
+- Not SG Hub Changelog. Not a product-leaf changelog.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",
-    createdAt: "2026-09-21T03:12:00.000Z",
-    title: "Train Changelog home",
-    body: `Featureless shell until kt-train-changelog.
+    createdAt: "2026-09-21T05:40:00.000Z",
+    title: "Going forward — one row per make-it-live zip",
+    body: `Each make-it-live is vX.Y. Git tag hub-X.Y. Hotfix still takes the next X.Y; show a Hotfix chip, not a PATCH / letter suffix.
 
-- Each make-it-live is vX.Y with a Train or Hotfix mark.
-- Expand Train: leaf X.Y.Z that changed. Expand Hotfix: hotfix notes only.
-- Reconstruct past zips from hub-* / v* tags. Do not invent unnamed zips.
-- Not SG Hub Changelog. Not a product-leaf changelog.`,
+- Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted.
+- Expand Hotfix: hotfix notes only.
+- Do not invent unnamed zips. Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
+  },
+  {
+    id: "cl-train-1.14",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.14",
+    createdAt: "2026-09-18T08:59:07.000Z",
+    title: "v1.14 — MTG Buylist 1.6 live milestone",
+    body: `Train v1.14. Tag hub-1.14.
+
+- MTG Buylist 1.6: live milestone for the 1.5.x train.`,
+  },
+  {
+    id: "cl-train-1.13",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.13",
+    createdAt: "2026-09-18T08:40:02.000Z",
+    title: "v1.13 — MTG Buylist 1.5.35",
+    body: `Train v1.13. Tag hub-1.13.
+
+- MTG Buylist 1.5.35: leaf tabs keep chrome, changelog groups by milestone, Brisbane stamps.`,
+  },
+  {
+    id: "cl-train-1.12",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.12",
+    createdAt: "2026-09-18T05:07:30.000Z",
+    title: "v1.12 — MTG Buylist 1.5.32",
+    body: `Train v1.12. Tag hub-1.12.
+
+- MTG Buylist 1.5.32: four-step Run cards with folder-tab join and store metrics grid.`,
+  },
+  {
+    id: "cl-train-1.11",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.11",
+    createdAt: "2026-09-17T07:10:54.000Z",
+    title: "v1.11 — Sunwater MRT 1.5.8",
+    body: `Train v1.11. Tag hub-1.11.
+
+- Sunwater MRT 1.5.8: Gantt as a camera over one picture; shell-first load.`,
+  },
+  {
+    id: "cl-train-1.10",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.10",
+    createdAt: "2026-09-17T06:40:50.000Z",
+    title: "v1.10 — MTG Buylist 1.5.28",
+    body: `Train v1.10. Tag hub-1.10.
+
+- MTG Buylist 1.5.28: parallel runs as owned documents, CSV editor, loading veils.`,
+  },
+  {
+    id: "cl-train-1.9",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.9",
+    createdAt: "2026-09-17T04:43:56.000Z",
+    title: "v1.9 — System Standards",
+    body: `Train v1.9. Tag hub-1.9.
+
+- System Standards: Design Library, Behaviours, Process, and Hold pile on Neon.`,
+  },
+  {
+    id: "cl-train-1.8.1",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.8.1",
+    createdAt: "2026-09-10T08:04:22.000Z",
+    title: "v1.8.1 — Development hub replaces stale Azure .next",
+    body: `Hotfix zip. Tag hub-1.8.1 (historic PATCH tag; going forward a hotfix takes the next X.Y).
+
+- Zip so Development hub replaces stale Azure .next.`,
+  },
+  {
+    id: "cl-train-1.8",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.8",
+    createdAt: "2026-09-10T06:20:30.000Z",
+    title: "v1.8 — Development hub and Buylist Run",
+    body: `Train v1.8. Tag hub-1.8.
+
+- Development hub and Buylist Run.`,
+  },
+  {
+    id: "cl-train-1.7",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.7",
+    createdAt: "2026-09-09T06:35:25.000Z",
+    title: "v1.7 — Feedback and Kanban notes survive publish",
+    body: `Train v1.7. Tag hub-1.7.
+
+- Feedback and Kanban notes survive publish.`,
+  },
+  {
+    id: "cl-train-1.6",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.6",
+    createdAt: "2026-09-09T00:13:48.000Z",
+    title: "v1.6 — Kanban 0.2 Development template",
+    body: `Train v1.6. Tag hub-1.6.
+
+- Kanban 0.2 Development template.`,
   },
   {
     id: "cl-s-standards-plan",

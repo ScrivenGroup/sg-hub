@@ -15,6 +15,7 @@ import {
 } from "../src/core/store/simple-pg";
 import type { KanbanTicket } from "../src/core/kanban/schema";
 import { SG_HUB_CHANGELOG_NODE_IDS } from "../src/core/kanban/development-hub";
+import { TRAIN_CHANGELOG_NODE_ID } from "../src/core/train/version";
 
 function loadDatabaseUrlFromEnvLocal(): void {
   const file = path.join(process.cwd(), ".env.local");
@@ -101,13 +102,17 @@ async function main() {
     archivedDupes += 1;
   }
 
+  const changelogNodeIds = new Set<string>([
+    ...SG_HUB_CHANGELOG_NODE_IDS,
+    TRAIN_CHANGELOG_NODE_ID,
+  ]);
   const suiteChangelogs = seedChangelogs.filter((row) =>
-    (SG_HUB_CHANGELOG_NODE_IDS as readonly string[]).includes(row.nodeId),
+    changelogNodeIds.has(row.nodeId),
   );
   await pgReplaceChangelogs(suiteChangelogs);
 
   console.log(
-    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes} suite-changelogs=${suiteChangelogs.length}`,
+    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes} changelogs=${suiteChangelogs.length}`,
   );
   process.exit(0);
 }
