@@ -41,6 +41,7 @@ Offline click-through of that map (no product interiors): [`docs/hub-atlas.html`
 ## Chrome and UI
 
 - Global shell: [`AppShell`](../src/core/shell/AppShell.tsx) — Train version (link to Train Changelog; Hotfix chip only on hotfix zips), Home, Site network, Feedback, Profile.
+- Two clocks (`dc-versioning`): Train is `vX.Y` → `/d/train-changelog`; leaf and SG Hub are always `X.Y.Z`. Details: [`docs/GIT_AND_RELEASE.md`](./GIT_AND_RELEASE.md).
 - Page trail: [`PageNav`](../src/core/shell/PageNav.tsx) (Back + breadcrumbs).
 - Sketched products: [`SubHubShell`](../src/core/shell/SubHubShell.tsx) + changelog plan — no fake feature UI while `sketched`.
 - Tokens: System → Appearance (`--ink`, `--page`, surfaces, Manrope). Hex codes colour the **badge only** unless an explicit ThemeContract override is added for that sub-hub.

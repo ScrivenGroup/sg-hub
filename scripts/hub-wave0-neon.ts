@@ -5,11 +5,12 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { applyKanbanHygiene, missingKanbanSeed } from "../src/core/kanban/seed";
-import { seedChangelogs } from "../src/core/registry/seed";
+import { seedChangelogs, seedDevChoices } from "../src/core/registry/seed";
 import {
   pgGetKanbanIdeas,
   pgGetKanbanTickets,
   pgReplaceChangelogs,
+  pgReplaceDevChoices,
   pgUpsertKanbanIdea,
   pgUpsertKanbanTicket,
 } from "../src/core/store/simple-pg";
@@ -110,9 +111,10 @@ async function main() {
     changelogNodeIds.has(row.nodeId),
   );
   await pgReplaceChangelogs(suiteChangelogs);
+  await pgReplaceDevChoices(seedDevChoices);
 
   console.log(
-    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes} changelogs=${suiteChangelogs.length}`,
+    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes} changelogs=${suiteChangelogs.length} choices=${seedDevChoices.length}`,
   );
   process.exit(0);
 }

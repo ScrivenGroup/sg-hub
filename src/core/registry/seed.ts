@@ -1840,6 +1840,19 @@ Out of this version
 - Not SG Hub Changelog. Not a product-leaf changelog.`,
   },
   {
+    id: "cl-dev-hub-0.2.10",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.10",
+    createdAt: "2026-09-21T06:25:00.000Z",
+    title: "0.2.10 — Two-clock versioning locked in dc-versioning (localhost)",
+    body: `SG Hub suite 0.2.10. Localhost until the next Train zip. Ticket kt-hub-version-homes.
+
+- Train is vX.Y (chrome → /d/train-changelog). Hotfix chip only on hotfix zips. Git tag hub-X.Y.
+- Leaf and SG Hub stay X.Y.Z. Localhost PATCH is a leaf slice, not a Train segment.
+- Locked in docs/DEV_CHOICES.md, docs/GIT_AND_RELEASE.md, and /i/dev-choices.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",
@@ -2165,7 +2178,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "versioning",
     status: "locked",
     decision:
-      "Hub train is SemVer MAJOR.MINOR: each live publish bumps MINOR; PATCH is an emergency hotfix; MAJOR only if Bill asks. Each leaf has its own SemVer; unchanged leaves do not bump. Localhost slices may use PATCH until that leaf ships in a hub train. Details: docs/GIT_AND_RELEASE.md.",
+      "Two clocks. Train (website zip) is vX.Y: each make-it-live bumps to the next X.Y; MAJOR only if Bill asks. A hotfix still takes the next X.Y and shows a Hotfix chip only (not on regular Trains). No Train PATCH segment, no a/b/c. Git tag hub-X.Y. Home: chrome version → /d/train-changelog. Leaf (hub suite included) is always X.Y.Z (pad 1.6 → 1.6.0). Unchanged leaves do not bump. Y when that leaf ships in a Train; Z on the wip desk per slice. Localhost slices may use PATCH until that leaf ships in a Train. Homes: leaf Development Changelog; wrapping suite → /d/changelog (SG Hub). Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-great-merge",

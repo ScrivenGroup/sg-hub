@@ -820,22 +820,19 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
     id: "kt-hub-version-homes",
     nodeId: "global",
     title: "Homes for Train vs leaf versions",
-    body: `sourceIdeaId IN-20260921-01 / IN-20260918-05 / IN-20260909-04.
+    body: `sourceIdeaId IN-20260921-01 / IN-20260918-05 / IN-20260909-04. Shipped on localhost as 0.2.10.
 
-Locked process (do not build until kt-dev-hub-cards + kt-sg-hub-changelog + kt-train-changelog homes exist):
+Homes exist. Process locked in docs/DEV_CHOICES.md (dc-versioning), docs/GIT_AND_RELEASE.md, /i/dev-choices:
 
-- Two clocks. Train = the live website zip: vX.Y on every surface (chrome: kt-train-chrome). Hotfix chip only when that zip is a hotfix. Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
-- Train bumps X.Y every make-it-live (every new tip of main). Hotfix still takes the next X.Y; kind chip is Hotfix, not a letter suffix.
-- Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted. Expand Hotfix: hotfix notes only.
-- Leaf Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. No 4th segment a/b/c.
-- Git tag hub-1.12. Do not collapse to one giant website SemVer. Do not put Train as X.Y.Z.
-
-Blocked on Development house-clean. Not a dump into today's /d Changelog (that is Kanban 0.x / wrapping suite).`,
+- Two clocks. Train = vX.Y (chrome → /d/train-changelog). Hotfix chip only when that zip is a hotfix. Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0) on the leaf or SG Hub changelog.
+- Train bumps next X.Y every make-it-live. Hotfix still takes the next X.Y; not a PATCH segment, not a/b/c. Git tag hub-X.Y.
+- Expand Train: leaves that changed, each X.Y.Z. Expand Hotfix: hotfix notes only.
+- Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Not a dump into /d/changelog.`,
     lane: "structure",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T00:30:00.000Z",
-    updatedAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T06:25:00.000Z",
   },
   {
     id: "kt-dev-hub-site-network",

@@ -60,7 +60,7 @@ Canon for agents and humans. Do not contradict **locked** rows. In-app: Internal
 
 ### `dc-versioning` — versioning (locked)
 
-**Decision:** Hub train is SemVer `MAJOR.MINOR`: each live publish bumps **MINOR**; **PATCH** is an emergency hotfix; **MAJOR** only if Bill asks. Each leaf has its own SemVer; unchanged leaves do not bump. Localhost slices may use PATCH until that leaf ships in a hub train. Details: `docs/GIT_AND_RELEASE.md`.
+**Decision:** Two clocks. **Train** (website zip) is `vX.Y`: each make-it-live bumps to the next X.Y; **MAJOR** only if Bill asks. A hotfix still takes the next X.Y and shows a **Hotfix** chip only (not on regular Trains). No Train PATCH segment, no a/b/c. Git tag `hub-X.Y`. Home: chrome version → `/d/train-changelog`. **Leaf** (hub suite included) is always `X.Y.Z` (pad `1.6` → `1.6.0`). Unchanged leaves do not bump. Y when that leaf ships in a Train; Z on the wip desk per slice. Localhost slices may use PATCH until that leaf ships in a Train. Homes: leaf Development Changelog; wrapping suite → `/d/changelog` (SG Hub). Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Details: `docs/GIT_AND_RELEASE.md`.
 
 ### `dc-great-merge` — merge (locked)
 

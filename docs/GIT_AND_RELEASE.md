@@ -75,9 +75,11 @@ If a zip lands but `/home/site/wwwroot/.next` stays old (Kanban still the previo
 
 ## Versions (`dc-versioning`)
 
-**Hub train:** SemVer `MAJOR.MINOR`. Each live publish bumps **MINOR**. **PATCH** = emergency hotfix. **MAJOR** only if Bill asks.
+Two clocks. Do not collapse to one website SemVer. Do not put Train as `X.Y.Z`.
 
-**Leaf changelog:** own SemVer per leaf (Kanban `0.1.x`, Buylist `1.x`, …). Unchanged leaves do not bump. Localhost slices may use PATCH (`1.4.1`) until that leaf ships in a hub train.
+**Train** (the live website zip): `vX.Y`. Each **make it live** bumps to the next X.Y. **MAJOR** only if Bill asks. A hotfix still takes the next X.Y; chrome and Train Changelog show a **Hotfix** chip only on that zip (not on a regular Train). No Train PATCH third segment, no letter suffix a/b/c. Git tag `hub-X.Y`. Home: AppShell version → `/d/train-changelog`. Bump `TRAIN_VERSION` / `TRAIN_KIND` in `src/core/train/version.ts` on the station sitting that ships the zip.
+
+**Leaf** (hub suite included): always `X.Y.Z` (pad two-part to `.0` for display). Unchanged leaves do not bump. Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. Localhost slices may use PATCH (`1.4.1`, `0.2.9`) until that leaf ships in a Train. Homes: product-leaf Development → Changelog (that leaf only); wrapping suite → `/d/changelog` (SG Hub). Not the Train.
 
 ## Data vs deploy
 
