@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { developmentHubPathForTab } from "@/core/kanban/development-hub";
 
 export default async function InternalKanbanRedirect({
   searchParams,
@@ -6,6 +7,5 @@ export default async function InternalKanbanRedirect({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const q = tab ? `?tab=${encodeURIComponent(tab)}` : "";
-  redirect(`/d${q}`);
+  redirect(developmentHubPathForTab(tab));
 }

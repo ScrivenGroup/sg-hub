@@ -6,6 +6,9 @@ import { KANBAN_GLOBAL_NODE_ID } from "../src/core/kanban/schema";
 
 const cases: Array<[string, string]> = [
   ["/d", "hub-development"],
+  ["/d/inbox", "hub-development"],
+  ["/d/kanban", "hub-development"],
+  ["/d/changelog", "hub-development"],
   ["/w", "hub-work"],
   ["/p", "hub-projects"],
   ["/i", "hub-internal"],
@@ -30,8 +33,8 @@ for (const [href, want] of cases) {
     console.log(`ok href=${href} tag=${got}`);
   }
 }
-if (isKanbanLeafId("i-kanban") || isKanbanLeafId("i-feedback") || isKanbanLeafId("i-ideas") || isKanbanLeafId("i-notes")) {
-  console.log("fail retired Internal tools still taggable");
+if (isKanbanLeafId("i-kanban") || isKanbanLeafId("i-feedback") || isKanbanLeafId("i-ideas") || isKanbanLeafId("i-notes") || isKanbanLeafId("d-kanban") || isKanbanLeafId("d-ideas-feedback")) {
+  console.log("fail retired Internal tools or Development rooms still taggable");
   failed += 1;
 } else {
   console.log("ok chrome tools not taggable");

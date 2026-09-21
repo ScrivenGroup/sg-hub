@@ -57,9 +57,9 @@ export const seedNodes: RegistryNode[] = [
     href: "/d",
     accessMode: "shared",
     status: "live",
-    hasNetworkMap: false,
+    hasNetworkMap: true,
     description:
-      "Inbox, board, changelog, notes, and design spec. Chrome Feedback lands in Inbox. Filter by leaf.",
+      "Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, and Design spec. Chrome Feedback lands in Ideas/Feedback.",
     order: 3,
   },
   {
@@ -155,6 +155,100 @@ export const seedNodes: RegistryNode[] = [
     description:
       "Harvest Playmantis and MTGMate buylists, then allocate a ManaBox CSV for max store credit.",
     order: 3,
+  },
+  {
+    id: "d-ideas-feedback",
+    hubPrefix: "d",
+    slug: "inbox",
+    title: "Ideas/Feedback",
+    code: "D97850",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/inbox",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "The inbox register. Chrome Feedback is the capture door.",
+    order: 1,
+  },
+  {
+    id: "d-kanban",
+    hubPrefix: "d",
+    slug: "kanban",
+    title: "Kanban",
+    code: "B44A1E",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/kanban",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description: "The board. Column checkbox filter is a later ticket.",
+    order: 2,
+  },
+  {
+    id: "d-train-changelog",
+    hubPrefix: "d",
+    slug: "train-changelog",
+    title: "Train Changelog",
+    code: "8F4A24",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/train-changelog",
+    accessMode: "shared",
+    status: "sketched",
+    hasNetworkMap: false,
+    description:
+      "Empty home for website Train/Hotfix zips until kt-train-changelog.",
+    order: 3,
+  },
+  {
+    id: "d-sg-hub-changelog",
+    hubPrefix: "d",
+    slug: "changelog",
+    title: "SG Hub Changelog",
+    code: "E08A52",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/changelog",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Wrapping-hub / Development-suite history. Combine and relabel is a later ticket.",
+    order: 4,
+  },
+  {
+    id: "d-notes",
+    hubPrefix: "d",
+    slug: "notes",
+    title: "Notes",
+    code: "A0522D",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/notes",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description: "Bulk notes for the Development suite.",
+    order: 5,
+  },
+  {
+    id: "d-design-spec",
+    hubPrefix: "d",
+    slug: "spec",
+    title: "Development Design Spec",
+    code: "6B2E14",
+    kind: "tool",
+    parentId: "hub-development",
+    href: "/d/spec",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Kanban Online design contract. Global only — not copied onto product leaves.",
+    order: 6,
   },
   {
     id: "i-testing",
@@ -1678,6 +1772,33 @@ Out of this version
 - Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
 - /i/kanban redirects here. Internal keeps Testing and Development choices.
 - Chrome Feedback is the only capture door (Raise-style popup). Leaf Development tabs no longer show Raise.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.5",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.5",
+    createdAt: "2026-09-21T03:12:00.000Z",
+    title: "0.2.5 — Development hub is cards (localhost)",
+    body: `Development 0.2.5. Localhost until the next hub train. Ticket kt-dev-hub-cards.
+
+- /d is a Hub landing. Cards: Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Development Design Spec.
+- Old /d?tab= URLs and /i/feedback /i/ideas /i/notes /i/kanban redirect into those rooms.
+- Train Changelog is a sketched shell (kt-train-changelog). SG Hub combine/relabel is later (kt-sg-hub-changelog).
+- Product leaves keep Layout 2 tabs (kt-leaf-dev-tabs).`,
+  },
+  {
+    id: "cl-train-changelog-plan",
+    nodeId: "d-train-changelog",
+    kind: "plan",
+    createdAt: "2026-09-21T03:12:00.000Z",
+    title: "Train Changelog home",
+    body: `Featureless shell until kt-train-changelog.
+
+- Each make-it-live is vX.Y with a Train or Hotfix mark.
+- Expand Train: leaf X.Y.Z that changed. Expand Hotfix: hotfix notes only.
+- Reconstruct past zips from hub-* / v* tags. Do not invent unnamed zips.
+- Not SG Hub Changelog. Not a product-leaf changelog.`,
   },
   {
     id: "cl-s-standards-plan",

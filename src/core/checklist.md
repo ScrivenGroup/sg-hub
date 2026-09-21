@@ -9,4 +9,4 @@
 7. Deps touched → Definition + RAG + externalUrl?  
 8. Preview: this desk’s localhost port (station `:3000`, wip `:3001+`). `AUTH_URL` must match. Live only when the user says make it live.  
 9. Store: same types as production; do not add a parallel DB or a new HTML stack. Kanban Online = Neon **rows** with `node_id` (JSON fallback mirrors those columns). Standards picks/holds = Neon `standards_choices` / `standards_holds`. Not one JSONB blob per leaf.  
-10. Development suite chrome: short header; one tab strip Inbox \| All Kanban \| Later+Open \| … \| Changelog \| Notes \| Design spec; Leafs dropdown on row 2 (global `/d`, tagged leaves only); capture is chrome Feedback (not an in-tab Raise); Layout is a side-by-side toggle on KanBan tabs; More options is a `ShellModal`.  
+10. Development hub Layout 1: `/d` is cards (Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Design spec). Kanban card still has the old column-filter tabs until `kt-kanban-column-filter`. Leaf Development stays Layout 2 tabs. Capture is chrome Feedback (not an in-tab Raise). More options is a `ShellModal`.  

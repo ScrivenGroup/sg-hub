@@ -58,7 +58,7 @@ This Cursor session is **this git desk**. A desk is \`dev_main\` (station) or \`
 
 When \`DATABASE_URL\` is set, Feedback and Kanban rows live on **Neon** (same database localhost and live share) in **one inbox table** (\`kanban_ideas\`). \`data/\` is laptop fallback only and is stripped from the zip. **Seed is not the live board** — \`w-sunwater-mrt\` seed \`ideas: []\` does not mean the inbox is empty.
 
-Inbox sittings, in order: (1) \`npx --yes tsx scripts/inspect-neon-inbox.ts\` (read-only SELECT; never print DATABASE_URL; do **not** call \`getKanbanBoard\` / \`loadKanbanRows\` — they can seed-write), (2) Development Inbox \`/d?tab=inbox\`, (3) seed last, missing ids only.
+Inbox sittings, in order: (1) \`npx --yes tsx scripts/inspect-neon-inbox.ts\` (read-only SELECT; never print DATABASE_URL; do **not** call \`getKanbanBoard\` / \`loadKanbanRows\` — they can seed-write), (2) Development Inbox \`/d/inbox\`, (3) seed last, missing ids only.
 
 Chrome **Feedback** is the capture door (Raise-style popup on the header / mobile FAB). Split **ideas** into tickets; do not auto-ticket bugs.
 

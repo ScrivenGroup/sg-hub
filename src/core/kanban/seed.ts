@@ -852,24 +852,16 @@ Blocked on Development house-clean. Not a dump into today's /d Changelog (that i
     id: "kt-dev-hub-cards",
     nodeId: "global",
     title: "Development hub Layout 1 — cards, not a tab strip",
-    body: `sourceIdeaId IN-20260921-01. Ask 1 / house-clean. Do this before Train or SG Hub changelog content.
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost 0.2.5. Live after make it live.
 
-Layout 1 (only /d, the Development hub). Cards:
-- Ideas/Feedback — the inbox register. Chrome Feedback stays the capture door.
-- Kanban — the board. Column checkbox filter: kt-kanban-column-filter.
-- Train Changelog — empty home until kt-train-changelog.
-- SG Hub Changelog — today's /d Changelog moved here (kt-sg-hub-changelog). Wrapping hub / suite history, not the website Train.
-- Notes
-- Development Design Spec — stays global; not copied onto product leaves.
-
-Site network / Definition: these are the Development hub's children (sketched shells until built). Template for new product leaves is Layout 2 (kt-leaf-dev-tabs), not this card map.
-
-Do not add fake features while a card is sketched.`,
+Layout 1 (only /d). Cards: Ideas/Feedback, Kanban, Train Changelog (sketched), SG Hub Changelog, Notes, Development Design Spec.
+Old /d?tab= URLs redirect. Leaf template stays Layout 2 (kt-leaf-dev-tabs).
+Train history: kt-train-changelog. Combine/relabel: kt-sg-hub-changelog. Column checkboxes: kt-kanban-column-filter.`,
     lane: "structure",
-    column: "open",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T03:12:00.000Z",
   },
   {
     id: "kt-leaf-dev-tabs",
@@ -944,7 +936,7 @@ Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
     id: "kt-feedback-open-register",
     nodeId: "global",
     title: "Feedback popup shortcut to open register",
-    body: "sourceIdeaId IN-20260917-03. Workshop with Wave 2. Button/link in the Feedback popup to /d?tab=inbox.",
+    body: "sourceIdeaId IN-20260917-03. Workshop with Wave 2. Button/link in the Feedback popup to /d/inbox.",
     lane: "experience",
     column: "later",
     sourceIdeaId: "IN-20260917-03",
@@ -1206,6 +1198,7 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-kanban-column-filter",
   "kt-sg-hub-changelog",
   "kt-train-changelog",
+  "kt-feedback-open-register",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

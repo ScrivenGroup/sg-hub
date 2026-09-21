@@ -56,7 +56,14 @@ export function LeafTagSelect({
   id?: string;
   label?: string;
 }) {
-  const { hubs, childrenByHub } = siteNetworkTree();
+  const { hubs, childrenByHub: rawChildren } = siteNetworkTree();
+  const allowed = new Set(options.map((row) => row.id));
+  const childrenByHub = Object.fromEntries(
+    Object.entries(rawChildren).map(([hubId, kids]) => [
+      hubId,
+      kids.filter((child) => allowed.has(child.id)),
+    ]),
+  );
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const selectedTitle =

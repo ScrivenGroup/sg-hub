@@ -26,7 +26,8 @@ export const KANBAN_CHROME = {
   layout: {
     host: "flex min-h-0 flex-1 flex-col (fills leftover viewport)",
     pageWidth: "full width of the leaf main; no max-w-5xl on the board",
-    chromeRows: "Row 1 = tablist (no Raise). Row 2 = filters (Inbox and board only).",
+    chromeRows:
+      "Layout 1 rooms have no suite tab strip. Kanban card row 1 = column-filter tabs until kt-kanban-column-filter. Layout 2 (leaves) row 1 = Inbox | filters | Changelog | Notes. Row 2 = filters (Inbox and board only).",
     readingWidth: "Changelog / Notes / Design spec may use a readable card; the board must not.",
   },
   density: {

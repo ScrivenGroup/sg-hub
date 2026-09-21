@@ -7,7 +7,18 @@ export type KanbanLeafOption = {
 };
 
 /** Redirects / retired Internal tools. Hubs are taggable (IN-20260918-06). */
-const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "i-feedback", "i-ideas", "i-notes"]);
+const UNTAGGABLE_TOOL_IDS = new Set([
+  "i-kanban",
+  "i-feedback",
+  "i-ideas",
+  "i-notes",
+  "d-ideas-feedback",
+  "d-kanban",
+  "d-train-changelog",
+  "d-sg-hub-changelog",
+  "d-notes",
+  "d-design-spec",
+]);
 
 function taggableLeaves(): KanbanLeafOption[] {
   const { hubs, childrenByHub } = siteNetworkTree();
@@ -71,7 +82,13 @@ export function defaultKanbanNodeIdFromHref(href: string): string {
   const exact = getNodeByHref(normalized);
   if (exact) {
     if (isTaggableRegistryNode(exact)) return exact.id;
-    if (UNTAGGABLE_TOOL_IDS.has(exact.id)) return KANBAN_GLOBAL_NODE_ID;
+    if (UNTAGGABLE_TOOL_IDS.has(exact.id)) {
+      if (exact.parentId) {
+        const parent = getNodes().find((node) => node.id === exact.parentId);
+        if (parent?.kind === "hub") return parent.id;
+      }
+      return KANBAN_GLOBAL_NODE_ID;
+    }
   }
   const prefix = getNodes()
     .filter(

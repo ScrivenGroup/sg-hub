@@ -97,6 +97,7 @@ export function KanbanOnlineHost({
   initialTab = "inbox",
   changelogs,
   showTabs = true,
+  tabSet,
   hideRaise = true,
   forcedTab,
   notes = "",
@@ -115,6 +116,8 @@ export function KanbanOnlineHost({
   defaultTagNodeId: string;
   panel?: KanbanOnlinePanel;
   showTabs?: boolean;
+  /** suite = leaf Layout 2. board = hub Kanban card filters. none = a single room. */
+  tabSet?: "suite" | "board" | "none";
   hideRaise?: boolean;
   forcedTab?: ChromeTab;
   initialTab?: KanbanOnlineStart;
@@ -123,6 +126,7 @@ export function KanbanOnlineHost({
   showDesignSpec?: boolean;
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const resolvedTabSet = tabSet ?? (showTabs ? "suite" : "none");
   const [chromeTabState, setChromeTab] = useState<ChromeTab>(() =>
     initialChromeTab(panel, initialTab),
   );
@@ -189,7 +193,7 @@ export function KanbanOnlineHost({
   function selectChrome(next: ChromeTab) {
     if (next === chromeTab) return;
     setChromeTab(next);
-    if (!showTabs) return;
+    if (resolvedTabSet === "none") return;
     const path = revalidateHref.split("?")[0];
     const url = `${path}?tab=${urlTabFor(next)}`;
     window.history.replaceState(window.history.state, "", url);
@@ -197,23 +201,25 @@ export function KanbanOnlineHost({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {showTabs ? (
+      {resolvedTabSet !== "none" ? (
         <div className="flex shrink-0 items-center gap-2">
           <div
             role="tablist"
             aria-label="Kanban Online"
             className="flex min-w-0 flex-1 flex-wrap gap-1"
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={inboxOn}
-              className="sg-tab"
-              onClick={() => selectChrome("inbox")}
-            >
-              {KANBAN_CHROME.labels.inbox}
-              {openInbox > 0 ? ` (${openInbox})` : ""}
-            </button>
+            {resolvedTabSet === "suite" ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inboxOn}
+                className="sg-tab"
+                onClick={() => selectChrome("inbox")}
+              >
+                {KANBAN_CHROME.labels.inbox}
+                {openInbox > 0 ? ` (${openInbox})` : ""}
+              </button>
+            ) : null}
             {KANBAN_CHROME.labels.boardFilters.map((f) => (
               <button
                 key={f.id}
@@ -226,7 +232,7 @@ export function KanbanOnlineHost({
                 {f.label}
               </button>
             ))}
-            {showChangelogTab ? (
+            {resolvedTabSet === "suite" && showChangelogTab ? (
               <button
                 type="button"
                 role="tab"
@@ -237,16 +243,18 @@ export function KanbanOnlineHost({
                 {KANBAN_CHROME.labels.changelog}
               </button>
             ) : null}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={notesOn}
-              className="sg-tab"
-              onClick={() => selectChrome("notes")}
-            >
-              {KANBAN_CHROME.labels.notes}
-            </button>
-            {showDesignSpec ? (
+            {resolvedTabSet === "suite" ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={notesOn}
+                className="sg-tab"
+                onClick={() => selectChrome("notes")}
+              >
+                {KANBAN_CHROME.labels.notes}
+              </button>
+            ) : null}
+            {resolvedTabSet === "suite" && showDesignSpec ? (
               <button
                 type="button"
                 role="tab"

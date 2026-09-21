@@ -40,7 +40,7 @@ export function FeedbackCapture() {
   const [pending, startTransition] = useTransition();
   const titleId = useId();
   const leafOptions = kanbanLeafOptions();
-  const inboxHref = "/d?tab=inbox";
+  const inboxHref = "/d/inbox";
 
   useEffect(() => {
     setPageTitle(document.title);
