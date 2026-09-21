@@ -216,7 +216,7 @@ export const seedNodes: RegistryNode[] = [
     status: "live",
     hasNetworkMap: false,
     description:
-      "Wrapping-hub / Development-suite history. Combine and relabel is a later ticket.",
+      "Wrapping hub / Development suite history. Clock is X.Y.Z. Not the Train.",
     order: 4,
   },
   {
@@ -1609,11 +1609,11 @@ Out of this version
     version: "0.0.1",
     createdAt: "2026-09-07T06:00:00.000Z",
     title: "Inbox attachments + compact Raise (localhost WIP toward 0.2)",
-    body: `Kanban Online plan 0.0.1. Localhost / save-slot wip/kanban only. Not live. Live stays 0.1.6 until Bill says make it live (then 0.2 from station main).
+    body: `SG Hub suite plan 0.0.1. Localhost / save-slot only. Not a product-leaf row.
 
 - Inbox notes can hold files (Neon bytea / local JSON+bin). Tickets inherit via sourceIdeaId. No Azure Blob.
 - Raise / Inbox leaf tag is a label until click (nested Site network popup). Details grow. Save/Cancel stay on screen.
-- Kanban Online CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
+- Kanban CodeBadge is a blue tint of Internal (6BA4E3), not pink D45A78. 0.1.1–0.1.6 ids unchanged.`,
   },
   {
     id: "cl-kanban-online-0.1.1",
@@ -1622,11 +1622,11 @@ Out of this version
     version: "0.1.1",
     createdAt: "2026-09-05T02:20:00.000Z",
     title: "Compact chrome — more body, leaf dropdown, underline tabs",
-    body: `Kanban Online chrome (0.1.1). Layout only. Same columns and leaf tags. Not deployed.
+    body: `SG Hub suite chrome 0.1.1. Layout only. Same columns and leaf tags.
 
-- Short Internal header. Leafs dropdown of tags that already have a row. Empty sketched leaves stay out.
-- Inbox / KanBan underline tabs. Compact column / category / layout. More options modal.
-- Shared host on mtg-buylist Development uses the same board/inbox chrome. No schema change.`,
+- Short header. Leafs dropdown of tags that already have a row. Empty sketched leaves stay out.
+- Inbox / Kanban underline tabs. Compact column / category / layout. More options modal.
+- Shared host on leaf Development uses the same board/inbox chrome. No schema change.`,
   },
   {
     id: "cl-kanban-online-0.1.2",
@@ -1635,10 +1635,10 @@ Out of this version
     version: "0.1.2",
     createdAt: "2026-09-05T04:10:00.000Z",
     title: "Tab strip — Inbox | All Kanban | Later+Open …",
-    body: `Kanban Online chrome (0.1.2). Layout only. Same columns and leaf tags. Not deployed.
+    body: `SG Hub suite chrome 0.1.2. Layout only. Same columns and leaf tags.
 
-- One tab strip: Inbox | All Kanban | Later + Open | Open + Done | Later | Open | Archived. No parent KanBan tab.
-- Leafs on row 2 (Internal). Raise an idea on every tab. Layout = Columns | Swimlanes toggle.`,
+- One tab strip: Inbox | All Kanban | Later + Open | Open + Done | Later | Open | Archived. (Later replaced by column checkboxes in 0.2.6.)
+- Leafs on row 2. Raise an idea on every tab. Layout = Columns | Swimlanes toggle.`,
   },
   {
     id: "cl-kanban-online-0.1.3",
@@ -1647,7 +1647,7 @@ Out of this version
     version: "0.1.3",
     createdAt: "2026-09-05T05:50:00.000Z",
     title: "Visual density — toggle-height chrome, one Inbox row",
-    body: `Kanban Online chrome (0.1.3). Layout only. Same store. Not deployed.
+    body: `SG Hub suite chrome 0.1.3. Layout only. Same store.
 
 - Chrome controls match the Layout Columns | Swimlanes toggle height (min-h-8). Raise an idea sits before Leafs.
 - Inbox Sort / Show archived / More options share that row. Show archived is a bordered button with a pressed state.`,
@@ -1659,7 +1659,7 @@ Out of this version
     version: "0.1.4",
     createdAt: "2026-09-05T06:00:00.000Z",
     title: "Changelog tab — stepped 0.1.x chunks",
-    body: `Kanban Online chrome (0.1.4). Same changelogs store (nodeId i-kanban). Not deployed.
+    body: `SG Hub suite chrome 0.1.4. Same changelogs store (then nodeId i-kanban).
 
 - Changelog tab at the end of the strip. Four stepped release rows 0.1.1–0.1.4 with datetime.
 - Later register reads changelogs by nodeId / all nodes. No second changelog table.`,
@@ -1671,11 +1671,11 @@ Out of this version
     version: "0.1.5",
     createdAt: "2026-09-05T08:00:00.000Z",
     title: "Raise right + Changelog inline + all-leaf picker",
-    body: `Kanban Online chrome (0.1.5). Same changelogs store (nodeId i-kanban). Not deployed.
+    body: `SG Hub suite chrome 0.1.5. Same changelogs store (then nodeId i-kanban).
 
 - Raise an idea sits on the tab strip, far right, on Inbox, Kanban tabs, and Changelog.
 - Leafs filter hidden on Changelog. Inbox and Kanban column tabs still have it.
-- Raise leaf picker uses the Site network nested list (Global + every hub’s children). Not Work/Projects only.
+- Raise leaf picker uses the Site network nested list (Global + every hub’s children).
 - Changelog newest version on top. One inline detail row under the selected version (latest open on first paint).`,
   },
   {
@@ -1684,12 +1684,12 @@ Out of this version
     kind: "release",
     version: "0.1.6",
     createdAt: "2026-09-05T09:15:00.000Z",
-    title: "Published to Azure live",
-    body: `Kanban Online (0.1.6). Zip-deployed to Azure App Service. Live at /i/kanban.
+    title: "0.1.6 — Suite first live at /i/kanban",
+    body: `SG Hub suite 0.1.6. First live zip of this register (then at /i/kanban; now /d).
 
-- Inbox, column tabs, Changelog, and Raise an idea are on the live origin.
-- Same changelogs store (nodeId i-kanban). 0.1.1–0.1.5 ids unchanged.
-- Whole app zip (Kanban cannot ship alone). Laptop data/ not in the zip.`,
+- Inbox, column tabs, Changelog, and Raise an idea were on the live origin.
+- Same changelogs store (ids 0.1.1–0.1.5 unchanged).
+- Whole-app zip. Laptop data/ not in the zip.`,
   },
   {
     id: "cl-kanban-online-0.0.2",
@@ -1698,10 +1698,10 @@ Out of this version
     version: "0.0.2",
     createdAt: "2026-09-08T12:00:00.000Z",
     title: "Development template + Notes + Design spec (localhost WIP)",
-    body: `Kanban Online plan 0.0.2. Localhost / save-slot wip/kanban only. Not live.
+    body: `SG Hub suite plan 0.0.2. Localhost / save-slot only.
 
-- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes, Raise).
-- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec tab is only on /i/kanban.
+- This page is the template for other leaves' Development tabs (Inbox, board, Changelog, Notes).
+- Labels and layout notes live in src/core/kanban/chrome.ts. Design spec is a Development hub card, not a leaf tab.
 - Notes persist in kanban_leaf_notes (Neon when DATABASE_URL is set).
 - Buylist and MRT Development embed the same host. Sketched leaves stay changelog-only.`,
   },
@@ -1709,15 +1709,15 @@ Out of this version
     id: "cl-kanban-online-0.2",
     nodeId: "i-kanban",
     kind: "release",
-    version: "0.2",
+    version: "0.2.0",
     createdAt: "2026-09-09T00:10:00.000Z",
-    title: "0.2 — Development template live (hub 1.6)",
-    body: `Kanban Online 0.2. Zip-deployed with hub 1.6. Live at /i/kanban.
+    title: "0.2.0 — Development template live",
+    body: `SG Hub suite 0.2.0. First 0.2 zip of this register (then at /i/kanban; now /d).
 
-- Development on Buylist and MRT is the same host (Inbox, board, Changelog, Notes, Raise).
-- Design spec tab only on /i/kanban. Chrome labels live in src/core/kanban/chrome.ts.
+- Development on Buylist and MRT used the same host (Inbox, board, Changelog, Notes, Raise).
+- Design spec lived only on the suite page. Chrome labels live in src/core/kanban/chrome.ts.
 - Notes persist in kanban_leaf_notes (Neon). Sketched leaves stay changelog-only.
-- Buylist product work on wip/buylist is not in this train.`,
+- Buylist product work on wip/buylist was not in that zip.`,
   },
   {
     id: "cl-kanban-online-0.2.1",
@@ -1726,7 +1726,7 @@ Out of this version
     version: "0.2.1",
     createdAt: "2026-09-09T06:30:00.000Z",
     title: "0.2.1 — Inbox sittings query Neon first (localhost)",
-    body: `Kanban Online 0.2.1. Localhost until the next hub train. Ticket kt-notes-survive-publish.
+    body: `SG Hub suite 0.2.1. Localhost until the next Train zip. Ticket kt-notes-survive-publish.
 
 - Feedback and Kanban rows on Neon survive zip (data/ is stripped). Seed only adds missing ids; empty MRT seed ideas is not an empty inbox.
 - Inbox sittings: scripts/inspect-neon-inbox.ts then /i/feedback then seed. Do not call getKanbanBoard for forensics.
@@ -1741,7 +1741,7 @@ Out of this version
     version: "0.2.2",
     createdAt: "2026-09-09T06:50:00.000Z",
     title: "0.2.2 — One inbox for Feedback and Ideas (localhost)",
-    body: `Kanban Online 0.2.2. Localhost until the next hub train. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
+    body: `SG Hub suite 0.2.2. Localhost until the next Train zip. Tickets kt-inbox-unify-schema, kt-inbox-feedback-chrome, kt-inbox-register-views, kt-inbox-sitting-docs.
 
 - One Neon table (kanban_ideas) for Feedback and Ideas. Kind + leaf tag + optional page breadcrumb.
 - Chrome Feedback is the bug/help door (Idea allowed, not advertised). Raise is the idea door.
@@ -1755,7 +1755,7 @@ Out of this version
     version: "0.2.3",
     createdAt: "2026-09-09T08:20:00.000Z",
     title: "0.2.3 — Kanban is the Internal register (localhost)",
-    body: `Kanban 0.2.3. Localhost until the next hub train.
+    body: `SG Hub suite 0.2.3. Localhost until the next Train zip.
 
 - Dropped Internal cards for Feedback, Ideas, and Notes. Chrome Feedback and Raise stay as doors. Notes live on the Kanban Notes tab.
 - Card title is Kanban. Old URLs /i/feedback, /i/ideas, /i/notes redirect here.`,
@@ -1767,7 +1767,7 @@ Out of this version
     version: "0.2.4",
     createdAt: "2026-09-09T08:48:00.000Z",
     title: "0.2.4 — Development hub and one capture door (localhost)",
-    body: `Development 0.2.4. Localhost until the next hub train.
+    body: `SG Hub suite 0.2.4. Localhost until the next Train zip.
 
 - Fifth primary hub Development at /d (badge C45C26). The hub is the suite: Inbox, Kanban filters, Changelog, Notes, Design spec.
 - /i/kanban redirects here. Internal keeps Testing and Development choices.
@@ -1780,7 +1780,7 @@ Out of this version
     version: "0.2.5",
     createdAt: "2026-09-21T03:12:00.000Z",
     title: "0.2.5 — Development hub is cards (localhost)",
-    body: `Development 0.2.5. Localhost until the next hub train. Ticket kt-dev-hub-cards.
+    body: `SG Hub suite 0.2.5. Localhost until the next Train zip. Ticket kt-dev-hub-cards.
 
 - /d is a Hub landing. Cards: Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Development Design Spec.
 - Old /d?tab= URLs and /i/feedback /i/ideas /i/notes /i/kanban redirect into those rooms.
@@ -1794,11 +1794,24 @@ Out of this version
     version: "0.2.6",
     createdAt: "2026-09-21T04:08:00.000Z",
     title: "0.2.6 — Leaf Development tabs + Kanban column checkboxes (localhost)",
-    body: `Development 0.2.6. Localhost until the next hub train. Tickets kt-leaf-dev-tabs, kt-kanban-column-filter.
+    body: `SG Hub suite 0.2.6. Localhost until the next Train zip. Tickets kt-leaf-dev-tabs, kt-kanban-column-filter.
 
 - Layout 2: leaf Development L2 is Inbox, Kanban, Changelog (this leaf), Notes. Design spec stays a hub card.
 - Kanban (hub card and leaf tab): checkbox row above the buckets. Default Later + Open. All shows or hides every column.
 - Old Later+Open / All Kanban tabs are gone. Old ?tab=later-open URLs still open Kanban.`,
+  },
+  {
+    id: "cl-dev-hub-0.2.7",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.7",
+    createdAt: "2026-09-21T05:15:00.000Z",
+    title: "0.2.7 — SG Hub Changelog combine and X.Y.Z clock (localhost)",
+    body: `SG Hub suite 0.2.7. Localhost until the next Train zip. Ticket kt-sg-hub-changelog.
+
+- /d/changelog is one list from hub-development + i-kanban. Clock is X.Y.Z (two-part versions pad to .0). Not the Train.
+- Existing row titles/bodies read as suite history. Ids kept. No invented features.
+- Product-leaf Layout 2 Changelog stays that leaf only.`,
   },
   {
     id: "cl-train-changelog-plan",

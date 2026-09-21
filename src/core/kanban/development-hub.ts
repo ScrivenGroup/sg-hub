@@ -3,7 +3,7 @@ import { COLUMN_FILTERS } from "./schema";
 export const DEVELOPMENT_HUB_HREF = "/d";
 export const DEVELOPMENT_INBOX_HREF = "/d/inbox";
 
-/** Today's wrapping-suite changelog nodes. Relabel/combine is kt-sg-hub-changelog. */
+/** SG Hub Changelog: wrapping-suite rows (hub-development + historic i-kanban). */
 export const SG_HUB_CHANGELOG_NODE_IDS = ["hub-development", "i-kanban"] as const;
 
 const TAB_TO_HREF: Record<string, string> = {

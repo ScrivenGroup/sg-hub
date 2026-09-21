@@ -5,8 +5,16 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { applyKanbanHygiene, missingKanbanSeed } from "../src/core/kanban/seed";
-import { pgGetKanbanIdeas, pgGetKanbanTickets, pgUpsertKanbanIdea, pgUpsertKanbanTicket } from "../src/core/store/simple-pg";
+import { seedChangelogs } from "../src/core/registry/seed";
+import {
+  pgGetKanbanIdeas,
+  pgGetKanbanTickets,
+  pgReplaceChangelogs,
+  pgUpsertKanbanIdea,
+  pgUpsertKanbanTicket,
+} from "../src/core/store/simple-pg";
 import type { KanbanTicket } from "../src/core/kanban/schema";
+import { SG_HUB_CHANGELOG_NODE_IDS } from "../src/core/kanban/development-hub";
 
 function loadDatabaseUrlFromEnvLocal(): void {
   const file = path.join(process.cwd(), ".env.local");
@@ -93,8 +101,13 @@ async function main() {
     archivedDupes += 1;
   }
 
+  const suiteChangelogs = seedChangelogs.filter((row) =>
+    (SG_HUB_CHANGELOG_NODE_IDS as readonly string[]).includes(row.nodeId),
+  );
+  await pgReplaceChangelogs(suiteChangelogs);
+
   console.log(
-    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes}`,
+    `wave0 neon ideas=${ideaWrites} tickets=${ticketWrites} offline-archived=${archivedDupes} suite-changelogs=${suiteChangelogs.length}`,
   );
   process.exit(0);
 }

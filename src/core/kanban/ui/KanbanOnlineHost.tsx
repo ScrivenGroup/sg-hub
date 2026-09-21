@@ -92,6 +92,7 @@ export function KanbanOnlineHost({
   forcedTab,
   notes = "",
   showDesignSpec = false,
+  changelogClock = "leaf",
   onSaveNotes,
 }: {
   board: KanbanBoardData;
@@ -114,6 +115,7 @@ export function KanbanOnlineHost({
   changelogs?: ChangelogEntry[];
   notes?: string;
   showDesignSpec?: boolean;
+  changelogClock?: "leaf" | "sg-hub";
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const resolvedTabSet =
@@ -438,6 +440,7 @@ export function KanbanOnlineHost({
           <KanbanChangelogPanel
             changelogs={changelogs ?? []}
             leafOnly={scope === "leaf"}
+            clock={changelogClock}
           />
         </div>
       ) : notesOn ? (

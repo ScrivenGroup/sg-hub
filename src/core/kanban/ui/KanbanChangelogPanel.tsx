@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import type { ChangelogEntry } from "@/core/contracts/types";
 import { formatStamp } from "@/core/ui/format-stamp";
+import { padSemver } from "../version-display";
 
 function newestFirst(a: ChangelogEntry, b: ChangelogEntry) {
   const t = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -44,9 +45,11 @@ function groupByMilestone(rows: ChangelogEntry[]): MilestoneGroup[] {
 export function KanbanChangelogPanel({
   changelogs,
   leafOnly = false,
+  clock = "leaf",
 }: {
   changelogs: ChangelogEntry[];
   leafOnly?: boolean;
+  clock?: "leaf" | "sg-hub";
 }) {
   const rows = useMemo(
     () =>
@@ -76,9 +79,14 @@ export function KanbanChangelogPanel({
     <section className="min-h-0 flex-1 overflow-y-auto">
       <div className="overflow-x-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Versions
+          {clock === "sg-hub" ? "SG Hub Changelog" : "Versions"}
         </h2>
-        {leafOnly ? (
+        {clock === "sg-hub" ? (
+          <p className="mb-2 text-xs text-[var(--muted)]">
+            Wrapping hub / Development suite. Always X.Y.Z. Not the Train. Not a
+            product leaf.
+          </p>
+        ) : leafOnly ? (
           <p className="mb-2 text-xs text-[var(--muted)]">This leaf only.</p>
         ) : null}
         {rows.length === 0 ? (
@@ -128,7 +136,7 @@ export function KanbanChangelogPanel({
                                 }
                               >
                                 <td className="py-1.5 pl-4 font-semibold">
-                                  {entry.version || "—"}
+                                  {padSemver(entry.version)}
                                   {entry.kind === "plan" ? (
                                     <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
                                       plan

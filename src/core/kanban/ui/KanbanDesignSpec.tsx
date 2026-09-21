@@ -527,7 +527,7 @@ const EMBED = [
   },
   {
     piece: "Changelog",
-    global: "hub-development (plus legacy i-kanban rows).",
+    global: "SG Hub Changelog: hub-development + i-kanban, shown as X.Y.Z. Not the Train.",
     leaf: "That leaf’s changelog rows.",
   },
   {

@@ -34,6 +34,7 @@ const PANEL_HOST: Record<
     tabSet: "suite" | "board" | "none";
     showDesignSpec: boolean;
     passChangelogs: boolean;
+    changelogClock: "leaf" | "sg-hub";
   }
 > = {
   inbox: {
@@ -41,30 +42,35 @@ const PANEL_HOST: Record<
     tabSet: "none",
     showDesignSpec: false,
     passChangelogs: false,
+    changelogClock: "leaf",
   },
   kanban: {
     initialTab: "kanban",
     tabSet: "none",
     showDesignSpec: false,
     passChangelogs: false,
+    changelogClock: "leaf",
   },
   changelog: {
     initialTab: "changelog",
     tabSet: "none",
     showDesignSpec: false,
     passChangelogs: true,
+    changelogClock: "sg-hub",
   },
   notes: {
     initialTab: "notes",
     tabSet: "none",
     showDesignSpec: false,
     passChangelogs: false,
+    changelogClock: "leaf",
   },
   spec: {
     initialTab: "spec",
     tabSet: "none",
     showDesignSpec: true,
     passChangelogs: false,
+    changelogClock: "leaf",
   },
 };
 
@@ -122,6 +128,7 @@ export async function DevelopmentHubRoom({
         changelogs={changelogs}
         notes={notes}
         showDesignSpec={host.showDesignSpec}
+        changelogClock={host.changelogClock}
       />
     </AppShell>
   );

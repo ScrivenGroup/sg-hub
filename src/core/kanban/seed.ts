@@ -894,19 +894,16 @@ Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) 
     id: "kt-sg-hub-changelog",
     nodeId: "global",
     title: "SG Hub Changelog — combine, relabel, update existing rows",
-    body: `sourceIdeaId IN-20260921-01. Ask 2 content A. Blocked on kt-dev-hub-cards.
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content A. Shipped on localhost as 0.2.7.
 
-Work, not just a new empty card:
-- Combine today's /d changelog: one list from nodeIds hub-development + i-kanban (Kanban 0.x plus wrapping-hub rows already mixed on /d).
-- Relabel the surface and clock as SG Hub Changelog (wrapping hub / Development suite). Pad/show X.Y.Z. Not Train, not Buylist, not MRT.
-- Update existing row titles/bodies so they read as suite history, not "the website version." Keep ids. Do not invent fake features.
-
-Do not merge it into the Kanban board. Do not show it on product-leaf Layout 2.`,
+- /d/changelog is one list from hub-development + i-kanban. Surface and clock are SG Hub X.Y.Z. Not Train, not Buylist, not MRT.
+- Existing row titles/bodies read as suite history. Ids kept. Two-part versions pad to X.Y.Z.
+- Not on the Kanban board. Not on product-leaf Layout 2.`,
     lane: "structure",
-    column: "later",
+    column: "done",
     sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T02:16:00.000Z",
-    updatedAt: "2026-09-21T02:47:00.000Z",
+    updatedAt: "2026-09-21T05:15:00.000Z",
   },
   {
     id: "kt-train-changelog",
