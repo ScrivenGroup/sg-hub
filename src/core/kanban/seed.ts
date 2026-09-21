@@ -819,24 +819,126 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
   {
     id: "kt-hub-version-homes",
     nodeId: "global",
-    title: "Homes for hub-train vs leaf changelog versions",
-    body: "sourceIdeaId IN-20260918-05 / IN-20260909-04. Workshop before build (Wave 2). dc-versioning already locks hub MAJOR.MINOR vs per-leaf SemVer. Open question is where each number is shown. /d Changelog is still Kanban 0.x.",
+    title: "Homes for Train vs leaf versions",
+    body: `sourceIdeaId IN-20260921-01 / IN-20260918-05 / IN-20260909-04.
+
+Locked process (do not build until kt-dev-hub-cards + kt-sg-hub-changelog + kt-train-changelog homes exist):
+
+- Two clocks. Train = the live website zip: v1.12 plus a Train or Hotfix mark on every surface (Home, list, tag message, docs, agent prompt). Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
+- Train bumps X.Y every make-it-live (every new tip of main). Hotfix still takes the next X.Y; kind chip is Hotfix, not a letter suffix.
+- Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted. Expand Hotfix: hotfix notes only.
+- Leaf Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. No 4th segment a/b/c.
+- Git tag hub-1.12. Do not collapse to one giant website SemVer. Do not put Train as X.Y.Z.
+
+Blocked on Development house-clean. Not a dump into today's /d Changelog (that is Kanban 0.x / wrapping suite).`,
     lane: "structure",
     column: "later",
-    sourceIdeaId: "IN-20260918-05",
+    sourceIdeaId: "IN-20260921-01",
     createdAt: "2026-09-21T00:30:00.000Z",
-    updatedAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
   },
   {
     id: "kt-dev-hub-site-network",
     nodeId: "global",
     title: "Development hub in Site network + Kanban page scroll",
-    body: "sourceIdeaId IN-20260917-05. Workshop before build (Wave 2). Suite areas (Inbox, Kanban, Changelog) on the Development hub, not extra product leaves.",
+    body: "Superseded by kt-dev-hub-cards (Layout 1 cards). sourceIdeaId IN-20260917-05.",
     lane: "structure",
-    column: "later",
+    column: "archived",
     sourceIdeaId: "IN-20260917-05",
     createdAt: "2026-09-21T00:30:00.000Z",
-    updatedAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+  },
+  {
+    id: "kt-dev-hub-cards",
+    nodeId: "global",
+    title: "Development hub Layout 1 — cards, not a tab strip",
+    body: `sourceIdeaId IN-20260921-01. Ask 1 / house-clean. Do this before Train or SG Hub changelog content.
+
+Layout 1 (only /d, the Development hub). Cards:
+- Ideas/Feedback — the inbox register. Chrome Feedback stays the capture door.
+- Kanban — the board. Column checkbox filter: kt-kanban-column-filter.
+- Train Changelog — empty home until kt-train-changelog.
+- SG Hub Changelog — today's /d Changelog moved here (kt-sg-hub-changelog). Wrapping hub / suite history, not the website Train.
+- Notes
+- Development Design Spec — stays global; not copied onto product leaves.
+
+Site network / Definition: these are the Development hub's children (sketched shells until built). Template for new product leaves is Layout 2 (kt-leaf-dev-tabs), not this card map.
+
+Do not add fake features while a card is sketched.`,
+    lane: "structure",
+    column: "open",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+  },
+  {
+    id: "kt-leaf-dev-tabs",
+    nodeId: "global",
+    title: "Leaf Development Layout 2 — tabs Inbox / Kanban / Changelog / Notes",
+    body: `sourceIdeaId IN-20260921-01. Ask 1. This is the template every new leaf still gets.
+
+Layout 2: Development is an L1 tab (not a hub). L2 tabs (not cards): Inbox, Kanban, Changelog (this leaf only), Notes. No Train, no SG Hub Changelog, no Design spec.
+
+Kanban L2 uses the same column checkbox filter as the hub (kt-kanban-column-filter).
+
+Today KanbanOnlineHost is already close. Delta: shared filter, changelog clearly this-leaf-only, do not grow hub-only cards onto leaves.
+
+Blocked on / alongside kt-dev-hub-cards so the two layouts do not drift.`,
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+  },
+  {
+    id: "kt-kanban-column-filter",
+    nodeId: "global",
+    title: "Kanban column checkboxes (default Later+Open)",
+    body: `sourceIdeaId IN-20260921-01. Shared by Layout 1 Kanban card and Layout 2 Kanban tab.
+
+A filter row above the buckets: checkbox per column (Later, Open, Done, Archived) plus show-all / hide-all. Default: Later and Open checked.
+
+Replace the current tab-style column filters (Later+Open, Open+Done, …) with this. Same behaviour on hub and leaf hosts.`,
+    lane: "experience",
+    column: "later",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+  },
+  {
+    id: "kt-sg-hub-changelog",
+    nodeId: "global",
+    title: "SG Hub Changelog — combine, relabel, update existing rows",
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content A. Blocked on kt-dev-hub-cards.
+
+Work, not just a new empty card:
+- Combine today's /d changelog: one list from nodeIds hub-development + i-kanban (Kanban 0.x plus wrapping-hub rows already mixed on /d).
+- Relabel the surface and clock as SG Hub Changelog (wrapping hub / Development suite). Pad/show X.Y.Z. Not Train, not Buylist, not MRT.
+- Update existing row titles/bodies so they read as suite history, not "the website version." Keep ids. Do not invent fake features.
+
+Do not merge it into the Kanban board. Do not show it on product-leaf Layout 2.`,
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:47:00.000Z",
+  },
+  {
+    id: "kt-train-changelog",
+    nodeId: "global",
+    title: "Train Changelog — home plus history from past make-it-live zips",
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. Blocked on kt-dev-hub-cards and kt-sg-hub-changelog (house clean first). Process: kt-hub-version-homes.
+
+Work:
+- New Development hub card. Going forward: each make-it-live is vX.Y with a Train or Hotfix mark. Expand Train: leaf X.Y.Z that changed (hub suite included). Expand Hotfix: hotfix notes only. Git tag hub-X.Y.
+- Create the history: reconstruct past Trains from tags / Azure zips / known make-it-live sittings (hub-* / v*). One row per zip. Do not leave the card empty after this ticket. Do not invent zips we cannot name.
+
+Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:47:00.000Z",
   },
   {
     id: "kt-feedback-open-register",
@@ -1012,6 +1114,18 @@ const WAVE0_IDEAS: KanbanInboxNote[] = [
     updatedAt: "2026-09-21T00:30:00.000Z",
     copiedAt: null,
   },
+  {
+    id: "IN-20260921-01",
+    nodeId: "global",
+    title: "Wave 2 — master versioning + Development two layouts",
+    body: "Workshop 2026-09-21. Split to kt-dev-hub-cards, kt-leaf-dev-tabs, kt-kanban-column-filter, kt-sg-hub-changelog (combine/relabel/update), kt-train-changelog (home + past zip history), kt-hub-version-homes. Clean house before Train content.",
+    status: "archived",
+    kind: "housekeeping",
+    source: "raise",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+    copiedAt: null,
+  },
 ];
 
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
@@ -1060,6 +1174,7 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260917-08",
   "IN-20260918-04",
   "IN-20260917-06",
+  "IN-20260921-01",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -1084,6 +1199,13 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-yard-no-pull-station-mu56iw2h",
   "kt-feedback-hub-tags",
   "kt-stale-feedback-table",
+  "kt-hub-version-homes",
+  "kt-dev-hub-site-network",
+  "kt-dev-hub-cards",
+  "kt-leaf-dev-tabs",
+  "kt-kanban-column-filter",
+  "kt-sg-hub-changelog",
+  "kt-train-changelog",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {
