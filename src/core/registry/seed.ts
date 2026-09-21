@@ -1814,6 +1814,19 @@ Out of this version
 - Product-leaf Layout 2 Changelog stays that leaf only.`,
   },
   {
+    id: "cl-dev-hub-0.2.8",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.8",
+    createdAt: "2026-09-21T05:20:00.000Z",
+    title: "0.2.8 — Train version in page chrome (localhost)",
+    body: `SG Hub suite 0.2.8. Localhost until the next Train zip. Ticket kt-train-chrome.
+
+- AppShell always shows vX.Y plus a Train or Hotfix chip (today v1.14 Train from tag hub-1.14).
+- The version is the link to /d/train-changelog. MRT guests see the clock without that door.
+- One module src/core/train/version.ts. Not leaf X.Y.Z. Train history rows stay kt-train-changelog.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",

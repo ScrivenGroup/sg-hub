@@ -35,7 +35,7 @@ Every **leaf** (not every inner tab) eventually has:
 | **Feedback** | Global header (and mobile FAB) **always** has Feedback. Raise-style popup: type (default **bug**), title, details, leaf tag, attachments. Writes Development Inbox (`kanban_ideas`; Neon when `DATABASE_URL` is set). No Internal Feedback/Ideas/Notes cards; `/i/kanban` redirects to `/d`. Bugs are not auto-ticketed. Guests may be excluded until `kt-inbox-guest-write`. Sittings: Neon inspect script → `/d/inbox` → seed last. Details: [`docs/FEEDBACK.md`](./FEEDBACK.md). | Done in `AppShell`. |
 | **Site map / fast travel** | **Site network** in chrome is the fast-travel map (Home → Hubs → cards). Definition is the same map for reading. Product interiors are inside a card, not extra map nodes (v1). | Done. Do not invent a second sitemap widget. |
 
-Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).
+Chrome that must stay: logo, Train version (always shown; staff click through to Train Changelog), Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).
 
 ---
 

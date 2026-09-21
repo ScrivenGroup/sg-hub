@@ -824,7 +824,7 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
 
 Locked process (do not build until kt-dev-hub-cards + kt-sg-hub-changelog + kt-train-changelog homes exist):
 
-- Two clocks. Train = the live website zip: v1.12 plus a Train or Hotfix mark on every surface (Home, list, tag message, docs, agent prompt). Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
+- Two clocks. Train = the live website zip: vX.Y plus a Train or Hotfix mark on every surface (chrome first: kt-train-chrome). Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0).
 - Train bumps X.Y every make-it-live (every new tip of main). Hotfix still takes the next X.Y; kind chip is Hotfix, not a letter suffix.
 - Expand Train: leaves that changed in that zip, each with X.Y.Z. Unchanged omitted. Expand Hotfix: hotfix notes only.
 - Leaf Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. No 4th segment a/b/c.
@@ -906,10 +906,26 @@ Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) 
     updatedAt: "2026-09-21T05:15:00.000Z",
   },
   {
+    id: "kt-train-chrome",
+    nodeId: "global",
+    title: "Train version always in page chrome",
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost as 0.2.8.
+
+- AppShell always shows vX.Y plus a Train or Hotfix chip. Version is the link to /d/train-changelog.
+- One module src/core/train/version.ts (last live tag hub-1.14). Not leaf X.Y.Z. Not SG Hub clock.
+- MRT guests still see the clock; they do not get the Development link.
+- History rows stay kt-train-changelog.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T05:20:00.000Z",
+    updatedAt: "2026-09-21T05:20:00.000Z",
+  },
+  {
     id: "kt-train-changelog",
     nodeId: "global",
     title: "Train Changelog — home plus history from past make-it-live zips",
-    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. Blocked on kt-dev-hub-cards and kt-sg-hub-changelog (house clean first). Process: kt-hub-version-homes.
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. House clean. Chrome clock is kt-train-chrome. Process: kt-hub-version-homes.
 
 Work:
 - New Development hub card. Going forward: each make-it-live is vX.Y with a Train or Hotfix mark. Expand Train: leaf X.Y.Z that changed (hub suite included). Expand Hotfix: hotfix notes only. Git tag hub-X.Y.
@@ -1100,7 +1116,7 @@ const WAVE0_IDEAS: KanbanInboxNote[] = [
     id: "IN-20260921-01",
     nodeId: "global",
     title: "Wave 2 — master versioning + Development two layouts",
-    body: "Workshop 2026-09-21. Split to kt-dev-hub-cards, kt-leaf-dev-tabs, kt-kanban-column-filter, kt-sg-hub-changelog (combine/relabel/update), kt-train-changelog (home + past zip history), kt-hub-version-homes. Clean house before Train content.",
+    body: "Workshop 2026-09-21. Split to kt-dev-hub-cards, kt-leaf-dev-tabs, kt-kanban-column-filter, kt-sg-hub-changelog (combine/relabel/update), kt-train-chrome (AppShell vX.Y), kt-train-changelog (home + past zip history), kt-hub-version-homes. Clean house before Train content.",
     status: "archived",
     kind: "housekeeping",
     source: "raise",
@@ -1187,6 +1203,7 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-leaf-dev-tabs",
   "kt-kanban-column-filter",
   "kt-sg-hub-changelog",
+  "kt-train-chrome",
   "kt-train-changelog",
   "kt-feedback-open-register",
 ]);
