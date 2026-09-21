@@ -1,0 +1,14 @@
+---
+description: Sunwater MRT product spec — CORE cards beat chat and current code
+alwaysApply: true
+---
+
+# Sunwater MRT — requirements spec
+
+Product behaviour lives in [`docs/mrt/REQUIREMENTS.md`](docs/mrt/REQUIREMENTS.md). How Bill’s talk becomes cards: [`docs/mrt/WORKSHOP.md`](docs/mrt/WORKSHOP.md). Index: [`docs/mrt/README.md`](docs/mrt/README.md). Pan paint: [`docs/mrt-gantt-pan-save-state.md`](docs/mrt-gantt-pan-save-state.md).
+
+- **CORE** cards are unchangeable unless Bill re-locks them on the card. Do not “simplify” a finicky rule into a different product. Do not disable a CORE gesture to chase fps.
+- Chat, Neon sitting notes, and the current DOM are not a licence to rewrite CORE.
+- A sitting that edits `src/modules/sunwater-mrt/**` must name function IDs **in scope** and CORE IDs that must still be true when it stops. One cluster per sitting. Flush (paint/fps/overlay) must not change what a gesture does.
+- Do not implement from **draft** / **Proposed** cards. Workshop sittings structure only, unless Bill says to build.
+- v1 exclusions unchanged: Followups, Assumptions, costing, levelling.

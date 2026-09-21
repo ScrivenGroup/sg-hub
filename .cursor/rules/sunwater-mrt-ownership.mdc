@@ -7,6 +7,7 @@ alwaysApply: true
 
 - **In hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`).
 - **This session** implements the layered rebuild at that route. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md).
+- **Product spec:** [`docs/mrt/REQUIREMENTS.md`](docs/mrt/REQUIREMENTS.md). Workshop: [`docs/mrt/WORKSHOP.md`](docs/mrt/WORKSHOP.md). Do not contradict CORE cards.
 
 Locked v1:
 
