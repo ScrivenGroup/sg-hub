@@ -447,11 +447,11 @@ const GLOBAL_IDEAS: KanbanInboxNote[] = [
 Yard protocol: station scrivengroup / dev_main = :3000. Each wip/<leaf> desk = its own port (:3001, :3002, …). AUTH_URL on that desk must match the port next dev uses. Never paste a :3000 preview from a wip chat.
 
 Update the brain so this cannot happen again: YARD_DESKS, publish-yard rule, GIT_AND_RELEASE desks line, .env.example, kanban session prompt Host, hub-web-dev, checklist item 8. Split remaining docs (technical.md, hub-decisions-pack, README) if they still say “open localhost:3000” as the only preview.`,
-    status: "open",
+    status: "archived",
     kind: "bug",
     source: "raise",
     createdAt: "2026-09-16T01:14:00.000Z",
-    updatedAt: "2026-09-16T01:14:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
     copiedAt: null,
   },
 ];
@@ -638,14 +638,12 @@ Gantt path loads plan + changelogs in parallel. getKanbanBoard runs only when De
     id: "kt-publish-gha",
     nodeId: "global",
     title: "GitHub Actions so push can equal live",
-    body: `dc-publish later slice. Hub locker is GitHub sg-hub; live is still the zip onto Azure until Actions exist.
-
-Add OIDC + workflow: build standalone, exclude data/, az webapp deploy. Until then “make it live” always means the zip commands. docs/GIT_AND_RELEASE.md.`,
+    body: `Superseded. .github/workflows/publish.yml already zips via OIDC on hub-* / v* tags and Run workflow. Push to main or dev_main is not live (dc-publish). Do not implement push-equals-live.`,
     lane: "platform",
-    column: "later",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-08T10:45:00.000Z",
-    updatedAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
   },
   {
     id: "kt-great-merge-pack",
@@ -699,25 +697,22 @@ Card: hub (app-scrivengroup) is owned by Cursor; do not zip-deploy the hub from 
     id: "kt-git-three-lane",
     nodeId: "global",
     title: "Git race: live lane vs station vs wip desks",
-    body: `Yard sitting. Bake-in A locked 2026-09-09. Branch name: **dev_main** (not main_dev).
+    body: `Yard sitting. Bake-in A locked 2026-09-09. Two-role desks locked 2026-09-21. Branch name: **dev_main**.
 
-Lanes (after the rename sitting — parked until Bill says go on that plan)
-- main = Azure live (shop window), always most behind.
-- dev_main = station / QA combination, folder scrivengroup, localhost:3000.
-- wip/<leaf> = per-leaf desks, ahead of both.
+Lanes:
+- main = live git lane (shop window after make-it-live), always most behind.
+- dev_main = station, folder scrivengroup, localhost:3000.
+- wip/<leaf> = desks, :3001+. WIP_DESK yellow chrome badge; station and Azure omit it.
 
 Make it live = fast-forward main to dev_main and zip (tag hub-* / v* or GitHub Run workflow).
+Commit / handover = save-slot only. Merge to station is spoken on the station desk.
 
-2026-09-09 catch-up: wip/kanban merged to station main and published (Kanban 0.2 / hub 1.6) so live, locker main, and the kanban desk match. wip/buylist ignored.
-
-Still: one locker ScrivenGroup/sg-hub; never zip from a wip desk; commit ≠ merge ≠ live.
-
-Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publish-yard.html, .cursor/rules/publish-yard.mdc.`,
+Canon: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, .cursor/rules/publish-yard.mdc.`,
     lane: "platform",
-    column: "open",
+    column: "done",
     sourceIdeaId: null,
     createdAt: "2026-09-09T00:00:00.000Z",
-    updatedAt: "2026-09-09T00:00:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
   },
   {
     id: "kt-inbox-unify-schema",
@@ -774,12 +769,401 @@ Touch later: docs/GIT_AND_RELEASE.md, dc-publish, docs/YARD_DESKS.md, docs/publi
     createdAt: "2026-09-09T06:50:00.000Z",
     updatedAt: "2026-09-09T06:50:00.000Z",
   },
+  {
+    id: "kt-yard-wip-not-station",
+    nodeId: "global",
+    title: "Yard: prepare/handover must not merge station",
+    body: "sourceIdeaId IN-20260918-04. Two-role desks written into GIT_AND_RELEASE, publish-yard.mdc, YARD_DESKS, dc-publish. Prepare/handover = save-slot only. Station sitting takes finished blocks.",
+    lane: "platform",
+    column: "done",
+    sourceIdeaId: "IN-20260918-04",
+    createdAt: "2026-09-18T08:23:01.354Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+  },
+  {
+    id: "kt-yard-no-pull-station-mu56iw2h",
+    nodeId: "global",
+    title: "Teach agents: never merge station into a wip desk unless asked",
+    body: "sourceIdeaId IN-20260917-06. Folded into the same two-role yard canon. Do not undo the 17 Sep merge unless Bill asks.",
+    lane: "platform",
+    column: "done",
+    sourceIdeaId: "IN-20260917-06",
+    createdAt: "2026-09-17T06:59:30.137Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+  },
+  {
+    id: "kt-feedback-hub-tags",
+    nodeId: "global",
+    title: "Feedback leaf tag must include hub nodes",
+    body: "sourceIdeaId IN-20260918-06. Any Site network hub (Work, Development, …) is selectable. Global stays. Retired /i/kanban redirects stay untaggable.",
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260918-06",
+    createdAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+  },
+  {
+    id: "kt-stale-feedback-table",
+    nodeId: "global",
+    title: "Refuse writes to the deprecated feedback table",
+    body: "sourceIdeaId IN-20260917-07. pgInsertFeedback throws. Capture is kanban_ideas only. Copy-forward of leftover fb-* rows stays. Retire or catch up wip/kanban on station when asked.",
+    lane: "data",
+    column: "done",
+    sourceIdeaId: "IN-20260917-07",
+    createdAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+  },
+  {
+    id: "kt-hub-version-homes",
+    nodeId: "global",
+    title: "Homes for Train vs leaf versions",
+    body: `sourceIdeaId IN-20260921-01 / IN-20260918-05 / IN-20260909-04. Shipped on localhost as 0.2.10.
+
+Homes exist. Process locked in docs/DEV_CHOICES.md (dc-versioning), docs/GIT_AND_RELEASE.md, /i/dev-choices:
+
+- Two clocks. Train = vX.Y (chrome → /d/train-changelog). Hotfix chip only when that zip is a hotfix. Leaf (hub suite included) = always X.Y.Z (pad 1.6 → 1.6.0) on the leaf or SG Hub changelog.
+- Train bumps next X.Y every make-it-live. Hotfix still takes the next X.Y; not a PATCH segment, not a/b/c. Git tag hub-X.Y.
+- Expand Train: leaves that changed, each X.Y.Z. Expand Hotfix: hotfix notes only.
+- Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Not a dump into /d/changelog.`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T06:25:00.000Z",
+  },
+  {
+    id: "kt-dev-hub-site-network",
+    nodeId: "global",
+    title: "Development hub in Site network + Kanban page scroll",
+    body: "Superseded by kt-dev-hub-cards (Layout 1 cards). sourceIdeaId IN-20260917-05.",
+    lane: "structure",
+    column: "archived",
+    sourceIdeaId: "IN-20260917-05",
+    createdAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+  },
+  {
+    id: "kt-dev-hub-cards",
+    nodeId: "global",
+    title: "Development hub Layout 1 — cards, not a tab strip",
+    body: `sourceIdeaId IN-20260921-01. Shipped as SG Hub 0.2.5; Train and SG Hub Changelog filled in 0.2.7–0.2.9.
+
+Layout 1 (only /d). Cards: Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Development Design Spec.
+Old /d?tab= URLs redirect. Leaf template stays Layout 2 (kt-leaf-dev-tabs).`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
+  },
+  {
+    id: "kt-leaf-dev-tabs",
+    nodeId: "global",
+    title: "Leaf Development Layout 2 — tabs Inbox / Kanban / Changelog / Notes",
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost with kt-kanban-column-filter.
+
+Layout 2: Development is an L1 tab. L2 tabs: Inbox, Kanban, Changelog (this leaf only), Notes. No Train, no SG Hub Changelog, no Design spec.
+Shared Kanban checkbox filter is kt-kanban-column-filter.`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T04:08:00.000Z",
+  },
+  {
+    id: "kt-kanban-column-filter",
+    nodeId: "global",
+    title: "Kanban column checkboxes (default Later+Open)",
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost with kt-leaf-dev-tabs.
+
+Filter row above the buckets: checkbox per column (Later, Open, Done, Archived) plus All (show-all / hide-all). Default Later and Open. Same on /d/kanban and leaf Kanban.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T04:08:00.000Z",
+  },
+  {
+    id: "kt-sg-hub-changelog",
+    nodeId: "global",
+    title: "SG Hub Changelog — combine, relabel, update existing rows",
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content A. Shipped on localhost as 0.2.7.
+
+- /d/changelog is one list from hub-development + i-kanban. Surface and clock are SG Hub X.Y.Z. Not Train, not Buylist, not MRT.
+- Existing row titles/bodies read as suite history. Ids kept. Two-part versions pad to X.Y.Z.
+- Not on the Kanban board. Not on product-leaf Layout 2.`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T05:15:00.000Z",
+  },
+  {
+    id: "kt-train-chrome",
+    nodeId: "global",
+    title: "Train version always in page chrome",
+    body: `sourceIdeaId IN-20260921-01. Shipped on localhost as 0.2.8. Feedback 0.2.9: Hotfix chip only.
+
+- AppShell always shows vX.Y. Version is the link to /d/train-changelog. Hotfix chip only when that zip is a hotfix — not on regular Trains.
+- One module src/core/train/version.ts (last live tag hub-1.14). Not leaf X.Y.Z. Not SG Hub clock.
+- MRT guests still see the clock; they do not get the Development link.
+- History rows stay kt-train-changelog.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T05:20:00.000Z",
+    updatedAt: "2026-09-21T05:40:00.000Z",
+  },
+  {
+    id: "kt-train-changelog",
+    nodeId: "global",
+    title: "Train Changelog — home plus history from past make-it-live zips",
+    body: `sourceIdeaId IN-20260921-01. Ask 2 content B. Shipped on localhost as 0.2.9.
+
+- /d/train-changelog lists named hub-* zips. Clock is vX.Y. Hotfix chip only on hotfix zips (historic hub-1.8.1).
+- Expand uses the tag subject: leaves we can name. Do not invent unnamed zips or extra leaves.
+- Chrome clock is kt-train-chrome. Not SG Hub Changelog. Not a product-leaf changelog.`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20260921-01",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T05:40:00.000Z",
+  },
+  {
+    id: "kt-feedback-open-register",
+    nodeId: "global",
+    title: "Feedback popup shortcut to open register",
+    body: `sourceIdeaId IN-20260917-03. Shipped as SG Hub 0.2.11; footer polish 0.2.12.
+
+Feedback popup: Save primary, Cancel bordered secondary, Open Inbox right-aligned sg-btn-action (amber). Always shown. Goes to /d/inbox.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: "IN-20260917-03",
+    createdAt: "2026-09-21T00:30:00.000Z",
+    updatedAt: "2026-09-21T10:40:00.000Z",
+  },
+  {
+    id: "kt-wip-desk-badge",
+    nodeId: "global",
+    title: "WIP desk yellow badge in chrome",
+    body: `Ad-hoc 2026-09-21. Shipped as SG Hub 0.2.12.
+
+WIP_DESK in that desk’s .env.local (e.g. wip-hub). Yellow development badge in AppShell and login. Station and Azure omit the var. Docs: docs/YARD_DESKS.md.`,
+    lane: "experience",
+    column: "done",
+    sourceIdeaId: null,
+    createdAt: "2026-09-21T10:40:00.000Z",
+    updatedAt: "2026-09-21T10:40:00.000Z",
+  },
+  {
+    id: "kt-route-loading-veil",
+    nodeId: "global",
+    title: "Route loading is a translucent veil, not a blank page",
+    body: `Ad-hoc 2026-09-21. Pick up in another session. Behaviour is written on /s/standards?tab=behaviours (Route loading). Supersedes kt-hub-page-loading (archived). sourceIdeaId fb-mtuwhdnu.
+
+Clicked Open Inbox: delay, then the whole page was replaced by a blank screen and a centred spinner (src/app/loading.tsx → UiLoadingScreen). Prefer the current view to stay, partially hidden by a translucent overlay. Chrome must not disappear.
+
+Do not use the opaque full-page replace. UiLoadingOverlay is closer; loading.tsx still blanks the route. Same for leaf loading.tsx copies. Click-immediate chrome (PendingNavLink) can ride the same sitting.`,
+    lane: "experience",
+    column: "later",
+    sourceIdeaId: "fb-mtuwhdnu",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
+  },
+  {
+    id: "kt-hub-page-loading",
+    nodeId: "global",
+    title: "Add loading indicators to all pages in ScrivenGroup Hub",
+    body: `Superseded 2026-09-21 by kt-route-loading-veil. sourceIdeaId fb-mtuwhdnu.
+
+Original ask: every hub page shows loading feedback as soon as the user clicks; reuse one chrome pattern, not a spinner per leaf. The locked behaviour is a translucent veil, not a blank loading.tsx.`,
+    lane: "experience",
+    column: "archived",
+    sourceIdeaId: "fb-mtuwhdnu",
+    createdAt: "2026-09-18T00:00:00.000Z",
+    updatedAt: "2026-09-21T10:50:00.000Z",
+  },
+];
+
+const WAVE0_IDEAS: KanbanInboxNote[] = [
+  {
+    id: "fb-atlas-ia-review",
+    nodeId: "global",
+    title: "Proposed wrapping map — IA review",
+    body: "Do this before fb-atlas-skin-hub. Walk hub-atlas-standalone Internal/System; decide keep vs fold. Raised from docs/feedback-inbox.md onto Neon 2026-09-21.",
+    status: "open",
+    kind: "housekeeping",
+    source: "feedback",
+    pageHref: "/home",
+    createdAt: "2026-09-08T10:41:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "fb-atlas-skin-hub",
+    nodeId: "global",
+    title: "Proposed wrapping map — skin on hub",
+    body: "Blocked on fb-atlas-ia-review. Sketched shells only after keep/fold. Raised from docs/feedback-inbox.md onto Neon 2026-09-21.",
+    status: "open",
+    kind: "housekeeping",
+    source: "feedback",
+    pageHref: "/home",
+    createdAt: "2026-09-08T10:41:30.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "fb-public-hub-share",
+    nodeId: "global",
+    title: "Public hub share (platform pattern)",
+    body: "Later. Reusable open-this-page publicly (URL, optional password, read-only, no Entra). Not MRT-only. Raised from docs/feedback-inbox.md onto Neon 2026-09-21.",
+    status: "open",
+    kind: "housekeeping",
+    source: "feedback",
+    pageHref: "/w/sunwater-mrt",
+    createdAt: "2026-08-19T04:52:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "fb-hub-decisions-tickets",
+    nodeId: "global",
+    title: "Close persistence chat — Kanban tickets seeded",
+    body: "Pointer. Outstanding work is the Global board. Do not rebuild the briefing. Raised from docs/feedback-inbox.md onto Neon 2026-09-21.",
+    status: "open",
+    kind: "housekeeping",
+    source: "feedback",
+    pageHref: "/d",
+    createdAt: "2026-09-08T10:45:00.000Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260918-06",
+    nodeId: "global",
+    title: "Feedback Leaf Tag Selector - Cannot select 'hubs'",
+    body: "Any node on the tree is selectable including the hubs.",
+    status: "archived",
+    kind: "bug",
+    source: "feedback",
+    createdAt: "2026-09-18T09:01:42.311Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260918-05",
+    nodeId: "global",
+    title: "Scrivengroup > Development > Changelog",
+    body: "Hub-train vs leaf changelog homes. Split to kt-hub-version-homes. Workshop Wave 2.",
+    status: "archived",
+    kind: "bug",
+    source: "feedback",
+    createdAt: "2026-09-18T09:00:20.608Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260909-04",
+    nodeId: "global",
+    title: "Consistent Version numbering accross all of site",
+    body: "Rides with kt-hub-version-homes / IN-20260918-05. Workshop Wave 2.",
+    status: "archived",
+    kind: "idea",
+    source: "raise",
+    createdAt: "2026-09-09T06:46:02.512Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260917-05",
+    nodeId: "global",
+    title: "Development: Kanban - Page Scroll",
+    body: "Split to kt-dev-hub-site-network. Workshop Wave 2.",
+    status: "archived",
+    kind: "other",
+    source: "feedback",
+    createdAt: "2026-09-17T06:54:39.159Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260917-03",
+    nodeId: "global",
+    title: "Feedback popu - shortcut to open register.",
+    body: "Split to kt-feedback-open-register. Workshop Wave 2.",
+    status: "archived",
+    kind: "idea",
+    source: "feedback",
+    createdAt: "2026-09-17T06:45:07.150Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260917-07",
+    nodeId: "global",
+    title: "Stale desk writes feedback to the deprecated `feedback` table (fb-* ids)",
+    body: "Split to kt-stale-feedback-table.",
+    status: "archived",
+    kind: "housekeeping",
+    source: "raise",
+    createdAt: "2026-09-17T07:04:28.575Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260917-08",
+    nodeId: "global",
+    title: "Station publish workflow: wip desk → merge station → sweep → make it live",
+    body: "Folded into docs/GIT_AND_RELEASE.md two-role desks. Not a fourth git ticket.",
+    status: "archived",
+    kind: "housekeeping",
+    source: "raise",
+    createdAt: "2026-09-17T07:19:22.175Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260918-04",
+    nodeId: "global",
+    title: "Wip desk merged to station without merge-to-station words",
+    body: "Split to kt-yard-wip-not-station.",
+    status: "archived",
+    kind: "bug",
+    source: "raise",
+    createdAt: "2026-09-18T08:23:01.354Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260917-06",
+    nodeId: "global",
+    title: "WIP desk must not pull station (dev_main) unless asked",
+    body: "Split to kt-yard-no-pull-station-mu56iw2h.",
+    status: "archived",
+    kind: "housekeeping",
+    source: "raise",
+    createdAt: "2026-09-17T06:59:30.137Z",
+    updatedAt: "2026-09-21T00:30:00.000Z",
+    copiedAt: null,
+  },
+  {
+    id: "IN-20260921-01",
+    nodeId: "global",
+    title: "Wave 2 — master versioning + Development two layouts",
+    body: "Workshop 2026-09-21. Split to kt-dev-hub-cards, kt-leaf-dev-tabs, kt-kanban-column-filter, kt-sg-hub-changelog (combine/relabel/update), kt-train-chrome (AppShell vX.Y), kt-train-changelog (home + past zip history), kt-hub-version-homes. Clean house before Train content.",
+    status: "archived",
+    kind: "housekeeping",
+    source: "raise",
+    createdAt: "2026-09-21T02:16:00.000Z",
+    updatedAt: "2026-09-21T02:16:00.000Z",
+    copiedAt: null,
+  },
 ];
 
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
   "p-mtg-buylist": { ideas: MTG_BUYLIST_IDEAS, tickets: MTG_BUYLIST_TICKETS },
   global: {
-    ideas: GLOBAL_IDEAS,
+    ideas: [...GLOBAL_IDEAS, ...WAVE0_IDEAS],
     tickets: [...GLOBAL_DONE_TICKETS, ...HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "global")],
   },
   "w-sunwater-mrt": {
@@ -812,6 +1196,17 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260916-02",
   "IN-20260918-02",
   "IN-20260918-03",
+  "IN-20260916-01",
+  "IN-20260918-06",
+  "IN-20260918-05",
+  "IN-20260909-04",
+  "IN-20260917-05",
+  "IN-20260917-03",
+  "IN-20260917-07",
+  "IN-20260917-08",
+  "IN-20260918-04",
+  "IN-20260917-06",
+  "IN-20260921-01",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -831,6 +1226,24 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-eye-out-finish",
   "kt-changelog-expand",
   "kt-buylist-1.5-wrap",
+  "kt-publish-gha",
+  "kt-git-three-lane",
+  "kt-yard-wip-not-station",
+  "kt-yard-no-pull-station-mu56iw2h",
+  "kt-feedback-hub-tags",
+  "kt-stale-feedback-table",
+  "kt-hub-version-homes",
+  "kt-dev-hub-site-network",
+  "kt-dev-hub-cards",
+  "kt-leaf-dev-tabs",
+  "kt-kanban-column-filter",
+  "kt-sg-hub-changelog",
+  "kt-train-chrome",
+  "kt-train-changelog",
+  "kt-feedback-open-register",
+  "kt-wip-desk-badge",
+  "kt-route-loading-veil",
+  "kt-hub-page-loading",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

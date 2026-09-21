@@ -250,6 +250,15 @@ export const LIBRARY_SEED: LibraryEntry[] = [
     status: "kit",
   },
   {
+    id: "obj-btn-action",
+    layer: "object",
+    title: "Action button",
+    use: "sg-btn-action",
+    kitDefault:
+      "Amber mix fill, amber/ink border, 32px height. Second job on a footer (Open Inbox), right-aligned. Not primary save.",
+    status: "kit",
+  },
+  {
     id: "obj-btn-destructive",
     layer: "object",
     title: "Destructive button",
@@ -527,36 +536,38 @@ export const LIBRARY_SEED: LibraryEntry[] = [
   {
     id: "pat-loading",
     layer: "pattern",
-    title: "Loading skeleton",
-    use: "route loading.tsx + pulse cards",
-    kitDefault: "Never a blank paint.",
-    exists: "Only src/app/p/mtg-buylist/loading.tsx. Other routes paint blank until RSC finishes.",
-    suggest:
-      "Add a shared pulse-card skeleton and put loading.tsx on live leaves that feel slow (MRT, /d, Buylist already has one). Sketched shells can stay blank. Not every inner tab.",
+    title: "Route loading veil",
+    use: "translucent overlay, not a blank loading.tsx",
+    kitDefault:
+      "Never replace the page with a blank spinner. Veil the current view; chrome stays.",
+    exists:
+      "src/app/loading.tsx uses UiLoadingScreen (blank replace). UiLoadingOverlay is closer. Buylist has its own loading.tsx.",
+    suggest: "Ticket kt-route-loading-veil. Another session implements the veil.",
     status: "conflict",
     conflicts: [
       {
-        leaf: "MTG Buylist",
-        where: "src/app/p/mtg-buylist/loading.tsx",
-        instead: "Only product route with a loading.tsx today",
+        leaf: "Hub",
+        where: "src/app/loading.tsx → UiLoadingScreen",
+        instead: "Opaque blank page plus centred spinner",
       },
     ],
   },
   {
     id: "beh-page-loading",
     layer: "behaviour",
-    title: "Page loading",
-    use: "App Router loading.tsx",
-    kitDefault: "Show a skeleton while the page loads.",
-    exists: "Only Buylist loading.tsx.",
-    suggest: "Same as pat-loading: shared skeleton, live leaves first. Not sketched shells.",
+    title: "Route loading",
+    use: "translucent overlay",
+    kitDefault:
+      "Never replace the page with a blank spinner. Veil the current view (translucent overlay, chrome stays).",
+    exists: "src/app/loading.tsx blanks the route. Open Inbox showed that delay.",
+    suggest: "Ticket kt-route-loading-veil. Written on /s/standards?tab=behaviours.",
     status: "conflict",
-    notes: "Only Buylist has one. Decide whether every live leaf gets one.",
+    notes: "Rule is locked. Code still blanks. Do not implement in a hub-chrome sitting.",
     conflicts: [
       {
-        leaf: "Most leaves",
-        where: "src/app/** (no loading.tsx)",
-        instead: "Blank paint until RSC finishes",
+        leaf: "Hub",
+        where: "src/app/loading.tsx",
+        instead: "Blank paint until the next route is ready",
       },
     ],
   },

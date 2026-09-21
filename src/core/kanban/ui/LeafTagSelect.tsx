@@ -56,7 +56,14 @@ export function LeafTagSelect({
   id?: string;
   label?: string;
 }) {
-  const { hubs, childrenByHub } = siteNetworkTree();
+  const { hubs, childrenByHub: rawChildren } = siteNetworkTree();
+  const allowed = new Set(options.map((row) => row.id));
+  const childrenByHub = Object.fromEntries(
+    Object.entries(rawChildren).map(([hubId, kids]) => [
+      hubId,
+      kids.filter((child) => allowed.has(child.id)),
+    ]),
+  );
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const selectedTitle =
@@ -124,22 +131,25 @@ export function LeafTagSelect({
                     />
                   }
                   renderHub={(hub) => (
-                    <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-                      {hub.title}
-                    </div>
+                    <PickRow
+                      label={hub.title}
+                      selected={value === hub.id}
+                      badge={hub}
+                      onPick={() => pick(hub.id)}
+                    />
                   )}
                   renderChild={(child) =>
-                    child.kind === "hub" ? (
-                      <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-                        {child.title}
-                      </div>
-                    ) : (
+                    options.some((row) => row.id === child.id) ? (
                       <PickRow
                         label={child.title}
                         selected={value === child.id}
                         badge={child}
                         onPick={() => pick(child.id)}
                       />
+                    ) : (
+                      <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
+                        {child.title}
+                      </div>
                     )
                   }
                 />

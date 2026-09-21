@@ -118,6 +118,7 @@ export function LibrarySpecimen({ row }: { row: LibraryEntry }) {
     case "obj-btn-primary":
     case "obj-btn-secondary":
     case "obj-btn-ghost":
+    case "obj-btn-action":
       return <ButtonSpecimen />;
     case "obj-btn-destructive":
       return <DangerSpecimen />;
@@ -450,6 +451,9 @@ function ButtonSpecimen() {
           </button>
           <button type="button" className="sg-btn-ghost">
             Ghost
+          </button>
+          <button type="button" className="sg-btn-action">
+            Action
           </button>
           <button type="button" className="sg-btn-primary opacity-50" disabled>
             Disabled

@@ -1,12 +1,13 @@
 ---
-description: Sunwater MRT — this session owns the layered rebuild inside the hub
-alwaysApply: true
+description: Sunwater MRT v1 lock — only when editing MRT paths
+globs: src/modules/sunwater-mrt/**,src/app/w/sunwater-mrt/**
+alwaysApply: false
 ---
 
 # Sunwater Milestone Resourcing Tracker — ownership
 
 - **In hub:** Work sub-hub `/w/sunwater-mrt` (`w-sunwater-mrt`, badge `#4E8C6B`).
-- **This session** implements the layered rebuild at that route. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md).
+- Apply this lock when editing those paths. A hub/yard sitting is not an MRT sitting. Follow [`docs/PLATFORM.md`](docs/PLATFORM.md).
 
 Locked v1:
 

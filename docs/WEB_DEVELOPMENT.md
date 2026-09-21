@@ -30,12 +30,12 @@ Every **leaf** (not every inner tab) eventually has:
 
 | Element | Rule | Today (gap) |
 | ------- | ---- | ----------- |
-| **Development** | When a leaf leaves `sketched`, its Development surface is **Kanban Online** (`KanbanOnlineHost`): Inbox, board, Changelog, Notes, Design spec. One product-level **Development** tab with those sub-tabs. Capture is chrome Feedback (Raise-style popup), not an in-tab Raise. Relabel in `src/core/kanban/chrome.ts`. Sketched shells: changelog on the shell only — no fake Kanban. | Template is `/d`. Buylist and MRT Development use the host. Other live/building leaves still to roll on. |
-| **Versions** | Show **numeric version + datetime** in the leaf header when `live` / shipping (MRT pattern). Changelog rows carry `version` + `createdAt`. **MTG Buylist:** each live update increments 1.x → 1.(x+1). In-dev patches will be 1.x.y. Major N.0 only when asked. | MRT yes. Buylist 1.2. Other leaves: changelog dates only until first release. |
-| **Feedback** | Global header (and mobile FAB) **always** has Feedback. Raise-style popup: type (default **bug**), title, details, leaf tag, attachments. Writes Development Inbox (`kanban_ideas`; Neon when `DATABASE_URL` is set). No Internal Feedback/Ideas/Notes cards; `/i/kanban` redirects to `/d`. Bugs are not auto-ticketed. Guests may be excluded until `kt-inbox-guest-write`. Sittings: Neon inspect script → `/d?tab=inbox` → seed last. Details: [`docs/FEEDBACK.md`](./FEEDBACK.md). | Done in `AppShell`. |
+| **Development** | Two layouts. **Layout 1** (Development hub `/d`): cards Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, Design spec. **Layout 2** (product leaves): Development is an L1 tab; L2 is Inbox, Kanban, Changelog (this leaf), Notes. Kanban uses a shared column-checkbox filter (default Later + Open). Capture is chrome Feedback, not an in-tab Raise. Relabel in `src/core/kanban/chrome.ts`. Sketched shells: changelog on the shell only — no fake Kanban. | Hub cards are `/d`. Buylist, MRT, and Standards use Layout 2. |
+| **Versions** | Two clocks. **Train** (website zip) is `vX.Y` in chrome → Train Changelog; Hotfix chip only on hotfix zips. **Leaf** (hub suite included) is always `X.Y.Z` + datetime on the leaf/SG Hub changelog. Y when that leaf ships in a Train; Z on the wip desk per slice. No Train PATCH / a/b/c. Details: `docs/GIT_AND_RELEASE.md`. | Chrome v1.14. SG Hub 0.2.x. Buylist/MRT leaf changelogs. |
+| **Feedback** | Global header (and mobile FAB) **always** has Feedback. Raise-style popup: type (default **bug**), title, details, leaf tag, attachments. Writes Development Inbox (`kanban_ideas`; Neon when `DATABASE_URL` is set). No Internal Feedback/Ideas/Notes cards; `/i/kanban` redirects to `/d`. Bugs are not auto-ticketed. Guests may be excluded until `kt-inbox-guest-write`. Sittings: Neon inspect script → `/d/inbox` → seed last. Details: [`docs/FEEDBACK.md`](./FEEDBACK.md). | Done in `AppShell`. |
 | **Site map / fast travel** | **Site network** in chrome is the fast-travel map (Home → Hubs → cards). Definition is the same map for reading. Product interiors are inside a card, not extra map nodes (v1). | Done. Do not invent a second sitemap widget. |
 
-Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).
+Chrome that must stay: logo, yellow WIP desk badge when `WIP_DESK` is set (localhost desks only; station and Azure omit it), Train version (always shown; Hotfix chip only when that zip is a hotfix; staff click through to Train Changelog), Home, Site network, Feedback, Profile, `PageNav` (Back + breadcrumbs) unless a leaf documents a guest-minimal shell (MRT guests).
 
 ---
 
@@ -48,13 +48,14 @@ Chrome that must stay: logo, Home, Site network, Feedback, Profile, `PageNav` (B
 - Sticky header, `bg-[var(--surface)]`, hairline `border-[var(--border)]`.
 - Page ground `var(--page)` `#F5F5F4`; ink `var(--ink)` `#3C3C3B`.
 - Typeface **Manrope**. Radius **10px**.
-- Logo left; optional centred leaf title; actions right.
+- Logo left; yellow WIP desk badge next to it when `WIP_DESK` is set; optional centred leaf title; actions right.
 
 ### Page body
 
 - `PageNav` then `<h1 className="text-3xl font-semibold tracking-tight">` + `CodeBadge` + `StatusPill`.
 - Description in `text-[var(--muted)]`. Reading text may use `max-w-2xl`. The **page** fills the frame (`AppShell` main: padding, no `max-w-5xl`). Wide tools (tables, boards, libraries) use that width.
-- Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` (`--sg-btn-height`, 32px — same as Kanban LAYOUT toggle). Tabs: `sg-tab` (underline, not pills).
+- Cards: `sg-card`. Buttons: `sg-btn-primary` / `sg-btn-secondary` / `sg-btn-ghost` / `sg-btn-action` (`--sg-btn-height`, 32px — same as Kanban LAYOUT toggle). Action is the amber bordered control for a second job (Open Inbox). Tabs: `sg-tab` (underline, not pills).
+- Route loading: never blank-replace. Translucent overlay over the current view; chrome stays. Ticket `kt-route-loading-veil`.
 - Inputs: `sg-input`. Long text: `sg-prose`.
 
 ### Tables

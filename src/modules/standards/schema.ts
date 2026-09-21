@@ -1,4 +1,4 @@
-import { COLUMN_FILTERS, type ColumnFilterId } from "@/core/kanban/schema";
+import { COLUMN_FILTERS } from "@/core/kanban/schema";
 import type { KanbanOnlineStart } from "@/core/kanban/ui/KanbanOnlineHost";
 
 export const STANDARDS_NODE_ID = "s-standards";
@@ -59,6 +59,6 @@ export function standardsKanbanStart(raw?: string): KanbanOnlineStart {
   if (raw === "spec") return "changelog";
   if (raw === "kanban") return "kanban";
   if (raw === "inbox" || raw === "changelog" || raw === "notes") return raw;
-  if (COLUMN_FILTERS.some((row) => row.id === raw)) return raw as ColumnFilterId;
+  if (COLUMN_FILTERS.some((row) => row.id === raw)) return "kanban";
   return "inbox";
 }

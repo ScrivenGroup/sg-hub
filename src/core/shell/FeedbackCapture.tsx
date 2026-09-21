@@ -23,6 +23,7 @@ import {
   FilesDropZone,
 } from "@/core/kanban/ui/InboxAttachments";
 import { LeafTagSelect } from "@/core/kanban/ui/LeafTagSelect";
+import { DEVELOPMENT_INBOX_HREF } from "@/core/kanban/development-hub";
 
 export function FeedbackCapture() {
   const pathname = usePathname();
@@ -40,7 +41,7 @@ export function FeedbackCapture() {
   const [pending, startTransition] = useTransition();
   const titleId = useId();
   const leafOptions = kanbanLeafOptions();
-  const inboxHref = "/d?tab=inbox";
+  const inboxHref = DEVELOPMENT_INBOX_HREF;
 
   useEffect(() => {
     setPageTitle(document.title);
@@ -104,7 +105,7 @@ export function FeedbackCapture() {
         panelClassName="max-w-lg h-[min(90dvh,calc(100dvh-1.5rem))]"
         bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden"
         footer={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               className="sg-btn-primary disabled:opacity-50"
@@ -149,9 +150,16 @@ export function FeedbackCapture() {
             >
               Save to Inbox
             </button>
-            <button type="button" className="sg-btn-ghost" onClick={onClose}>
+            <button type="button" className="sg-btn-secondary" onClick={onClose}>
               Cancel
             </button>
+            <Link
+              href={inboxHref}
+              className="sg-btn-action ml-auto"
+              onClick={onClose}
+            >
+              Open Inbox
+            </Link>
           </div>
         }
       >
@@ -159,16 +167,8 @@ export function FeedbackCapture() {
           Feedback
         </h2>
         <p className="mb-3 shrink-0 text-sm text-[var(--muted)]">
-          Lands in Development Inbox. Tag is which leaf (or Global) owns the note — not a
+          Lands in Development Inbox. Tag is which hub, leaf, or Global owns the note — not a
           swimlane.
-          {savedId ? (
-            <>
-              {" "}
-              <Link href={inboxHref} className="underline">
-                Open Inbox
-              </Link>
-            </>
-          ) : null}
         </p>
         <label className="mb-2 block shrink-0 text-sm font-medium">
           {KANBAN_CHROME.labels.type}

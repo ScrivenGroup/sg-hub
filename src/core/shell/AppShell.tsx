@@ -5,6 +5,8 @@ import { siteNetworkTree } from "@/core/registry";
 import { BackButton } from "@/core/shell/BackButton";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
 import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
+import { TrainVersionLink } from "@/core/shell/TrainVersionLink";
+import { WipDeskBadge } from "@/core/shell/WipDeskBadge";
 
 export async function AppShell({
   children,
@@ -60,6 +62,8 @@ export async function AppShell({
               Scriven Group
             </span>
           </Link>
+          <WipDeskBadge />
+          <TrainVersionLink linked={!guest} />
           {title ? (
             <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
               {typeof title === "string" ? (

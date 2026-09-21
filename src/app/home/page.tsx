@@ -22,7 +22,7 @@ export default async function HomePage() {
         <h1 className="text-3xl font-semibold tracking-tight">Home</h1>
         <p className="mt-2 max-w-xl text-[var(--muted)]">
           Choose a Hub. Work and Projects hold spin-out capable products;
-          Development is the suite; Internal holds leftover tools; System
+          Development holds the suite cards; Internal holds leftover tools; System
           defines and maintains the site.
         </p>
       </header>

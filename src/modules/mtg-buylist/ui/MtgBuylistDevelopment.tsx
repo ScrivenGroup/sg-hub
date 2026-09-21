@@ -36,6 +36,7 @@ export function MtgBuylistDevelopment({
       leafOptions={kanbanLeafOptions()}
       defaultTagNodeId={MTG_BUYLIST_NODE_ID}
       showTabs
+      showDesignSpec={false}
       initialTab={initialTab}
       changelogs={changelogs}
       notes={notes}

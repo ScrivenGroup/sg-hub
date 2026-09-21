@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → **Dev Login** → Home.
+Station desk: [http://localhost:3000](http://localhost:3000) → **Dev Login** → Home. A `wip/<leaf>` desk uses its own port (`:3001+`); match `AUTH_URL`. See [`docs/YARD_DESKS.md`](docs/YARD_DESKS.md).
 
 ## Delivery sequence
 

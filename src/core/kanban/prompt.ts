@@ -54,11 +54,11 @@ Open Development Inbox: \`${leafHref}/development?tab=inbox\`
 Open Development KanBan: \`${leafHref}/development?tab=kanban\`
 
 ## Host
-This Cursor session is **this git desk**. Station preview is \`http://localhost:3000\`. A \`wip/<leaf>\` desk is \`http://localhost:3001\` (or 3002+). \`AUTH_URL\` in that desk’s \`.env.local\` must match the port \`next dev\` uses. Copying station env without rewriting \`AUTH_URL\` sends login to \`:3000\`. Never paste a station \`:3000\` link from a wip chat.
+This Cursor session is **this git desk**. A desk is \`dev_main\` (station) or \`wip/<leaf>\`. WIP only commits and pushes the save-slot. Station takes finished blocks. Station preview is \`http://localhost:3000\`. A \`wip/<leaf>\` desk is \`http://localhost:3001\` (or 3002+). \`AUTH_URL\` in that desk’s \`.env.local\` must match the port \`next dev\` uses. Copying station env without rewriting \`AUTH_URL\` sends login to \`:3000\`. Never paste a station \`:3000\` link from a wip chat.
 
 When \`DATABASE_URL\` is set, Feedback and Kanban rows live on **Neon** (same database localhost and live share) in **one inbox table** (\`kanban_ideas\`). \`data/\` is laptop fallback only and is stripped from the zip. **Seed is not the live board** — \`w-sunwater-mrt\` seed \`ideas: []\` does not mean the inbox is empty.
 
-Inbox sittings, in order: (1) \`npx --yes tsx scripts/inspect-neon-inbox.ts\` (read-only SELECT; never print DATABASE_URL; do **not** call \`getKanbanBoard\` / \`loadKanbanRows\` — they can seed-write), (2) Development Inbox \`/d?tab=inbox\`, (3) seed last, missing ids only.
+Inbox sittings, in order: (1) \`npx --yes tsx scripts/inspect-neon-inbox.ts\` (read-only SELECT; never print DATABASE_URL; do **not** call \`getKanbanBoard\` / \`loadKanbanRows\` — they can seed-write), (2) Development Inbox \`/d/inbox\`, (3) seed last, missing ids only.
 
 Chrome **Feedback** is the capture door (Raise-style popup on the header / mobile FAB). Split **ideas** into tickets; do not auto-ticket bugs.
 
@@ -88,7 +88,7 @@ ${formatDeltaSummary(delta)}
 2. Split the raw note into tickets with a category badge. User-facing KanBan is informational — they do not action cards. Columns are Later → Open → Done. Raw notes live on the Inbox tab, not on the board.
 3. Emit a **session pack** JSON (schema below) the user can **Publish snapshot** on live (and on localhost while developing).
 4. As you work, move tickets: later → open → done. Archive when closed.
-5. **Actioning tickets drives the changelog** on the same Development page (WIP and/or release). Completing work is not column-only.
+5. **Actioning tickets drives the changelog** on the same Development page (WIP and/or release, clock X.Y.Z). Completing work is not column-only. Wrapping-hub suite rows go to SG Hub Changelog (\`/d/changelog\`). Website zip history is Train Changelog (\`/d/train-changelog\`), not a leaf row.
 6. Extra work the user asks for in this session that was never an inbox note still gets tickets + changelog; those tickets omit \`sourceIdeaId\` (ad-hoc).
 7. Prefer small publishes so the change-since-live meter stays out of red (10+).
 

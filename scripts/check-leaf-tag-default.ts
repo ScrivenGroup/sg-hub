@@ -5,7 +5,14 @@ import {
 import { KANBAN_GLOBAL_NODE_ID } from "../src/core/kanban/schema";
 
 const cases: Array<[string, string]> = [
-  ["/d", KANBAN_GLOBAL_NODE_ID],
+  ["/d", "hub-development"],
+  ["/d/inbox", "hub-development"],
+  ["/d/kanban", "hub-development"],
+  ["/d/changelog", "hub-development"],
+  ["/w", "hub-work"],
+  ["/p", "hub-projects"],
+  ["/i", "hub-internal"],
+  ["/s", "hub-system"],
   ["/i/kanban", KANBAN_GLOBAL_NODE_ID],
   ["/i/feedback", KANBAN_GLOBAL_NODE_ID],
   ["/i/ideas", KANBAN_GLOBAL_NODE_ID],
@@ -26,14 +33,19 @@ for (const [href, want] of cases) {
     console.log(`ok href=${href} tag=${got}`);
   }
 }
-if (isKanbanLeafId("i-kanban") || isKanbanLeafId("hub-development") || isKanbanLeafId("i-feedback") || isKanbanLeafId("i-ideas") || isKanbanLeafId("i-notes")) {
-  console.log("fail retired Internal tools still taggable");
+if (isKanbanLeafId("i-kanban") || isKanbanLeafId("i-feedback") || isKanbanLeafId("i-ideas") || isKanbanLeafId("i-notes") || isKanbanLeafId("d-kanban") || isKanbanLeafId("d-ideas-feedback")) {
+  console.log("fail retired Internal tools or Development rooms still taggable");
   failed += 1;
 } else {
   console.log("ok chrome tools not taggable");
 }
-if (!isKanbanLeafId("w-sunwater-mrt") || !isKanbanLeafId(KANBAN_GLOBAL_NODE_ID)) {
-  console.log("fail product/global not taggable");
+if (
+  !isKanbanLeafId("w-sunwater-mrt") ||
+  !isKanbanLeafId(KANBAN_GLOBAL_NODE_ID) ||
+  !isKanbanLeafId("hub-development") ||
+  !isKanbanLeafId("hub-work")
+) {
+  console.log("fail product/global/hub not taggable");
   failed += 1;
 }
 process.exit(failed === 0 ? 0 : 1);

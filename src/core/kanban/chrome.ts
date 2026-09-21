@@ -4,6 +4,7 @@ import { COLUMN_FILTERS, COLUMN_LABELS } from "./schema";
 export const KANBAN_CHROME = {
   labels: {
     inbox: COLUMN_LABELS.inbox,
+    kanban: "Kanban",
     changelog: "Changelog",
     notes: "Notes",
     raise: "Raise an idea",
@@ -16,7 +17,7 @@ export const KANBAN_CHROME = {
     more: "More options",
     columns: "Columns",
     swimlanes: "Swimlanes",
-    boardFilters: COLUMN_FILTERS.map((f) => ({ id: f.id, label: f.label })),
+    columnFilterAll: "All",
   },
   raise: {
     placement: "chrome-feedback" as const,
@@ -26,7 +27,8 @@ export const KANBAN_CHROME = {
   layout: {
     host: "flex min-h-0 flex-1 flex-col (fills leftover viewport)",
     pageWidth: "full width of the leaf main; no max-w-5xl on the board",
-    chromeRows: "Row 1 = tablist (no Raise). Row 2 = filters (Inbox and board only).",
+    chromeRows:
+      "Layout 1 Kanban card: no suite tabs; checkbox row above buckets (default Later+Open). Layout 2 (leaves): L2 tabs Inbox | Kanban | Changelog | Notes. Kanban tab uses the same checkbox row. Design spec is a Development hub card only.",
     readingWidth: "Changelog / Notes / Design spec may use a readable card; the board must not.",
   },
   density: {
@@ -45,3 +47,6 @@ export const KANBAN_CHROME = {
 } as const;
 
 export type KanbanChrome = typeof KANBAN_CHROME;
+
+/** Old /d?tab= and leaf ?tab= column-filter ids still redirect to the Kanban room. */
+export const LEGACY_BOARD_TAB_IDS = COLUMN_FILTERS.map((row) => row.id);
