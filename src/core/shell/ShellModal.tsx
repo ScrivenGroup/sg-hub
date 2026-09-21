@@ -10,6 +10,8 @@ type Props = {
   panelClassName?: string;
   bodyClassName?: string;
   footer?: ReactNode;
+  /** When false, the parent owns Escape (so overlays close newest-first). */
+  closeOnEscape?: boolean;
   children: ReactNode;
 };
 
@@ -20,6 +22,7 @@ export function ShellModal({
   panelClassName,
   bodyClassName,
   footer,
+  closeOnEscape = true,
   children,
 }: Props) {
   const [mounted, setMounted] = useState(false);
@@ -30,13 +33,16 @@ export function ShellModal({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !closeOnEscape) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [closeOnEscape, open, onClose]);
 
   if (!open || !mounted) return null;
 

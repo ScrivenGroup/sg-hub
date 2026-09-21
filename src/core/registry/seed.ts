@@ -1166,6 +1166,200 @@ Zip does not copy \`data/\`. Azure store stays on the App Service.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.6.1",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.1",
+    createdAt: "2026-09-21T01:15:00.000Z",
+    title: "1.6.1 (dev) — Decks tab: precon catalog, dated harvest, shop-ask ladder",
+    body: `## Publish to localhost (not live)
+
+- New L1 tab Decks: search and add ManaBox CSV/TXT lists. Turtle Power! is seeded from the official 100-card export.
+- Harvest Mate and Playmantis writes a shared dated book under \`data/mtg-buylist/precons/\` — not a Run session. First pass is a mock book with live types.
+- Select a deck, type the shop ask. Buy now if Mate cash covers; consider now if you would spend the cash gap for Playmantis credit and leftover CK paper value; hard pass if deck CK 1.0 is below the ask. CK 0.7 sell-proxy is out of this pass.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.2",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.2",
+    createdAt: "2026-09-21T01:50:00.000Z",
+    title: "1.6.2 (dev) — Decks table: Mate/PM columns, want-zero, sort, rarity",
+    body: `## Publish to localhost (not live)
+
+- Decks card table matches Run Compare: Mate and PM as columns, winner highlighted, loser muted.
+- A store can list a price with want 0 — “would offer $x but not buying right now.”
+- Card preview (owned / Scryfall). Columns sort A–Z or high–low. Filter Rare+mythic vs Common+uncommon so leftover value is the bulk-rare pile, not bulk commons.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.3",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.3",
+    createdAt: "2026-09-21T02:05:00.000Z",
+    title: "1.6.3 (dev) — Decks: badges, uid, Mate cash break-even, tighter chrome",
+    body: `## Publish to localhost (not live)
+
+- Rarity is M/R/U/C badges (white / silver / gold / orange). Finish is holographic F vs regular N. Headers are bold. uid is import order.
+- Asking price sits beside the verdict. Mate cash break-even is the first summary tile (other cash stores later).
+- Rarity filters on the column badges. Visual legend replaces the prose above the table.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.4",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.4",
+    createdAt: "2026-09-21T02:30:00.000Z",
+    title: "1.6.4 (dev) — Decks chrome: legend filters, sticky header, rarity $ mix",
+    body: `## Publish to localhost (not live)
+
+- Rarity / Finish are plain sortable headers. Surge foil is its own holographic S. Legend chips filter the table; Win shows every allocated row.
+- Asking and verdict sit larger under the deck name. Mate cash break-even is advisory beside Asking. Mate tile shows cash and credit.
+- Leftover and CK tiles list qty and $ per rarity, with a hover bar. Table footer totals wanted Mate/PM and a muted not-wanted sum. Deck chrome plus column headers stay put while rows scroll.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.5",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.5",
+    createdAt: "2026-09-21T02:50:00.000Z",
+    title: "1.6.5 (dev) — Decks table scroll, Show all, clearer ask result",
+    body: `## Publish to localhost (not live)
+
+- Deck table scrolls again: the pane is height-capped so rows move under sticky chrome and column headers.
+- Legend chips share one size. Want / rarity / finish are grouped. Show all appears when any filter is on.
+- Mate and PM tiles stay a pair; leftover and CK are a wider pair so rarity qty/$ stays on one line.
+- Asking result names the trade: convert the cash gap into PM credit, or gain Mate cash plus Playmantis when the ask is under break-even.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.6",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.6",
+    createdAt: "2026-09-21T03:05:00.000Z",
+    title: "1.6.6 (dev) — Decks table-first chrome, overlay catalog, solid totals",
+    body: `## Publish to localhost (not live)
+
+- Breadcrumb, tab title, badge, and version sit in the existing AppShell title slot. Leaf chrome is tabs only.
+- Decks list is a collapsible overlay. Name, ask, break-even, result, and rarity mixes share one compact toolbar.
+- Legend chips match table text height (16px). Reset is a reserved icon on the left of the legend.
+- Rarity hover chart is fixed to the page. Totals sit on a solid bar under the scroll (rows + have qty + Mate/PM/CK).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.7",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.7",
+    createdAt: "2026-09-21T04:00:00.000Z",
+    title: "1.6.7 (dev) — 2× credit consider, MRT header, export as-shown",
+    body: `## Publish to localhost (not live)
+
+- Consider now requires credit ≥ 2.0× the remaining cash spend, and names cash spent, store credit, and the ratio.
+- Page chrome matches Sunwater MRT: product title, version pill, badge, status. No breadcrumb.
+- Totals sit in table columns. Sticky to the visible bottom on a long table; sit under the last row when filtered short.
+- Legend chips show unfiltered qty underneath. Mate / PM / leftover / CK are compact bordered chips. Export icon (as-shown CSV/TXT, ManaBox when the deck came from ManaBox).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.8",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.8",
+    createdAt: "2026-09-21T04:15:00.000Z",
+    title: "1.6.8 (dev) — Cash-neutral buy, Pass on bad ratio, MM cash vs credit",
+    body: `## Publish to localhost (not live)
+
+- Spend $0 / cash covered is Buy now · Cash neutral. Highest Mate cash cards cover the ask first; the rest go to the better of Mate credit vs Playmantis credit.
+- Credit/cash below 2.0× is Pass, with the ratio named as the reason.
+- Table splits MM cash and MM credit. Export is a square bordered button; click outside closes the menu.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.9",
+    createdAt: "2026-09-21T05:45:00.000Z",
+    title: "1.6.9 (dev) — Desktop harvest prep, Neon book",
+    body: `## Publish to localhost (not live)
+
+- Decks pane groups by set (newest first). Checkbox a deck or a whole group to prep, then harvest only those lists.
+- No-list placeholders are grey and disabled; a list gets harvest RAG (red / mock amber).
+- Catalog and the shared harvest book write Neon rows and merge into the existing book. Mock writer this sitting.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.10",
+    createdAt: "2026-09-21T06:30:00.000Z",
+    title: "1.6.10 (dev) — Year > group > deck catalog",
+    body: `## Publish to localhost (not live)
+
+- Decks pane is Year, then product group, then deck. Commander backbone is seeded as no-list placeholders. Turtle Power! keeps its ManaBox CSV.
+- Wizards decklist links are citations only — lists attach from ManaBox CSV, not from those pages.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.11",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    title: "1.6.11 (dev) — Deck SKU search, harvest popup, compact rows",
+    body: `## Publish to localhost (not live)
+
+- Product SKU sits on each group (TMC, SOC, …) and is searchable. Prep checkboxes stay as you change the search.
+- Win / $·w0 / Null legend quantities sum to 100. Search and harvest stay sticky; year and group headers collapse (open by default).
+- Deck-page Harvest and pane Harvest share one popup. Options: compact card rows, lists-only. Pointer cursor on clickable chrome.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.12",
+    createdAt: "2026-09-21T10:55:00.000Z",
+    title: "1.6.12 (dev) — Compact pane rows, listed counts, Escape stack",
+    body: `## Publish to localhost (not live)
+
+- Small card rows also shrink the decks pane. Year and group counts show listed/total (1/20).
+- Legend reset also restores uid sort. Clear checkboxes sits beside Harvest.
+- Escape closes the newest overlay first (Add deck before the pane).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
