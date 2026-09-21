@@ -2,7 +2,10 @@ import { allocate, withAllocateResults } from "./allocate";
 import { parseManaBoxCsv, majorityPurchaseCurrency } from "./parse-csv";
 import { manaBoxCopyCount, parseManaBoxTxt } from "./parse-txt";
 import { assessPrecon, buyingResultLine } from "./precon-assess";
-import { buildMockPreconHarvest } from "./precon-harvest";
+import { deckHarvestRag, deckSearchBlob, groupDecksByYear, hasDeckList } from "./precon-groups";
+import { skuForGroup } from "./precon-sku";
+import { buildMockPreconHarvest, mergePreconHarvest } from "./precon-harvest";
+import { loadBackbonePlaceholders, parseReleaseDate } from "../fixtures/precons/placeholders";
 import { loadTurtlePowerDeck } from "../fixtures/precons/turtle-power";
 import { parseMateJson, filterMateOffersForCsv } from "./parse-mate";
 import {
@@ -1467,6 +1470,103 @@ Sundering Growth,MAR,Marvel Universe,95,normal,1,2aa6ff08-efd2-4f51-b899-19ba681
   }
   if (thin.mateUnwantedCashCents < 800 || !thin.leftoverByRarity.R.qty) {
     messages.push("Leftover rarity slices and Mate unwanted cash should be populated");
+  }
+
+  const backbone = loadBackbonePlaceholders();
+  const turtleSlot = backbone.find((deck) => deck.name === "Turtle Power!");
+  const anthology = backbone.find((deck) => !deck.name);
+  if (backbone.length < 150 || !turtleSlot || turtleSlot.year !== "2026") {
+    messages.push(`Backbone should seed named commander decks including Turtle Power, got ${backbone.length}`);
+  }
+  if (anthology) {
+    messages.push("Backbone should skip reprint boxes with no deck name");
+  }
+  if (parseReleaseDate("06-Mar-26", "2026") !== "2026-03-06") {
+    messages.push("Release dates should parse to ISO");
+  }
+  const tree = groupDecksByYear([turtle, ...(turtleSlot ? [turtleSlot] : [])]);
+  if (
+    tree[0]?.year !== "2026" ||
+    tree[0]?.groups[0]?.name !== "Teenage Mutant Ninja Turtles Commander" ||
+    tree[0]?.groups[0]?.decks.length !== 2
+  ) {
+    messages.push("Year > group > deck should nest Turtle Power under 2026 TMNT Commander");
+  }
+  if (tree[0]?.groups[0]?.sku !== "TMC") {
+    messages.push(`TMNT group SKU should be TMC, got ${tree[0]?.groups[0]?.sku}`);
+  }
+  if (skuForGroup("Secrets of Strixhaven Commander") !== "SOC") {
+    messages.push("Secrets of Strixhaven SKU should be SOC");
+  }
+  if (!deckSearchBlob(turtle).includes("tmc")) {
+    messages.push("Searching TMC should match Turtle Power");
+  }
+  const soc = backbone.find((deck) => deck.productName === "Secrets of Strixhaven Commander");
+  if (!soc || !deckSearchBlob(soc).includes("soc") || soc.setCode !== "SOC") {
+    messages.push("Searching SOC should match Secrets of Strixhaven decks");
+  }
+  let winQty = 0;
+  let w0Qty = 0;
+  let noneQty = 0;
+  for (const line of thin.lines) {
+    const win =
+      line.dest === "mate-cash" || line.dest === "mate-credit" || line.dest === "playmantis";
+    const w0 =
+      (line.mateCashCents > 0 && line.mateWanted <= 0) ||
+      (line.playmantisCreditCents > 0 && line.playmantisWanted <= 0);
+    if (win) winQty += line.qty;
+    else if (w0) w0Qty += line.qty;
+    else noneQty += line.qty;
+  }
+  if (winQty + w0Qty + noneQty !== 100) {
+    messages.push(`Outcome legend should sum to 100, got ${winQty}+${w0Qty}+${noneQty}`);
+  }
+  if (!noneQty) {
+    messages.push("Outcome legend should include a Null bucket");
+  }
+  if (turtleSlot && hasDeckList(turtleSlot)) {
+    messages.push("Backbone Turtle Power should stay a placeholder until a ManaBox CSV is attached");
+  }
+  if (deckHarvestRag(turtle, mockBook) !== "red") {
+    messages.push("Unstamped list should be red harvest RAG");
+  }
+  const stamped = { ...turtle, lastHarvestedAt: mockBook.harvestedAt };
+  if (deckHarvestRag(stamped, mockBook) !== "amber" || (turtleSlot && deckHarvestRag(turtleSlot, mockBook) !== "none")) {
+    messages.push("Mock harvest should be amber; no-list should have no RAG");
+  }
+  const prior = buildMockPreconHarvest([turtle], "2026-09-21T01:00:00.000Z");
+  const extra = {
+    ...prior,
+    harvestedAt: "2026-09-21T02:00:00.000Z",
+    mate: prior.mate
+      ? {
+          ...prior.mate,
+          harvestedAt: "2026-09-21T02:00:00.000Z",
+          offers: [
+            ...(prior.mate.offers || []),
+            {
+              mateUuid: "extra-keep",
+              name: "Keep Me",
+              setCode: "TMT",
+              finish: "normal",
+              buyPriceCents: 100,
+              creditPriceCents: 150,
+              quantity: 1,
+              normalisedName: "keep me",
+              collectorNumber: "",
+              imageUrl: "",
+              rarity: "common",
+            },
+          ],
+        }
+      : prior.mate,
+  };
+  const merged = mergePreconHarvest(extra, prior);
+  if (!merged.mate?.offers.some((offer) => offer.mateUuid === "extra-keep")) {
+    messages.push("Harvest merge should keep offers that the incoming pass did not touch");
+  }
+  if (merged.harvestedAt !== prior.harvestedAt) {
+    messages.push("Harvest merge should stamp the incoming harvest time");
   }
 
   return { ok: messages.length === 0, messages };

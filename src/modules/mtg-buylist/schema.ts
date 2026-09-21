@@ -230,7 +230,7 @@ export type BuylistArchive = z.infer<typeof buylistArchiveSchema>;
 export type BuylistOwnerIndex = z.infer<typeof buylistOwnerIndexSchema>;
 export type PlaymantisHarvestDiffRow = z.infer<typeof playmantisHarvestDiffRowSchema>;
 
-export const PRECON_SOURCES = ["manabox-csv", "manabox-txt", "fixture"] as const;
+export const PRECON_SOURCES = ["manabox-csv", "manabox-txt", "fixture", "placeholder"] as const;
 export const preconSourceSchema = z.enum(PRECON_SOURCES);
 export type PreconSource = z.infer<typeof preconSourceSchema>;
 
@@ -253,12 +253,14 @@ export const preconDeckSchema = z.object({
   id: z.string(),
   name: z.string(),
   productName: z.string().optional().default(""),
+  year: z.string().optional().default(""),
   setCode: z.string().optional().default(""),
   releasedAt: z.string().optional().default(""),
   faceCommander: z.string().optional().default(""),
   source: preconSourceSchema,
   sourceUrl: z.string().optional().default(""),
   createdAt: z.string(),
+  lastHarvestedAt: z.string().optional().default(""),
   rows: z.array(manaBoxRowSchema),
 });
 

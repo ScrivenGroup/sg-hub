@@ -1,5 +1,13 @@
 import type { ManaBoxRow, MateOffer, PlaymantisOffer, PreconDeck, PreconHarvestBook } from "../schema";
+import { emptyPreconHarvestBook } from "../schema";
 import { csvFinishToMate, normalizeCardName } from "./names";
+
+/** Same steps for one deck or many — live Mate/PM will fill this popup later. */
+export const PRECON_HARVEST_STEPS = [
+  "Prep MTGMate for this run",
+  "Ask MTGMate for a harvest",
+  "Prep / ask Playmantis for this run",
+] as const;
 
 /** Scripted Mate cash — sums to $60.00 so a $60 shop ask is buy-now. */
 export const MOCK_MATE_CASH: Record<string, number> = {
@@ -134,5 +142,48 @@ export function buildMockPreconHarvest(decks: PreconDeck[], harvestedAt: string)
       fetchedAt: harvestedAt,
       offers: playmantis,
     },
+  };
+}
+
+function pmOfferKey(offer: PlaymantisOffer): string {
+  return `${offer.scryfallId}|${offer.finish}`;
+}
+
+/** Incoming offers win on the same join key; the rest of the book stays. */
+export function mergePreconHarvest(
+  existing: PreconHarvestBook | null | undefined,
+  incoming: PreconHarvestBook,
+): PreconHarvestBook {
+  const prior = existing ?? emptyPreconHarvestBook();
+  const mateById = new Map<string, MateOffer>();
+  for (const offer of prior.mate?.offers || []) mateById.set(offer.mateUuid, offer);
+  for (const offer of incoming.mate?.offers || []) mateById.set(offer.mateUuid, offer);
+  const pmByKey = new Map<string, PlaymantisOffer>();
+  for (const offer of prior.playmantis?.offers || []) pmByKey.set(pmOfferKey(offer), offer);
+  for (const offer of incoming.playmantis?.offers || []) pmByKey.set(pmOfferKey(offer), offer);
+  const sets = new Set<string>([
+    ...(prior.mate?.sets || []),
+    ...(incoming.mate?.sets || []),
+  ]);
+  const mateOffers = [...mateById.values()];
+  const pmOffers = [...pmByKey.values()];
+  return {
+    harvestedAt: incoming.harvestedAt || prior.harvestedAt,
+    source: incoming.source || prior.source,
+    mate: mateOffers.length
+      ? {
+          harvestedAt: incoming.mate?.harvestedAt || prior.mate?.harvestedAt || incoming.harvestedAt,
+          source: incoming.mate?.source || prior.mate?.source || "upload",
+          sets: [...sets].sort(),
+          offers: mateOffers,
+        }
+      : prior.mate,
+    playmantis: pmOffers.length
+      ? {
+          fetchedAt: incoming.playmantis?.fetchedAt || prior.playmantis?.fetchedAt || incoming.harvestedAt,
+          offers: pmOffers,
+          error: incoming.playmantis?.error || prior.playmantis?.error,
+        }
+      : prior.playmantis,
   };
 }

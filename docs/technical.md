@@ -18,7 +18,7 @@ You enter through a locked front door (Microsoft work login on live; a simple na
 
 The building is **Next.js**: it draws the pages you see **and** does the back-office work (save a file, check a password) in the same program. **React** is how the pages are assembled. **TypeScript** is a spell-check so names and shapes stay consistent. **Tailwind** plus a few house colours (ink, page, surface) keep rooms looking like the same company. The typeface is **Manrope**.
 
-Simple registers (Feedback, ideas, notes, changelogs, dependencies, development choices) use **Postgres** when `DATABASE_URL` is set (Neon on the live app). The MRT **live plan** and **guest share door** use the same hook. **Kanban Online** is Neon **rows** (leaf tag `node_id`), not a JSON blob per leaf. On a laptop with no URL they still write **JSON files** with the same columns. MRT sandboxes, mtg-buylist product cache, and guest activity are still JSON. Zip deploy must not ship the laptop `data/` folder.
+Simple registers (Feedback, ideas, notes, changelogs, dependencies, development choices) use **Postgres** when `DATABASE_URL` is set (Neon on the live app). The MRT **live plan** and **guest share door** use the same hook. **Kanban Online** is Neon **rows** (leaf tag `node_id`), not a JSON blob per leaf. On a laptop with no URL they still write **JSON files** with the same columns. MRT sandboxes, mtg-buylist Run session cache, and guest activity are still JSON. Decks catalog + shared harvest book are Neon rows. Zip deploy must not ship the laptop `data/` folder.
 
 The building sits on a rented plot in **Australia East**: **Azure App Service**, Linux, **Node 20**. Developers build on Windows, zip a ready-to-run copy, and upload it. Azure is told **not** to rebuild on arrival.
 
@@ -44,7 +44,7 @@ Use these axes. Do not infer a missing layer from a competing product.
 | Identity provider (live) | Microsoft Entra ID (OIDC) | Google-only, Auth0, magic-link SaaS |
 | Session | JWT session cookie (no Auth.js database adapter). `trustHost: true`. Custom page `/login` | Server session store, Redis sessions |
 | Extra auth doors | `DEV_AUTH=true` Credentials “Dev Login” (local). MRT guest Credentials share-password (scoped to `/w/sunwater-mrt`) | Public unauthenticated app |
-| Persistence now | Simple stores (`feedback`, `ideas`, `notes`, `changelogs`, `dependencies`, `dev_choices`) plus MRT live **rows** (`mrt_plan` and child tables) and share door (`mrt_share`) in `json-store` / `mrt-share`: Postgres when `DATABASE_URL` is set, else JSON under `data/`. **Kanban Online** = `kanban_ideas` + `kanban_tickets` rows (`node_id` leaf tag), same columns in JSON fallback. Sandboxes, mtg-buylist product cache, guest activity still JSON files | A second ORM, Prisma, paid Azure Flexible Server, MRT plan JSONB blob, opaque per-leaf JSONB kanban blobs |
+| Persistence now | Simple stores (`feedback`, `ideas`, `notes`, `changelogs`, `dependencies`, `dev_choices`) plus MRT live **rows** (`mrt_plan` and child tables) and share door (`mrt_share`) in `json-store` / `mrt-share`: Postgres when `DATABASE_URL` is set, else JSON under `data/`. **Kanban Online** = `kanban_ideas` + `kanban_tickets` rows (`node_id` leaf tag), same columns in JSON fallback. Sandboxes, mtg-buylist Run session cache, guest activity still JSON files. Decks catalog/harvest are Neon rows (`precon_*`) | A second ORM, Prisma, paid Azure Flexible Server, MRT plan JSONB blob, opaque per-leaf JSONB kanban blobs |
 | Persistence planned | MRT guest sandbox + activity still JSON until pass 2 (`docs/NEON_CUTOVER.md`). Live zip-deploy of MRT wiring is a follow-up “make it live” | “Sandboxes already on Neon” is false |
 | Hosting class | Azure App Service PaaS, Linux, Node 20 LTS, Australia East | Vercel, Netlify, Cloudflare Workers, AWS ECS/EKS, IIS, shared PHP |
 | Azure names | RG `rg-scrivengroup`, app `app-scrivengroup` | — |
@@ -95,7 +95,7 @@ Env (live): `AUTH_SECRET`, `AUTH_URL`, `AUTH_MICROSOFT_ENTRA_ID_ID`, `AUTH_MICRO
 
 ### 4. Data
 
-JSON files for MRT sandboxes / buylist product cache / guest activity. Simple registers, MRT live plan, the guest share door, and **Kanban Online rows** (`kanban_ideas`, `kanban_tickets`, `kanban_meta`) use Drizzle + `postgres` against `DATABASE_URL` when set (tables created on first use). Same `json-store` functions; no second store. The `< 20 dams` rewrite is JSON-file only — never on Postgres reads. Zod schemas where module stores need them (e.g. MRT `scheduleStoreSchema`).
+JSON files for MRT sandboxes / buylist Run session cache / guest activity. Decks catalog/harvest are Neon rows. Simple registers, MRT live plan, the guest share door, and **Kanban Online rows** (`kanban_ideas`, `kanban_tickets`, `kanban_meta`) use Drizzle + `postgres` against `DATABASE_URL` when set (tables created on first use). Same `json-store` functions; no second store. The `< 20 dams` rewrite is JSON-file only — never on Postgres reads. Zod schemas where module stores need them (e.g. MRT `scheduleStoreSchema`).
 
 `DATABASE_URL` on App Service is the Neon/Postgres hook. Laptop with no URL keeps JSON. Zip/standalone **excludes `data/`**.
 

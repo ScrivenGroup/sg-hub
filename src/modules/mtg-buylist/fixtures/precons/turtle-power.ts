@@ -20,12 +20,14 @@ export function loadTurtlePowerDeck(): PreconDeck {
     id: TURTLE_POWER_ID,
     name: "Turtle Power!",
     productName: "Teenage Mutant Ninja Turtles Commander",
-    setCode: "TMT/TMC",
+    year: "2026",
+    setCode: "TMC",
     releasedAt: "2026-03-06",
     faceCommander: "Leonardo, the Balance",
     source: "fixture",
     sourceUrl: TURTLE_POWER_SOURCE_URL,
     createdAt: "2026-09-21T00:41:49.138Z",
+    lastHarvestedAt: "",
     rows,
   };
 }

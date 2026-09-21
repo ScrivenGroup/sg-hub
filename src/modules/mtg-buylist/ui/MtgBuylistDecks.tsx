@@ -25,6 +25,14 @@ import {
   destTableTxt,
 } from "../logic/precon-export";
 import { manaBoxCopyCount } from "../logic/parse-txt";
+import {
+  deckHarvestRag,
+  deckSearchBlob,
+  groupDecksByYear,
+  hasDeckList,
+  type HarvestRag,
+} from "../logic/precon-groups";
+import { PRECON_HARVEST_STEPS } from "../logic/precon-harvest";
 import { MTG_BUYLIST_HREF } from "../schema";
 import type { PreconCatalog, PreconDest, PreconHarvestBook, PreconVerdict } from "../schema";
 import { CardNameCell } from "./CardNameCell";
@@ -39,6 +47,22 @@ function verdictClass(verdict: PreconVerdict) {
   return "text-[var(--rag-amber)]";
 }
 
+function HarvestDot({ rag, className }: { rag: HarvestRag; className?: string }) {
+  if (rag === "none") return null;
+  const color =
+    rag === "green" ? "var(--rag-green)" : rag === "amber" ? "var(--rag-amber)" : "var(--rag-red)";
+  const title =
+    rag === "green" ? "Live harvest" : rag === "amber" ? "Mock harvest" : "Not harvested";
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${className ?? ""}`}
+      style={{ backgroundColor: color }}
+      title={title}
+      aria-label={title}
+    />
+  );
+}
+
 function destLabel(dest: PreconDest) {
   if (dest === "mate-cash") return "Mate $";
   if (dest === "mate-credit") return "Mate cr";
@@ -47,7 +71,7 @@ function destLabel(dest: PreconDest) {
 }
 
 const LEGEND_CHIP =
-  "inline-flex h-4 min-h-4 min-w-4 items-center justify-center rounded px-1 text-[9px] font-bold leading-none";
+  "inline-flex h-4 min-h-4 min-w-4 cursor-pointer items-center justify-center rounded px-1 text-[9px] font-bold leading-none";
 const WIN_TONE = "bg-[color-mix(in_srgb,var(--rag-green)_22%,transparent)]";
 const LOSE_TONE = "bg-[color-mix(in_srgb,var(--muted)_18%,transparent)] text-[var(--muted)]";
 const WIN_CELL = `rounded px-1.5 py-0.5 font-semibold ${WIN_TONE}`;
@@ -125,6 +149,10 @@ function hasW0(line: PreconDestLine) {
     (line.mateCashCents > 0 && line.mateWanted <= 0) ||
     (line.playmantisCreditCents > 0 && line.playmantisWanted <= 0)
   );
+}
+
+function hasNone(line: PreconDestLine) {
+  return !hasWin(line) && !hasW0(line);
 }
 
 function RarityBadge({
@@ -259,13 +287,15 @@ function legendCounts(lines: PreconDestLine[]) {
   const finish: Record<FinishKind, number> = { surge: 0, foil: 0, normal: 0 };
   let win = 0;
   let w0 = 0;
+  let none = 0;
   for (const line of lines) {
     if (hasWin(line)) win += line.qty;
-    if (hasW0(line)) w0 += line.qty;
+    else if (hasW0(line)) w0 += line.qty;
+    else none += line.qty;
     if (line.rarityCode) rarity[line.rarityCode] += line.qty;
     finish[finishKind(line.foil)] += line.qty;
   }
-  return { win, w0, rarity, finish };
+  return { win, w0, none, rarity, finish };
 }
 
 function LegendSlot({ count, children }: { count: number; children: ReactNode }) {
@@ -293,11 +323,11 @@ function ResetFiltersButton({ enabled, onClick }: { enabled: boolean; onClick: (
   return (
     <button
       type="button"
-      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--muted)] ${
+      className={`inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded text-[var(--muted)] ${
         enabled ? "hover:text-[var(--ink)]" : "invisible"
       }`}
-      aria-label="Reset filters"
-      title="Reset filters"
+      aria-label="Reset filters and sort"
+      title="Reset filters and sort"
       disabled={!enabled}
       onClick={onClick}
     >
@@ -337,6 +367,10 @@ function tableTotals(rows: PreconDestLine[]) {
   return { mateWanted, mateUnwanted, mateCreditWanted, mateCreditUnwanted, pmWanted, pmUnwanted, ck, qty };
 }
 
+function listedTotalLabel(listed: number, total: number) {
+  return `${listed}/${total}`;
+}
+
 export function MtgBuylistDecks({
   initialCatalog,
   initialHarvest,
@@ -359,6 +393,7 @@ export function MtgBuylistDecks({
   const [destTab, setDestTab] = useState<PreconDest | "all">("all");
   const [winOn, setWinOn] = useState(false);
   const [w0On, setW0On] = useState(false);
+  const [noneOn, setNoneOn] = useState(false);
   const [rarityOn, setRarityOn] = useState<Set<RarityCode>>(new Set());
   const [finishOn, setFinishOn] = useState<Set<FinishKind>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("uid");
@@ -367,43 +402,94 @@ export function MtgBuylistDecks({
   const [addName, setAddName] = useState("");
   const [addUrl, setAddUrl] = useState("");
   const [addFile, setAddFile] = useState<{ name: string; text: string } | null>(null);
+  const [attachDeckId, setAttachDeckId] = useState("");
+  const [prepped, setPrepped] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [paneOpen, setPaneOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [compactRows, setCompactRows] = useState(false);
+  const [listsOnly, setListsOnly] = useState(false);
+  const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [harvestIds, setHarvestIds] = useState<string[]>([]);
   const exportWrapRef = useRef<HTMLDivElement>(null);
+  const optionsWrapRef = useRef<HTMLDivElement>(null);
+  const overlayStackRef = useRef<string[]>([]);
+  const pendingRef = useRef(false);
   const [pending, start] = useTransition();
+  pendingRef.current = pending;
+
+  function syncOverlay(id: string, open: boolean) {
+    const stack = overlayStackRef.current.filter((item) => item !== id);
+    overlayStackRef.current = open ? [...stack, id] : stack;
+  }
 
   useEffect(() => {
-    if (!paneOpen && !exportOpen) return;
+    syncOverlay("add", addOpen);
+  }, [addOpen]);
+  useEffect(() => {
+    syncOverlay("harvest", harvestIds.length > 0);
+  }, [harvestIds]);
+  useEffect(() => {
+    syncOverlay("options", optionsOpen);
+  }, [optionsOpen]);
+  useEffect(() => {
+    syncOverlay("export", exportOpen);
+  }, [exportOpen]);
+  useEffect(() => {
+    syncOverlay("pane", paneOpen);
+  }, [paneOpen]);
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setPaneOpen(false);
-        setExportOpen(false);
-      }
+      if (e.key !== "Escape") return;
+      const top = overlayStackRef.current.at(-1);
+      if (!top) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (top === "add") setAddOpen(false);
+      else if (top === "harvest") {
+        if (!pendingRef.current) setHarvestIds([]);
+      } else if (top === "options") setOptionsOpen(false);
+      else if (top === "export") setExportOpen(false);
+      else if (top === "pane") setPaneOpen(false);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [exportOpen, paneOpen]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
 
   useEffect(() => {
-    if (!exportOpen) return;
+    if (!exportOpen && !optionsOpen) return;
     function onDown(e: MouseEvent) {
-      if (!exportWrapRef.current?.contains(e.target as Node)) setExportOpen(false);
+      const t = e.target as Node;
+      if (exportOpen && !exportWrapRef.current?.contains(t)) setExportOpen(false);
+      if (optionsOpen && !optionsWrapRef.current?.contains(t)) setOptionsOpen(false);
     }
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-  }, [exportOpen]);
+  }, [exportOpen, optionsOpen]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return catalog.decks;
-    return catalog.decks.filter((deck) =>
-      [deck.name, deck.productName, deck.setCode, deck.faceCommander]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [catalog.decks, query]);
+    return catalog.decks.filter((deck) => {
+      if (listsOnly && !hasDeckList(deck)) return false;
+      if (q && !deckSearchBlob(deck).includes(q)) return false;
+      return true;
+    });
+  }, [catalog.decks, listsOnly, query]);
+  const years = useMemo(() => groupDecksByYear(filtered), [filtered]);
+  const preppedReady = useMemo(
+    () => catalog.decks.filter((deck) => prepped.has(deck.id) && hasDeckList(deck)),
+    [catalog.decks, prepped],
+  );
+  const harvestTargets = useMemo(
+    () =>
+      harvestIds
+        .map((id) => catalog.decks.find((row) => row.id === id))
+        .filter((row): row is (typeof catalog.decks)[number] => Boolean(row)),
+    [catalog.decks, harvestIds],
+  );
 
   const deck = catalog.decks.find((row) => row.id === selectedId) || filtered[0] || catalog.decks[0];
   const askCents = Math.round((Number(shopAsk) || 0) * 100);
@@ -411,12 +497,13 @@ export function MtgBuylistDecks({
   const shown = useMemo(() => {
     if (!assess) return [];
     const rows = assess.lines.filter((line) => {
-      if (winOn) {
-        if (!hasWin(line)) return false;
+      if (winOn || w0On || noneOn) {
+        const hit =
+          (winOn && hasWin(line)) || (w0On && hasW0(line)) || (noneOn && hasNone(line));
+        if (!hit) return false;
       } else if (destTab !== "all" && line.dest !== destTab) {
         return false;
       }
-      if (w0On && !hasW0(line)) return false;
       if (!matchesRarityFilter(line.rarity, rarityOn)) return false;
       if (finishOn.size && !finishOn.has(finishKind(line.foil))) return false;
       return true;
@@ -429,18 +516,28 @@ export function MtgBuylistDecks({
       return sortDir === "asc" ? cmp : -cmp;
     });
     return copy;
-  }, [assess, destTab, finishOn, rarityOn, sortDir, sortKey, w0On, winOn]);
+  }, [assess, destTab, finishOn, noneOn, rarityOn, sortDir, sortKey, w0On, winOn]);
   const totals = tableTotals(shown);
   const counts = useMemo(() => (assess ? legendCounts(assess.lines) : null), [assess]);
+  const sortDirty = sortKey !== "uid" || sortDir !== "asc";
   const filtersOn =
-    destTab !== "all" || winOn || w0On || rarityOn.size > 0 || finishOn.size > 0;
+    destTab !== "all" ||
+    winOn ||
+    w0On ||
+    noneOn ||
+    rarityOn.size > 0 ||
+    finishOn.size > 0 ||
+    sortDirty;
 
   function resetFilters() {
     setDestTab("all");
     setWinOn(false);
     setW0On(false);
+    setNoneOn(false);
     setRarityOn(new Set());
     setFinishOn(new Set());
+    setSortKey("uid");
+    setSortDir("asc");
   }
 
   function toggleSort(key: SortKey) {
@@ -471,22 +568,87 @@ export function MtgBuylistDecks({
   }
 
   function selectDeck(id: string) {
+    const target = catalog.decks.find((row) => row.id === id);
+    if (!target || !hasDeckList(target)) return;
     setSelectedId(id);
-    setPaneOpen(false);
     router.replace(`${MTG_BUYLIST_HREF}/decks?deck=${encodeURIComponent(id)}`, { scroll: false });
   }
 
+  function togglePrep(id: string, on?: boolean) {
+    const target = catalog.decks.find((row) => row.id === id);
+    if (!target || !hasDeckList(target)) return;
+    setPrepped((prev) => {
+      const next = new Set(prev);
+      const should = on ?? !next.has(id);
+      if (should) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleGroup(ids: string[], on: boolean) {
+    setPrepped((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        const target = catalog.decks.find((row) => row.id === id);
+        if (!target || !hasDeckList(target)) continue;
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleCollapsed(kind: "year" | "group", key: string) {
+    const set = kind === "year" ? setCollapsedYears : setCollapsedGroups;
+    set((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function openHarvest(ids: string[]) {
+    const ready = ids.filter((id) => {
+      const target = catalog.decks.find((deck) => deck.id === id);
+      return target && hasDeckList(target);
+    });
+    if (!ready.length) {
+      setError("Prep a deck that has a list");
+      return;
+    }
+    setError("");
+    setHarvestIds(ready);
+  }
+
   function harvestNow() {
+    openHarvest(preppedReady.map((deck) => deck.id));
+  }
+
+  function confirmHarvest() {
+    const deckIds = harvestIds;
+    if (!deckIds.length) return;
     setError("");
     start(async () => {
-      const result = await harvestPreconBookAction();
+      const result = await harvestPreconBookAction({ deckIds });
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setCatalog(result.catalog);
       setHarvest(result.harvest);
+      setHarvestIds([]);
     });
+  }
+
+  function openAdd(deckId?: string) {
+    const target = deckId ? catalog.decks.find((row) => row.id === deckId) : undefined;
+    setAttachDeckId(target && !hasDeckList(target) ? target.id : "");
+    setAddName(target && !hasDeckList(target) ? target.name : "");
+    setAddUrl(target?.sourceUrl || "");
+    setAddFile(null);
+    setAddOpen(true);
   }
 
   function exportStem() {
@@ -517,6 +679,7 @@ export function MtgBuylistDecks({
         sourceUrl: addUrl,
         filename: addFile.name,
         text: addFile.text,
+        deckId: attachDeckId || undefined,
       });
       if (!result.ok) {
         setError(result.error);
@@ -528,6 +691,7 @@ export function MtgBuylistDecks({
       setAddName("");
       setAddUrl("");
       setAddFile(null);
+      setAttachDeckId("");
       selectDeck(result.deckId);
     });
   }
@@ -545,56 +709,273 @@ export function MtgBuylistDecks({
       {paneOpen ? (
         <aside
           id="deck-pane"
-          className="absolute bottom-2 left-0 top-0 z-30 flex w-80 max-w-[90vw] flex-col gap-3 overflow-y-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-lg"
+          className="absolute bottom-2 left-0 top-0 z-30 flex w-96 max-w-[90vw] flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)] shadow-lg"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold">Decks</h2>
-            <button type="button" className="sg-btn-secondary ml-auto" onClick={() => setAddOpen(true)}>
-              Add deck
-            </button>
-          </div>
-          <input
-            className="sg-input"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search decks"
-            aria-label="Search decks"
-            autoFocus
-          />
-          <button type="button" className="sg-btn-primary" onClick={harvestNow} disabled={pending}>
-            {pending ? "Harvesting…" : "Harvest Mate & Playmantis"}
-          </button>
-          <p className="text-xs text-[var(--muted)]">
-            {harvest.harvestedAt
-              ? `${harvest.source === "mock" ? "Mock" : "Live"} ${formatStamp(harvest.harvestedAt)}`
-              : "No harvest"}
-          </p>
-          <ul className="flex flex-col gap-1">
-            {filtered.length === 0 ? (
-              <li className="text-sm text-[var(--muted)]">No decks match.</li>
-            ) : (
-              filtered.map((row) => {
-                const current = row.id === deck?.id;
-                return (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      className={`w-full rounded-[10px] border px-3 py-2 text-left ${
-                        current ? "border-[var(--ink)] bg-[var(--page)]" : "border-[var(--border)]"
-                      }`}
-                      onClick={() => selectDeck(row.id)}
+          <div className="shrink-0 space-y-2 border-b border-[var(--border)] p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold">Decks</h2>
+              <div className="ml-auto flex items-center gap-2">
+                <button type="button" className="sg-btn-secondary" onClick={() => openAdd()}>
+                  Add deck
+                </button>
+                <div className="relative" ref={optionsWrapRef}>
+                  <button
+                    type="button"
+                    className="sg-btn-secondary h-8 w-8 shrink-0 p-0"
+                    aria-expanded={optionsOpen}
+                    aria-haspopup="menu"
+                    title="Deck options"
+                    onClick={() => setOptionsOpen((open) => !open)}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
+                      <path
+                        d="M4 7h16M4 12h16M4 17h16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="sr-only">Deck options</span>
+                  </button>
+                  {optionsOpen ? (
+                    <div
+                      className="absolute right-0 top-full z-40 mt-1 min-w-52 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] py-1 text-sm shadow-md"
+                      role="menu"
                     >
-                      <span className="block text-sm font-medium">{row.name}</span>
-                      <span className="block text-xs text-[var(--muted)]">
-                        {row.setCode || "—"} · {manaBoxCopyCount(row.rows)}
+                      <button
+                        type="button"
+                        className="block w-full cursor-pointer px-3 py-1.5 text-left hover:bg-[var(--page)]"
+                        role="menuitem"
+                        aria-pressed={compactRows}
+                        onClick={() => setCompactRows((v) => !v)}
+                      >
+                        {compactRows ? "Regular card rows" : "Small card rows"}
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full cursor-pointer px-3 py-1.5 text-left hover:bg-[var(--page)]"
+                        role="menuitem"
+                        aria-pressed={listsOnly}
+                        onClick={() => setListsOnly((v) => !v)}
+                      >
+                        {listsOnly ? "Show all decks" : "Only decks with lists"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <input
+              className="sg-input"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or SKU"
+              aria-label="Search decks"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="sg-btn-primary min-w-0 flex-1"
+                onClick={harvestNow}
+                disabled={pending || !preppedReady.length}
+              >
+                {pending
+                  ? "Harvesting…"
+                  : preppedReady.length
+                    ? `Harvest ${preppedReady.length} deck${preppedReady.length === 1 ? "" : "s"}`
+                    : "Harvest prepped decks"}
+              </button>
+              <button
+                type="button"
+                className="sg-btn-secondary shrink-0"
+                onClick={() => setPrepped(new Set())}
+                disabled={!prepped.size}
+              >
+                Clear checkboxes
+              </button>
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              {preppedReady.length ? `${preppedReady.length} prepped` : "Selection stays as you search"}
+              {harvest.harvestedAt
+                ? ` · ${harvest.source === "mock" ? "Mock" : "Live"} ${formatStamp(harvest.harvestedAt)}`
+                : " · No harvest in the book yet"}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {years.length === 0 ? (
+              <p className="text-sm text-[var(--muted)]">No decks match.</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+              {years.map((year) => {
+                const yearTotal = year.groups.reduce((n, group) => n + group.decks.length, 0);
+                const yearListed = year.groups.flatMap((group) => group.decks.filter(hasDeckList));
+                const yearIds = yearListed.map((row) => row.id);
+                const yearPrep = yearIds.filter((id) => prepped.has(id)).length;
+                const yearOn = yearIds.length > 0 && yearPrep === yearIds.length;
+                const yearMixed = yearPrep > 0 && !yearOn;
+                const yearOpen = !collapsedYears.has(year.year);
+                return (
+                  <section key={year.year}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="cursor-pointer"
+                        checked={yearOn}
+                        ref={(el) => {
+                          if (el) el.indeterminate = yearMixed;
+                        }}
+                        disabled={!yearIds.length}
+                        onChange={(e) => toggleGroup(yearIds, e.target.checked)}
+                        aria-label={`Prep ${year.year}`}
+                      />
+                      <button
+                        type="button"
+                        className="flex min-w-0 cursor-pointer items-center gap-1 text-sm font-semibold"
+                        aria-expanded={yearOpen}
+                        onClick={() => toggleCollapsed("year", year.year)}
+                      >
+                        <span className="text-[10px] text-[var(--muted)]">{yearOpen ? "▾" : "▸"}</span>
+                        {year.year}
+                      </button>
+                      <span
+                        className="text-[10px] text-[var(--muted)]"
+                        title={`${yearListed.length} with a list · ${yearTotal} decks`}
+                      >
+                        {listedTotalLabel(yearListed.length, yearTotal)}
                       </span>
-                    </button>
-                  </li>
+                    </div>
+                    {yearOpen ? (
+                    <div className="flex flex-col gap-3 pl-2">
+                      {year.groups.map((group) => {
+                        const listed = group.decks.filter(hasDeckList);
+                        const listedIds = listed.map((row) => row.id);
+                        const preppedCount = listedIds.filter((id) => prepped.has(id)).length;
+                        const groupOn = listedIds.length > 0 && preppedCount === listedIds.length;
+                        const mixed = preppedCount > 0 && !groupOn;
+                        const groupKey = `${year.year}::${group.name}`;
+                        const groupOpen = !collapsedGroups.has(groupKey);
+                        return (
+                          <section key={groupKey}>
+                            <div className="mb-1 flex items-center gap-2 border-b border-[var(--border)] pb-1">
+                              <input
+                                type="checkbox"
+                                className="cursor-pointer"
+                                checked={groupOn}
+                                ref={(el) => {
+                                  if (el) el.indeterminate = mixed;
+                                }}
+                                disabled={!listedIds.length}
+                                onChange={(e) => toggleGroup(listedIds, e.target.checked)}
+                                aria-label={`Prep ${group.name}`}
+                              />
+                              <button
+                                type="button"
+                                className="flex min-w-0 cursor-pointer items-center gap-1 text-xs font-semibold"
+                                aria-expanded={groupOpen}
+                                onClick={() => toggleCollapsed("group", groupKey)}
+                              >
+                                <span className="text-[10px] text-[var(--muted)]">
+                                  {groupOpen ? "▾" : "▸"}
+                                </span>
+                                <span className="truncate">{group.name}</span>
+                              </button>
+                              {group.sku ? (
+                                <span className="shrink-0 font-mono text-[10px] font-semibold text-[var(--ink)]">
+                                  {group.sku}
+                                </span>
+                              ) : null}
+                              <span
+                                className="shrink-0 text-[10px] text-[var(--muted)]"
+                                title={`${listed.length} with a list · ${group.decks.length} decks`}
+                              >
+                                {group.releasedAt || "no date"} ·{" "}
+                                {listedTotalLabel(listed.length, group.decks.length)}
+                              </span>
+                            </div>
+                            {groupOpen ? (
+                            <ul className="flex flex-col gap-1">
+                              {group.decks.map((row) => {
+                                const listedRow = hasDeckList(row);
+                                const current = row.id === deck?.id;
+                                const rag = deckHarvestRag(row, harvest);
+                                return (
+                                  <li key={row.id}>
+                                    <div
+                                      className={`flex gap-2 rounded-[10px] border px-2 ${
+                                        compactRows ? "items-center py-0.5" : "items-start py-1.5"
+                                      } ${
+                                        current
+                                          ? "border-[var(--ink)] bg-[var(--page)]"
+                                          : "border-[var(--border)]"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className={`${compactRows ? "" : "mt-1"} cursor-pointer`}
+                                        checked={prepped.has(row.id)}
+                                        disabled={!listedRow}
+                                        onChange={(e) => togglePrep(row.id, e.target.checked)}
+                                        aria-label={`Prep ${row.name}`}
+                                      />
+                                      <button
+                                        type="button"
+                                        className={`min-w-0 flex-1 text-left ${
+                                          listedRow
+                                            ? "cursor-pointer"
+                                            : "cursor-not-allowed text-[var(--muted)]"
+                                        }`}
+                                        disabled={!listedRow}
+                                        onClick={() => selectDeck(row.id)}
+                                      >
+                                        <span
+                                          className={`block font-medium ${
+                                            compactRows ? "truncate text-xs" : "text-sm"
+                                          } ${listedRow ? "" : "italic"}`}
+                                        >
+                                          {row.name}
+                                        </span>
+                                        {compactRows ? null : (
+                                          <span className="block text-[10px] text-[var(--muted)]">
+                                            {listedRow
+                                              ? `${manaBoxCopyCount(row.rows)} cards`
+                                              : "No decklist"}
+                                          </span>
+                                        )}
+                                      </button>
+                                      {listedRow ? (
+                                        <HarvestDot rag={rag} className={compactRows ? undefined : "mt-1"} />
+                                      ) : null}
+                                      {!listedRow ? (
+                                        <button
+                                          type="button"
+                                          className={`sg-btn-ghost shrink-0 text-[10px] ${
+                                            compactRows ? "h-6 min-h-6 px-1.5 py-0" : "px-2 py-1"
+                                          }`}
+                                          onClick={() => openAdd(row.id)}
+                                        >
+                                          Add list
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            ) : null}
+                          </section>
+                        );
+                      })}
+                    </div>
+                    ) : null}
+                  </section>
                 );
-              })
+              })}
+              </div>
             )}
-          </ul>
+          </div>
         </aside>
       ) : null}
 
@@ -637,6 +1018,14 @@ export function MtgBuylistDecks({
                 <p className={`min-w-0 flex-1 text-sm font-semibold ${verdictClass(assess.verdict)}`}>
                   {buyingResultLine(assess)}
                 </p>
+                <button
+                  type="button"
+                  className="sg-btn-primary shrink-0"
+                  onClick={() => openHarvest([deck.id])}
+                  disabled={pending || !hasDeckList(deck)}
+                >
+                  Harvest
+                </button>
               </div>
 
               <div className="flex flex-wrap items-stretch gap-1.5">
@@ -700,6 +1089,16 @@ export function MtgBuylistDecks({
                         onClick={() => setW0On((v) => !v)}
                       >
                         $ · w0
+                      </button>
+                    </LegendSlot>
+                    <LegendSlot count={counts?.none ?? 0}>
+                      <button
+                        type="button"
+                        className={`${LEGEND_CHIP} ${LOSE_TONE} ${noneOn ? "" : "opacity-40"}`}
+                        aria-pressed={noneOn}
+                        onClick={() => setNoneOn((v) => !v)}
+                      >
+                        Null
                       </button>
                     </LegendSlot>
                   </div>
@@ -767,7 +1166,7 @@ export function MtgBuylistDecks({
                       >
                         <button
                           type="button"
-                          className="block w-full px-3 py-1.5 text-left hover:bg-[var(--page)]"
+                          className="block w-full cursor-pointer px-3 py-1.5 text-left hover:bg-[var(--page)]"
                           role="menuitem"
                           onClick={() => exportTable("csv")}
                         >
@@ -775,7 +1174,7 @@ export function MtgBuylistDecks({
                         </button>
                         <button
                           type="button"
-                          className="block w-full px-3 py-1.5 text-left hover:bg-[var(--page)]"
+                          className="block w-full cursor-pointer px-3 py-1.5 text-left hover:bg-[var(--page)]"
                           role="menuitem"
                           onClick={() => exportTable("txt")}
                         >
@@ -784,7 +1183,7 @@ export function MtgBuylistDecks({
                         {canExportManaBox(deck.source) ? (
                           <button
                             type="button"
-                            className="block w-full px-3 py-1.5 text-left hover:bg-[var(--page)]"
+                            className="block w-full cursor-pointer px-3 py-1.5 text-left hover:bg-[var(--page)]"
                             role="menuitem"
                             onClick={() => exportTable("manabox")}
                           >
@@ -819,7 +1218,7 @@ export function MtgBuylistDecks({
                       ] as const
                     ).map(([key, label]) => (
                       <th key={key} className="py-1.5 font-bold">
-                        <button type="button" className="text-xs font-bold" onClick={() => toggleSort(key)}>
+                        <button type="button" className="cursor-pointer text-xs font-bold" onClick={() => toggleSort(key)}>
                           {label}
                           {sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
                         </button>
@@ -829,31 +1228,33 @@ export function MtgBuylistDecks({
                 </thead>
                 <tbody>
                   {shown.map((line) => (
-                    <tr key={line.rowKey} className="border-t border-[var(--border)]">
-                      <td className="py-1 tabular-nums text-[var(--muted)]">{line.uid}</td>
-                      <td className="py-1">
+                    <tr key={line.rowKey} className={`border-t border-[var(--border)] ${compactRows ? "text-xs leading-tight" : ""}`}>
+                      <td className={`${compactRows ? "py-0" : "py-1"} tabular-nums text-[var(--muted)]`}>
+                        {line.uid}
+                      </td>
+                      <td className={compactRows ? "py-0" : "py-1"}>
                         <CardNameCell
                           name={line.name}
                           setCode={line.setCode}
                           collectorNumber={line.collectorNumber}
                           finish={line.foil}
                           ownedImageUrl={scryfallImageUrl(line.scryfallId)}
-                          showOwned
+                          showOwned={!compactRows}
                           showStore={false}
                           showMate={false}
                           showPlaymantis={false}
                         />
                       </td>
-                      <td className="py-1">{line.setCode}</td>
-                      <td className="py-1">{line.collectorNumber || "—"}</td>
-                      <td className="py-1">
+                      <td className={compactRows ? "py-0" : "py-1"}>{line.setCode}</td>
+                      <td className={compactRows ? "py-0" : "py-1"}>{line.collectorNumber || "—"}</td>
+                      <td className={compactRows ? "py-0" : "py-1"}>
                         {line.rarityCode ? <RarityBadge code={line.rarityCode} /> : "—"}
                       </td>
-                      <td className="py-1">
+                      <td className={compactRows ? "py-0" : "py-1"}>
                         <FinishBadge foil={line.foil} />
                       </td>
-                      <td className="py-1">{line.qty}</td>
-                      <td className="py-1 tabular-nums">
+                      <td className={compactRows ? "py-0" : "py-1"}>{line.qty}</td>
+                      <td className={`${compactRows ? "py-0" : "py-1"} tabular-nums`}>
                         <span
                           className={
                             line.dest === "mate-cash"
@@ -867,7 +1268,7 @@ export function MtgBuylistDecks({
                           {storeOfferLabel(line.mateCashCents, line.mateWanted)}
                         </span>
                       </td>
-                      <td className="py-1 tabular-nums">
+                      <td className={`${compactRows ? "py-0" : "py-1"} tabular-nums`}>
                         <span
                           className={
                             line.dest === "mate-credit"
@@ -881,7 +1282,7 @@ export function MtgBuylistDecks({
                           {storeOfferLabel(line.mateCreditCents, line.mateWanted)}
                         </span>
                       </td>
-                      <td className="py-1 tabular-nums">
+                      <td className={`${compactRows ? "py-0" : "py-1"} tabular-nums`}>
                         <span
                           className={
                             line.dest === "playmantis"
@@ -899,10 +1300,10 @@ export function MtgBuylistDecks({
                           {storeOfferLabel(line.playmantisCreditCents, line.playmantisWanted)}
                         </span>
                       </td>
-                      <td className="py-1 tabular-nums">
+                      <td className={`${compactRows ? "py-0" : "py-1"} tabular-nums`}>
                         {line.ckListedUsdCents > 0 ? money(line.ckListedUsdCents) : "—"}
                       </td>
-                      <td className="py-1">{destLabel(line.dest)}</td>
+                      <td className={compactRows ? "py-0" : "py-1"}>{destLabel(line.dest)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -949,6 +1350,7 @@ export function MtgBuylistDecks({
       <ShellModal
         open={addOpen}
         titleId="add-precon-title"
+        closeOnEscape={false}
         onClose={() => setAddOpen(false)}
         footer={
           <div className="flex justify-end gap-2">
@@ -962,7 +1364,7 @@ export function MtgBuylistDecks({
         }
       >
         <h2 id="add-precon-title" className="text-lg font-semibold">
-          Add deck
+          {attachDeckId ? "Add list" : "Add deck"}
         </h2>
         <label className="mb-2 block text-sm">
           Name
@@ -1003,6 +1405,48 @@ export function MtgBuylistDecks({
             }}
           />
         </label>
+      </ShellModal>
+      <ShellModal
+        open={harvestTargets.length > 0}
+        titleId="harvest-precon-title"
+        closeOnEscape={false}
+        onClose={() => {
+          if (!pending) setHarvestIds([]);
+        }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="sg-btn-ghost"
+              onClick={() => setHarvestIds([])}
+              disabled={pending}
+            >
+              Cancel
+            </button>
+            <button type="button" className="sg-btn-primary" onClick={confirmHarvest} disabled={pending}>
+              {pending ? "Harvesting…" : "Harvest now"}
+            </button>
+          </div>
+        }
+      >
+        <h2 id="harvest-precon-title" className="text-lg font-semibold">
+          Harvest {harvestTargets.length} deck{harvestTargets.length === 1 ? "" : "s"}
+        </h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Same steps for one deck or many. This sitting still writes the mock book; live Mate and
+          Playmantis will use this popup.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
+          {PRECON_HARVEST_STEPS.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+        <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto text-sm">
+          {harvestTargets.map((row) => (
+            <li key={row.id}>{row.name}</li>
+          ))}
+        </ul>
+        {error ? <p className="mt-2 text-sm text-[var(--rag-red)]">{error}</p> : null}
       </ShellModal>
     </div>
   );

@@ -87,8 +87,9 @@ import {
   type PreconDeck,
   type PreconHarvestBook,
 } from "@/modules/mtg-buylist/schema";
+import { loadBackbonePlaceholders } from "@/modules/mtg-buylist/fixtures/precons/placeholders";
 import { loadTurtlePowerDeck, TURTLE_POWER_ID } from "@/modules/mtg-buylist/fixtures/precons/turtle-power";
-import { buildMockPreconHarvest } from "@/modules/mtg-buylist/logic/precon-harvest";
+import { buildMockPreconHarvest, mergePreconHarvest } from "@/modules/mtg-buylist/logic/precon-harvest";
 import type {
   StandardsChoices,
   StandardsHoldRecord,
@@ -132,6 +133,13 @@ import {
   pgListPlaymantisHarvestDiff,
   pgClearPlaymantisHarvestDiff,
   pgMarkPlaymantisHarvestDiffLookedAt,
+  pgGetPreconCatalog,
+  pgUpsertPreconDecks,
+  pgDeletePreconDecks,
+  pgSavePreconCatalog,
+  pgStampPreconHarvested,
+  pgGetPreconHarvestBook,
+  pgSavePreconHarvestBook,
 } from "@/core/store/simple-pg";
 
 const dataDir = path.join(process.cwd(), "data");
@@ -918,63 +926,183 @@ export async function clearMtgBuylistStore(
 const PRECON_CATALOG_FILE = path.join("mtg-buylist", "precons", "catalog.json");
 const PRECON_HARVEST_FILE = path.join("mtg-buylist", "precons", "harvest.json");
 
-export async function getPreconCatalog(): Promise<PreconCatalog> {
-  const raw = await readJson<PreconCatalog>(PRECON_CATALOG_FILE, emptyPreconCatalog());
-  let parsed: PreconCatalog;
-  try {
-    parsed = preconCatalogSchema.parse(raw);
-  } catch {
-    parsed = emptyPreconCatalog();
+function sameDeckName(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function seedPreconCatalog(catalog: PreconCatalog): { catalog: PreconCatalog; added: PreconDeck[] } {
+  const turtle = loadTurtlePowerDeck();
+  let decks = catalog.decks.filter((deck) => deck.id !== "tmt-list-pending");
+  const added: PreconDeck[] = [];
+  const changed: PreconDeck[] = [];
+
+  function findExisting(seed: PreconDeck) {
+    return decks.find(
+      (deck) => deck.id === seed.id || sameDeckName(deck.name, seed.name),
+    );
   }
-  if (!parsed.decks.some((deck) => deck.id === TURTLE_POWER_ID)) {
-    parsed = {
-      updatedAt: new Date().toISOString(),
-      decks: [loadTurtlePowerDeck(), ...parsed.decks],
+
+  const turtleHit = findExisting(turtle);
+  if (!turtleHit) {
+    decks = [turtle, ...decks];
+    added.push(turtle);
+  } else if (!turtleHit.rows.length && turtle.rows.length) {
+    const filled = {
+      ...turtleHit,
+      ...turtle,
+      id: turtleHit.id === TURTLE_POWER_ID || !turtleHit.rows.length ? TURTLE_POWER_ID : turtleHit.id,
+      lastHarvestedAt: turtleHit.lastHarvestedAt,
     };
-    await writeJson(PRECON_CATALOG_FILE, parsed);
+    decks = [filled, ...decks.filter((deck) => deck.id !== turtleHit.id)];
+    changed.push(filled);
+  } else if (!turtleHit.year || !turtleHit.productName || turtleHit.setCode !== turtle.setCode) {
+    const patched = {
+      ...turtleHit,
+      year: turtleHit.year || turtle.year,
+      productName: turtleHit.productName || turtle.productName,
+      releasedAt: turtleHit.releasedAt || turtle.releasedAt,
+      sourceUrl: turtleHit.sourceUrl || turtle.sourceUrl,
+      setCode: turtle.setCode || turtleHit.setCode,
+    };
+    decks = decks.map((deck) => (deck.id === turtleHit.id ? patched : deck));
+    changed.push(patched);
   }
-  return parsed;
+
+  for (const seed of loadBackbonePlaceholders()) {
+    const hit = findExisting(seed);
+    if (!hit) {
+      decks = [...decks, seed];
+      added.push(seed);
+      continue;
+    }
+    if (
+      hit.year &&
+      hit.productName &&
+      hit.sourceUrl &&
+      (!seed.setCode || hit.setCode === seed.setCode)
+    ) {
+      continue;
+    }
+    const patched = {
+      ...hit,
+      year: hit.year || seed.year,
+      productName: hit.productName || seed.productName,
+      releasedAt: hit.releasedAt || seed.releasedAt,
+      sourceUrl: hit.sourceUrl || seed.sourceUrl,
+      setCode: seed.setCode || hit.setCode,
+    };
+    decks = decks.map((deck) => (deck.id === hit.id ? patched : deck));
+    changed.push(patched);
+  }
+
+  const written = [...added, ...changed];
+  if (!written.length && decks.length === catalog.decks.length) return { catalog, added: [] };
+  return { catalog: { updatedAt: new Date().toISOString(), decks }, added: written };
+}
+
+async function persistPreconCatalogFile(catalog: PreconCatalog): Promise<void> {
+  if (!postgresEnabled() || dualWriteJson()) {
+    await writeJson(PRECON_CATALOG_FILE, catalog);
+  }
+}
+
+async function persistPreconHarvestFile(book: PreconHarvestBook): Promise<void> {
+  if (!postgresEnabled() || dualWriteJson()) {
+    await writeJson(PRECON_HARVEST_FILE, book);
+  }
+}
+
+export async function getPreconCatalog(): Promise<PreconCatalog> {
+  let parsed: PreconCatalog;
+  if (postgresEnabled()) {
+    parsed = preconCatalogSchema.parse(await pgGetPreconCatalog());
+  } else {
+    const raw = await readJson<PreconCatalog>(PRECON_CATALOG_FILE, emptyPreconCatalog());
+    try {
+      parsed = preconCatalogSchema.parse(raw);
+    } catch {
+      parsed = emptyPreconCatalog();
+    }
+  }
+  const seeded = seedPreconCatalog(parsed);
+  const dropped = parsed.decks.filter((deck) => !seeded.catalog.decks.some((row) => row.id === deck.id)).map((deck) => deck.id);
+  if (seeded.added.length || dropped.length) {
+    if (postgresEnabled()) {
+      if (dropped.length) await pgDeletePreconDecks(dropped);
+      if (seeded.added.length) await pgUpsertPreconDecks(seeded.added);
+    }
+    await persistPreconCatalogFile(seeded.catalog);
+  }
+  return seeded.catalog;
 }
 
 export async function savePreconDeck(deck: PreconDeck): Promise<PreconCatalog> {
   const catalog = await getPreconCatalog();
-  const next = {
+  const next = preconCatalogSchema.parse({
     updatedAt: new Date().toISOString(),
     decks: [deck, ...catalog.decks.filter((row) => row.id !== deck.id)],
-  };
-  const parsed = preconCatalogSchema.parse(next);
-  await writeJson(PRECON_CATALOG_FILE, parsed);
+  });
+  if (postgresEnabled()) await pgUpsertPreconDecks([deck]);
+  await persistPreconCatalogFile(next);
+  return next;
+}
+
+export async function savePreconCatalog(catalog: PreconCatalog): Promise<PreconCatalog> {
+  const parsed = preconCatalogSchema.parse(catalog);
+  if (postgresEnabled()) await pgSavePreconCatalog(parsed);
+  await persistPreconCatalogFile(parsed);
   return parsed;
 }
 
 export async function getPreconHarvestBook(): Promise<PreconHarvestBook> {
+  if (postgresEnabled()) {
+    try {
+      return preconHarvestBookSchema.parse(await pgGetPreconHarvestBook());
+    } catch {
+      return emptyPreconHarvestBook();
+    }
+  }
   const raw = await readJson<PreconHarvestBook>(PRECON_HARVEST_FILE, emptyPreconHarvestBook());
   try {
-    const parsed = preconHarvestBookSchema.parse(raw);
-    if (parsed.source === "live" && parsed.harvestedAt) return parsed;
+    return preconHarvestBookSchema.parse(raw);
   } catch {
-    /* rebuild mock below */
+    return emptyPreconHarvestBook();
   }
-  const catalog = await getPreconCatalog();
-  const stamped =
-    typeof raw === "object" && raw && "harvestedAt" in raw && typeof raw.harvestedAt === "string"
-      ? raw.harvestedAt
-      : "";
-  const seeded = buildMockPreconHarvest(catalog.decks, stamped || "2026-09-21T01:00:00.000Z");
-  await writeJson(PRECON_HARVEST_FILE, seeded);
-  return seeded;
 }
 
 export async function savePreconHarvestBook(book: PreconHarvestBook): Promise<PreconHarvestBook> {
   const parsed = preconHarvestBookSchema.parse(book);
-  await writeJson(PRECON_HARVEST_FILE, parsed);
+  if (postgresEnabled()) await pgSavePreconHarvestBook(parsed);
+  await persistPreconHarvestFile(parsed);
   return parsed;
+}
+
+export async function harvestSelectedPreconDecks(deckIds: string[]): Promise<{
+  catalog: PreconCatalog;
+  harvest: PreconHarvestBook;
+}> {
+  const catalog = await getPreconCatalog();
+  const chosen = catalog.decks.filter((deck) => deckIds.includes(deck.id) && deck.rows.length);
+  const existing = await getPreconHarvestBook();
+  const now = new Date().toISOString();
+  const incoming = buildMockPreconHarvest(chosen, now);
+  const harvest = await savePreconHarvestBook(mergePreconHarvest(existing, incoming));
+  const stampedIds = chosen.map((deck) => deck.id);
+  if (postgresEnabled()) await pgStampPreconHarvested(stampedIds, now);
+  const next = {
+    updatedAt: now,
+    decks: catalog.decks.map((deck) =>
+      stampedIds.includes(deck.id) ? { ...deck, lastHarvestedAt: now } : deck,
+    ),
+  };
+  await persistPreconCatalogFile(next);
+  return { catalog: next, harvest };
 }
 
 export async function refreshMockPreconHarvest(): Promise<PreconHarvestBook> {
   const catalog = await getPreconCatalog();
-  const book = buildMockPreconHarvest(catalog.decks, new Date().toISOString());
-  return savePreconHarvestBook(book);
+  const result = await harvestSelectedPreconDecks(catalog.decks.map((deck) => deck.id));
+  return result.harvest;
 }
 
 const HARVEST_DIFF_FILE = path.join("mtg-buylist", "playmantis-harvest-diff.json");

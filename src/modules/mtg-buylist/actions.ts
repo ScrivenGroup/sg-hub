@@ -9,7 +9,7 @@ import {
   getMtgBuylistWorkspace,
   getPreconCatalog,
   getPreconHarvestBook,
-  refreshMockPreconHarvest,
+  harvestSelectedPreconDecks,
   savePreconDeck,
   saveMateHarvestToken,
   saveMtgBuylistStore,
@@ -27,6 +27,7 @@ import type { BuylistArchive, BuylistRunMeta, PreconCatalog, PreconDeck, PreconH
 import { listMateVariants, manaBoxRowKey, withAllocateResults } from "./logic/allocate";
 import { buildMateBookmarklet, buildMateHarvestScript } from "./logic/bookmarklet";
 import { parseManaBoxCsv, uniqueScryfallIds, uniqueSetCodes } from "./logic/parse-csv";
+import { hasDeckList, primarySetCode } from "./logic/precon-groups";
 import { parseManaBoxTxt } from "./logic/parse-txt";
 import { parseMateJson, filterMateOffersForCsv } from "./logic/parse-mate";
 import { harvestPlaymantis, scryfallIdsNeedingPlaymantisFetch } from "./logic/playmantis";
@@ -650,6 +651,7 @@ export async function addPreconDeckAction(input: {
   sourceUrl?: string;
   filename: string;
   text: string;
+  deckId?: string;
 }): Promise<
   | { ok: true; catalog: PreconCatalog; harvest: PreconHarvestBook; deckId: string }
   | { ok: false; error: string }
@@ -674,31 +676,42 @@ export async function addPreconDeckAction(input: {
   }
   if (!rows.length) return { ok: false, error: "No cards in that file" };
   const catalog = await getPreconCatalog();
+  const targetId = (input.deckId || "").trim();
+  const existing = targetId ? catalog.decks.find((deck) => deck.id === targetId) : undefined;
+  if (targetId && !existing) return { ok: false, error: "That placeholder is gone" };
+  if (existing && hasDeckList(existing)) return { ok: false, error: "That deck already has a list" };
   const foilFace = rows.find((row) => row.foil === "foil");
   const deck: PreconDeck = {
-    id: uniqueDeckId(name, catalog.decks),
+    id: existing?.id || uniqueDeckId(name, catalog.decks),
     name,
-    productName: name,
-    setCode: uniqueSetCodes(rows).join("/").toUpperCase(),
-    releasedAt: "",
+    productName: existing?.productName || name,
+    setCode: existing?.setCode || primarySetCode(rows),
+    releasedAt: existing?.releasedAt || "",
+    year: existing?.year || "",
     faceCommander: foilFace?.name || rows[0]?.name || "",
     source,
-    sourceUrl: (input.sourceUrl || "").trim(),
-    createdAt: new Date().toISOString(),
+    sourceUrl: (input.sourceUrl || "").trim() || existing?.sourceUrl || "",
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    lastHarvestedAt: existing?.lastHarvestedAt || "",
     rows,
   };
   const next = await savePreconDeck(deck);
-  const harvest = await refreshMockPreconHarvest();
+  const harvest = await getPreconHarvestBook();
   return { ok: true, catalog: next, harvest, deckId: deck.id };
 }
 
-export async function harvestPreconBookAction(): Promise<
+export async function harvestPreconBookAction(input?: {
+  deckIds?: string[];
+}): Promise<
   | { ok: true; catalog: PreconCatalog; harvest: PreconHarvestBook }
   | { ok: false; error: string }
 > {
   const staff = await requireBuylistStaff();
   if (!staff) return { ok: false, error: "Staff sign-in required" };
-  const harvest = await refreshMockPreconHarvest();
+  const deckIds = (input?.deckIds || []).filter(Boolean);
   const catalog = await getPreconCatalog();
-  return { ok: true, catalog, harvest };
+  const ready = catalog.decks.filter((deck) => deckIds.includes(deck.id) && hasDeckList(deck));
+  if (!ready.length) return { ok: false, error: "Prep a deck that has a list" };
+  const result = await harvestSelectedPreconDecks(ready.map((deck) => deck.id));
+  return { ok: true, catalog: result.catalog, harvest: result.harvest };
 }

@@ -1203,6 +1203,69 @@ Live remains 1.6 until you say make it live.
 `,
   },
   {
+    id: "cl-mtg-buylist-1.6.9",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.9",
+    createdAt: "2026-09-21T05:45:00.000Z",
+    title: "1.6.9 (dev) — Desktop harvest prep, Neon book",
+    body: `## Publish to localhost (not live)
+
+- Decks pane groups by set (newest first). Checkbox a deck or a whole group to prep, then harvest only those lists.
+- No-list placeholders are grey and disabled; a list gets harvest RAG (red / mock amber).
+- Catalog and the shared harvest book write Neon rows and merge into the existing book. Mock writer this sitting.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.10",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.10",
+    createdAt: "2026-09-21T06:30:00.000Z",
+    title: "1.6.10 (dev) — Year > group > deck catalog",
+    body: `## Publish to localhost (not live)
+
+- Decks pane is Year, then product group, then deck. Commander backbone is seeded as no-list placeholders. Turtle Power! keeps its ManaBox CSV.
+- Wizards decklist links are citations only — lists attach from ManaBox CSV, not from those pages.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.11",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.11",
+    createdAt: "2026-09-21T10:40:00.000Z",
+    title: "1.6.11 (dev) — Deck SKU search, harvest popup, compact rows",
+    body: `## Publish to localhost (not live)
+
+- Product SKU sits on each group (TMC, SOC, …) and is searchable. Prep checkboxes stay as you change the search.
+- Win / $·w0 / Null legend quantities sum to 100. Search and harvest stay sticky; year and group headers collapse (open by default).
+- Deck-page Harvest and pane Harvest share one popup. Options: compact card rows, lists-only. Pointer cursor on clickable chrome.
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
+    id: "cl-mtg-buylist-1.6.12",
+    nodeId: "p-mtg-buylist",
+    kind: "release",
+    version: "1.6.12",
+    createdAt: "2026-09-21T10:55:00.000Z",
+    title: "1.6.12 (dev) — Compact pane rows, listed counts, Escape stack",
+    body: `## Publish to localhost (not live)
+
+- Small card rows also shrink the decks pane. Year and group counts show listed/total (1/20).
+- Legend reset also restores uid sort. Clear checkboxes sits beside Harvest.
+- Escape closes the newest overlay first (Add deck before the pane).
+
+Live remains 1.6 until you say make it live.
+`,
+  },
+  {
     id: "cl-ff-1",
     nodeId: "p-funds-forecaster",
     kind: "plan",
