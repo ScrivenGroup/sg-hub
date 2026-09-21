@@ -159,7 +159,7 @@ export function FeedbackCapture() {
           Feedback
         </h2>
         <p className="mb-3 shrink-0 text-sm text-[var(--muted)]">
-          Lands in Development Inbox. Tag is which leaf (or Global) owns the note — not a
+          Lands in Development Inbox. Tag is which hub, leaf, or Global owns the note — not a
           swimlane.
           {savedId ? (
             <>

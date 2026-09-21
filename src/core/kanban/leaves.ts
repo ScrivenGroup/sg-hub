@@ -6,15 +6,17 @@ export type KanbanLeafOption = {
   title: string;
 };
 
-/** Capture lives in chrome Feedback, not on the suite tab strip. */
-const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "hub-development"]);
+/** Redirects / retired Internal tools. Hubs are taggable (IN-20260918-06). */
+const UNTAGGABLE_TOOL_IDS = new Set(["i-kanban", "i-feedback", "i-ideas", "i-notes"]);
 
 function taggableLeaves(): KanbanLeafOption[] {
-  const { childrenByHub } = siteNetworkTree();
+  const { hubs, childrenByHub } = siteNetworkTree();
   const leaves: KanbanLeafOption[] = [];
-  for (const children of Object.values(childrenByHub)) {
-    for (const node of children) {
-      if (node.kind === "hub") continue;
+  for (const hub of hubs) {
+    if (!UNTAGGABLE_TOOL_IDS.has(hub.id)) {
+      leaves.push({ id: hub.id, title: hub.title });
+    }
+    for (const node of childrenByHub[hub.id] ?? []) {
       if (UNTAGGABLE_TOOL_IDS.has(node.id)) continue;
       leaves.push({ id: node.id, title: node.title });
     }
@@ -23,7 +25,7 @@ function taggableLeaves(): KanbanLeafOption[] {
   return leaves;
 }
 
-/** Global + every non-hub Site network child (any hub). Do not invent hubs here. */
+/** Global + every Site network hub and child except retired chrome tools. */
 export function kanbanLeafOptions(): KanbanLeafOption[] {
   return [{ id: KANBAN_GLOBAL_NODE_ID, title: "Global" }, ...taggableLeaves()];
 }
@@ -51,25 +53,30 @@ export function isKanbanLeafId(nodeId: string): boolean {
   return kanbanLeafOptions().some((row) => row.id === nodeId);
 }
 
-function isTaggableRegistryLeaf(node: {
+function isTaggableRegistryNode(node: {
   id: string;
   kind: string;
   parentId: string | null;
 }): boolean {
   if (UNTAGGABLE_TOOL_IDS.has(node.id)) return false;
-  return node.kind !== "hub" && node.parentId != null;
+  if (node.kind === "hub") return true;
+  return node.parentId != null;
 }
+
+const CHROME_GLOBAL_HREFS = new Set(["/i/kanban", "/i/feedback", "/i/ideas", "/i/notes"]);
 
 export function defaultKanbanNodeIdFromHref(href: string): string {
   const normalized = href.replace(/\/$/, "") || "/";
+  if (CHROME_GLOBAL_HREFS.has(normalized)) return KANBAN_GLOBAL_NODE_ID;
   const exact = getNodeByHref(normalized);
-  if (exact && isTaggableRegistryLeaf(exact)) {
-    return exact.id;
+  if (exact) {
+    if (isTaggableRegistryNode(exact)) return exact.id;
+    if (UNTAGGABLE_TOOL_IDS.has(exact.id)) return KANBAN_GLOBAL_NODE_ID;
   }
   const prefix = getNodes()
     .filter(
       (node) =>
-        isTaggableRegistryLeaf(node) &&
+        isTaggableRegistryNode(node) &&
         node.href !== "/" &&
         (normalized === node.href || normalized.startsWith(`${node.href}/`)),
     )

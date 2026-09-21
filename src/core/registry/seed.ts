@@ -1875,7 +1875,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "publish",
     status: "locked",
     decision:
-      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to dev_main is never implied), you say make it live. Make it live = fast-forward main to dev_main, then tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge dev_main is not live. Fast-forward main without the zip is not Azure. Details: docs/GIT_AND_RELEASE.md.",
+      "Loop: you vibe, Cursor codes, localhost, you review, you say commit (commit and push to the current GitHub branch; merge to dev_main is never implied), you say make it live. A desk is dev_main or wip/<leaf>: wip only hands over a clean save-slot; station only takes finished blocks and never produces product. Prepare / handover is not merge. Make it live = fast-forward main to dev_main, then tag hub-*/v* or GitHub Run workflow (same zip via OIDC onto app-scrivengroup). Hand zip is fallback. Push/merge dev_main is not live. Fast-forward main without the zip is not Azure. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-versioning",

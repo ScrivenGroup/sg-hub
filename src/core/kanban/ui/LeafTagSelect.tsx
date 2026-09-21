@@ -124,22 +124,25 @@ export function LeafTagSelect({
                     />
                   }
                   renderHub={(hub) => (
-                    <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-                      {hub.title}
-                    </div>
+                    <PickRow
+                      label={hub.title}
+                      selected={value === hub.id}
+                      badge={hub}
+                      onPick={() => pick(hub.id)}
+                    />
                   )}
                   renderChild={(child) =>
-                    child.kind === "hub" ? (
-                      <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
-                        {child.title}
-                      </div>
-                    ) : (
+                    options.some((row) => row.id === child.id) ? (
                       <PickRow
                         label={child.title}
                         selected={value === child.id}
                         badge={child}
                         onPick={() => pick(child.id)}
                       />
+                    ) : (
+                      <div className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--muted)]">
+                        {child.title}
+                      </div>
                     )
                   }
                 />

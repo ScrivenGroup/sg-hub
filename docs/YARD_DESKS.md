@@ -2,6 +2,8 @@
 
 One Next.js app. Two (or more) folders. Each folder is a **desk**: its own dirty tree, its own localhost port. They are **not** separate websites.
 
+A desk is **`dev_main` (station)** or **`wip/<leaf>`**. WIP produces the room and may only clean for handover (commit + push the save-slot). Station takes finished blocks and does not produce product. Full law: [`GIT_AND_RELEASE.md`](./GIT_AND_RELEASE.md).
+
 A ticket or Front desk prompt names `wip/<leaf>` when a **product** sitting starts. Sessions and git do not invent a desk.
 
 ## Ports

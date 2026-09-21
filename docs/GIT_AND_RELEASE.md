@@ -26,11 +26,21 @@ Teaching poster: [`docs/publish-yard.html`](./publish-yard.html). Do not rebuild
 | ------- | ---------- |
 | develop / update / frame … | Edit code on **this chat’s desk**. Preview on that desk’s localhost port. **No commit** until you ask |
 | commit / save a snapshot | `git add` + `git commit` **and** `git push` to this desk’s GitHub branch (first time: publish with `-u`). Never `.env*` / secrets. **Does not merge to `dev_main`.** **Does not change Azure.** |
-| merge to station / merge to `dev_main` | Standalone ask. Never implied by commit. |
+| prepare / handover / ready for station / ready for `dev_main` | Same as commit: save-slot only. Does not touch `origin/dev_main`. Does not run git in the station folder. |
+| merge to station / merge to `dev_main` | Spoken words, **station desk** only. Never implied by commit, prepare, handover, or roadmap. |
 | push / save to the locker | `git push` to `ScrivenGroup/sg-hub` if commits are already sitting un-pushed. **Does not** change Azure |
 | is it live yet? | Report localhost vs Azure App Service |
 | make it live / deploy / publish | From **station `dev_main`**: fast-forward **`main`** to `dev_main`, **tag** `hub-*` / `v*` (or GitHub **Run workflow**). Cloud: `npm ci` → `build` → `deploy:prepare` → zip → `az webapp deploy` via **OIDC**. Push `dev_main` is **not** live. Fast-forward `main` without the tag/zip is **not** Azure. Hand zip (`deploy:azure`) from the station folder is fallback. SCM Basic Auth stays Off |
 | roll back / undo that release | `git` revert / older zip; redeploy if live was affected |
+
+## Two-role desks
+
+A desk is **`dev_main` (station)** or **`wip/<leaf>`**. Not both.
+
+- **WIP** produces the room. The most git it may do is clean the desk for handover (commit + push the save-slot). It does not merge, push, or operate `dev_main`. It does not `git merge` station into itself unless you ask.
+- **Station** takes finished blocks (fast-forward merge the named `wip/<leaf>` when you say merge to station). Sweep. Make it live when you say so. It does not produce product interiors.
+
+Canon lives in this file and [`.cursor/rules/publish-yard.mdc`](../.cursor/rules/publish-yard.mdc). `this-desk.mdc` is identity only (git-excluded). Do not copy these paragraphs onto each desk.
 
 ## Locker (already exists)
 

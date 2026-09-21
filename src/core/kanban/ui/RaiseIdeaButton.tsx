@@ -137,7 +137,7 @@ export function RaiseIdeaButton({
         </h2>
         <p className="mb-3 shrink-0 text-sm text-[var(--muted)]">
           Raw observation. Not a ticket. Lands in Inbox until a session splits it into tickets.
-          Tag is which leaf (or Global) owns the note — not a swimlane.
+          Tag is which hub, leaf, or Global owns the note — not a swimlane.
         </p>
         <input
           className="sg-input mb-2 shrink-0"

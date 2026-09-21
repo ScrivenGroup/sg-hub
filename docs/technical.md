@@ -50,7 +50,7 @@ Use these axes. Do not infer a missing layer from a competing product.
 | Azure names | RG `rg-scrivengroup`, app `app-scrivengroup` | — |
 | Runtime process | `node server.js` from Next standalone output | `next start` from source on the host, Oryx `npm run build` |
 | Package manager | npm (`package-lock.json`) | pnpm, yarn, bun |
-| Local dev | `next dev --turbopack` → http://localhost:3000 | Vite 5173, etc. |
+| Local dev | `next dev --turbopack` on **this desk’s port** (station `:3000`, wip `:3001+`; match `AUTH_URL`) | Vite 5173, etc. |
 | Images | `next/image`; linux `sharp` injected at `deploy:prepare` (Windows build otherwise ships win32 sharp) | Unoptimized `<img>` only |
 | SEO | `robots: { index: false, follow: false }` | Public marketing index |
 | Tests | No Jest / Vitest / Playwright / Cypress in `package.json` | — |

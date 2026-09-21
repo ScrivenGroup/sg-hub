@@ -279,9 +279,10 @@ export async function pgGetFeedback(): Promise<FeedbackRecord[]> {
   return rows as FeedbackRecord[];
 }
 
-export async function pgInsertFeedback(row: FeedbackRecord): Promise<void> {
-  const db = await getDb();
-  await db.insert(feedback).values(row);
+export async function pgInsertFeedback(_row: FeedbackRecord): Promise<void> {
+  throw new Error(
+    "feedback table is read-only (copy-forward only). Write kanban_ideas via upsertKanbanIdea.",
+  );
 }
 
 export async function pgDeleteFeedback(id: string): Promise<void> {

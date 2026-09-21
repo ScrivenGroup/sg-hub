@@ -22,7 +22,7 @@ When `DATABASE_URL` is set, the inbox is Neon `kanban_ideas`. The old `feedback`
 
 ## For Cursor sessions
 1. **Neon first:** `npx --yes tsx scripts/inspect-neon-inbox.ts` (read-only SELECT; never print `DATABASE_URL`; do **not** call `getKanbanBoard` / `loadKanbanRows`).
-2. Then Development Inbox (`/d?tab=inbox`). [`docs/feedback-inbox.md`](./feedback-inbox.md) is not the live register.
+2. Then Development Inbox (`/d?tab=inbox`). [`docs/feedback-inbox.md`](./feedback-inbox.md) is a historical pointer, not the live register. Do not hand-append it.
 3. Seed / laptop JSON last. Seed only adds missing ids. Seed `ideas: []` for a leaf is not proof the inbox is empty.
 4. Prefer open **bug** / **housekeeping** items for fix prompts. Scout **ideas** on the leaf Inbox to plan tickets.
 5. After resolving, mark done in a follow-up.
