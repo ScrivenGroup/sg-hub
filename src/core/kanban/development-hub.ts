@@ -5,11 +5,12 @@ export const DEVELOPMENT_INBOX_HREF = "/d/inbox";
 
 /** SG Hub Changelog: wrapping-suite rows (hub-development + historic i-kanban). */
 export const SG_HUB_CHANGELOG_NODE_IDS = ["hub-development", "i-kanban"] as const;
+export const SG_HUB_CHANGELOG_HREF = "/d/changelog";
 
 const TAB_TO_HREF: Record<string, string> = {
   inbox: "/d/inbox",
   kanban: "/d/kanban",
-  changelog: "/d/changelog",
+  changelog: SG_HUB_CHANGELOG_HREF,
   notes: "/d/notes",
   spec: "/d/spec",
 };

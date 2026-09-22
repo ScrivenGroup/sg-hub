@@ -40,6 +40,9 @@ yarn-error.log*
 # sitting inspect / Kudu downloads
 /.tmp
 
+# desk identity + sitting memory (per worktree)
+.cursor/rules/this-desk.mdc
+
 # Azure deploy package
 /.azure-deploy
 /scrivengroup-deploy.zip

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Publish yard
 
-Read [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md) before commit, push, or deploy. Desk identity (port, folder, this window’s scope) lives only in git-excluded `this-desk.mdc`. Do not copy yard law there.
+Read [`docs/GIT_AND_RELEASE.md`](docs/GIT_AND_RELEASE.md) before commit, push, or deploy. Desk identity (port, folder, this window’s scope) and **sitting leftovers** (last wrap, next pickup) live only in git-excluded `this-desk.mdc`. Do not copy yard law there. A new chat on that desk should not need a dump prompt.
 
 - A desk is **`dev_main` (station)** or **`wip/<leaf>`**. Not both.
 - **WIP** produces the room. Git: commit + push the save-slot only (handover / prepare / ready for station). Do not checkout, merge, or push `dev_main`. Do not `git merge` station into this desk unless asked.

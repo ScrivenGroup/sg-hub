@@ -4,7 +4,7 @@ export const TRAIN_VERSION = "1.16";
 /** Hotfix still takes the next X.Y; this mark is the chip, not a PATCH segment. */
 export const TRAIN_KIND: "train" | "hotfix" = "train";
 
-export const TRAIN_CHANGELOG_HREF = "/d/train-changelog";
+export const TRAIN_CHANGELOG_HREF = "/i/train-changelog";
 export const TRAIN_CHANGELOG_NODE_ID = "d-train-changelog";
 
 /** Named hotfix zips. Historic hub-1.8.1 was a PATCH tag; new hotfixes are the next X.Y. */

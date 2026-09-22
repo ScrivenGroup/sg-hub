@@ -59,7 +59,7 @@ export const seedNodes: RegistryNode[] = [
     status: "live",
     hasNetworkMap: true,
     description:
-      "Ideas/Feedback, Kanban, Train Changelog, SG Hub Changelog, Notes, and Design spec. Chrome Feedback lands in Ideas/Feedback.",
+      "Ideas/Feedback, Kanban, SG Hub Changelog, Notes, and Design spec. Chrome Feedback lands in Ideas/Feedback.",
     order: 3,
   },
   {
@@ -74,7 +74,8 @@ export const seedNodes: RegistryNode[] = [
     accessMode: "shared",
     status: "live",
     hasNetworkMap: true,
-    description: "ScrivenGroup tools.",
+    description:
+      "ScrivenGroup tools, Train Changelog, and Roadmap (overall).",
     order: 4,
   },
   {
@@ -188,22 +189,6 @@ export const seedNodes: RegistryNode[] = [
     order: 2,
   },
   {
-    id: "d-train-changelog",
-    hubPrefix: "d",
-    slug: "train-changelog",
-    title: "Train Changelog",
-    code: "8F4A24",
-    kind: "tool",
-    parentId: "hub-development",
-    href: "/d/train-changelog",
-    accessMode: "shared",
-    status: "live",
-    hasNetworkMap: false,
-    description:
-      "Website zip history. Clock is vX.Y. Hotfix chip only on hotfix zips.",
-    order: 3,
-  },
-  {
     id: "d-sg-hub-changelog",
     hubPrefix: "d",
     slug: "changelog",
@@ -217,7 +202,7 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description:
       "Wrapping hub / Development suite history. Clock is X.Y.Z. Not the Train.",
-    order: 4,
+    order: 3,
   },
   {
     id: "d-notes",
@@ -232,7 +217,7 @@ export const seedNodes: RegistryNode[] = [
     status: "live",
     hasNetworkMap: false,
     description: "Bulk notes for the Development suite.",
-    order: 5,
+    order: 4,
   },
   {
     id: "d-design-spec",
@@ -248,7 +233,7 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description:
       "Kanban Online design contract. Global only — not copied onto product leaves.",
-    order: 6,
+    order: 5,
   },
   {
     id: "i-testing",
@@ -279,6 +264,38 @@ export const seedNodes: RegistryNode[] = [
     hasNetworkMap: false,
     description: "Locked development standards for humans and Cursor chats.",
     order: 2,
+  },
+  {
+    id: "i-roadmap",
+    hubPrefix: "i",
+    slug: "roadmap",
+    title: "Roadmap",
+    code: "2A6F8A",
+    kind: "tool",
+    parentId: "hub-internal",
+    href: "/i/roadmap",
+    accessMode: "shared",
+    status: "building",
+    hasNetworkMap: false,
+    description:
+      "Overall plan across hub and leaves. Dummy playground — not Neon yet.",
+    order: 3,
+  },
+  {
+    id: "d-train-changelog",
+    hubPrefix: "i",
+    slug: "train-changelog",
+    title: "Train Changelog",
+    code: "3B78C4",
+    kind: "tool",
+    parentId: "hub-internal",
+    href: "/i/train-changelog",
+    accessMode: "shared",
+    status: "live",
+    hasNetworkMap: false,
+    description:
+      "Website zip history. Clock is vX.Y. Hotfix chip only on hotfix zips.",
+    order: 4,
   },
   {
     id: "s-definition",
@@ -2089,6 +2106,20 @@ Out of this version
 - Route loading veil is ticket kt-route-loading-veil (Later). Behaviour card is on Standards.`,
   },
   {
+    id: "cl-dev-hub-0.2.13",
+    nodeId: "hub-development",
+    kind: "release",
+    version: "0.2.13",
+    createdAt: "2026-09-22T01:25:00.000Z",
+    title: "0.2.13 — Train Changelog on Internal (localhost)",
+    body: `SG Hub suite 0.2.13. Localhost until the next Train zip. Ticket Internal overall glasses.
+
+- Train Changelog moves to Internal as a flat card (/i/train-changelog). Badge hubPrefix i (I·3B78C4, Internal blue). Registry id d-train-changelog kept.
+- SG Hub Changelog stays on Development (/d/changelog). Badge hubPrefix d (D·E08A52).
+- /d keeps Ideas/Feedback, Kanban, SG Hub Changelog, Notes, Design spec. Old /d/train-changelog redirects.
+- Chrome vX.Y opens /i/train-changelog. No /i/hub nest.`,
+  },
+  {
     id: "cl-train-changelog-plan",
     nodeId: "d-train-changelog",
     kind: "plan",
@@ -2439,7 +2470,7 @@ export const seedDevChoices: DevChoiceRecord[] = [
     layer: "versioning",
     status: "locked",
     decision:
-      "Two clocks. Train (website zip) is vX.Y: each make-it-live bumps to the next X.Y; MAJOR only if Bill asks. A hotfix still takes the next X.Y and shows a Hotfix chip only (not on regular Trains). No Train PATCH segment, no a/b/c. Git tag hub-X.Y. Home: chrome version → /d/train-changelog. Leaf (hub suite included) is always X.Y.Z (pad 1.6 → 1.6.0). Unchanged leaves do not bump. Y when that leaf ships in a Train; Z on the wip desk per slice. Localhost slices may use PATCH until that leaf ships in a Train. Homes: leaf Development Changelog; wrapping suite → /d/changelog (SG Hub). Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Details: docs/GIT_AND_RELEASE.md.",
+      "Two clocks. Train (website zip) is vX.Y: each make-it-live bumps to the next X.Y; MAJOR only if Bill asks. A hotfix still takes the next X.Y and shows a Hotfix chip only (not on regular Trains). No Train PATCH segment, no a/b/c. Git tag hub-X.Y. Home: chrome version → /i/train-changelog. Leaf (hub suite included) is always X.Y.Z (pad 1.6 → 1.6.0). Unchanged leaves do not bump. Y when that leaf ships in a Train; Z on the wip desk per slice. Localhost slices may use PATCH until that leaf ships in a Train. Homes: leaf Development Changelog; wrapping suite → /d/changelog (SG Hub). Do not collapse to one website SemVer. Do not put Train as X.Y.Z. Details: docs/GIT_AND_RELEASE.md.",
   },
   {
     id: "dc-great-merge",

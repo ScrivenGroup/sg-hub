@@ -983,6 +983,25 @@ Original ask: every hub page shows loading feedback as soon as the user clicks; 
     createdAt: "2026-09-18T00:00:00.000Z",
     updatedAt: "2026-09-21T10:50:00.000Z",
   },
+  {
+    id: "kt-desk-sitting-memory",
+    nodeId: "global",
+    title: "Desks keep a short sitting memory; review rules so they stay small",
+    body: `Ad-hoc 2026-09-21. Later. Process, not a product slice. Do not bump SG Hub for logging this.
+
+Behaviour: each desk routinely keeps a clean git-excluded this-desk.mdc — identity (folder, branch, port, AUTH_URL, WIP_DESK, scope) plus sitting leftovers (last wrap, next pickup, park list). New chats on that desk start from a short “go”, not a dump prompt. Rewrite the Sitting block at wrap so it does not rot.
+
+Tracked .cursor/rules and docs stay canon (yard, kit, two clocks). Do not copy GIT_AND_RELEASE into this-desk. Move a lesson into tracked canon once, then delete it from this-desk.
+
+Every now and then: review tracked rules for bloat. Merge duplicates, drop stale sitting notes, keep this-desk under ~50 lines. Bill and the desk agent both use this file.
+
+Started on wip/hub 2026-09-21. Copy the pattern when adding a desk (docs/YARD_DESKS.md / publish-yard.mdc).`,
+    lane: "platform",
+    column: "later",
+    sourceIdeaId: null,
+    createdAt: "2026-09-21T11:05:00.000Z",
+    updatedAt: "2026-09-21T11:05:00.000Z",
+  },
 ];
 
 const WAVE0_IDEAS: KanbanInboxNote[] = [
@@ -1244,6 +1263,7 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-wip-desk-badge",
   "kt-route-loading-veil",
   "kt-hub-page-loading",
+  "kt-desk-sitting-memory",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {

@@ -8,6 +8,7 @@ Source of product intent for agents and humans. Technical HTTP details live in `
 | [data-model.md](./data-model.md) | Entities, codes, access |
 | [business-rules.md](./business-rules.md) | Access, framing, maps, RAG |
 | [features.md](./features.md) | MVP slices and status |
+| [roadmap.md](./roadmap.md) | Overall roadmap glass (`/i/roadmap`) |
 
 Domain: **scriven.group**. Phase 1: localhost demo. Phase 2: Azure/Entra/DNS. Phase 3: live v1.0.
 

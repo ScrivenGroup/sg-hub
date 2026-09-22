@@ -40,7 +40,7 @@ A desk is **`dev_main` (station)** or **`wip/<leaf>`**. Not both.
 - **WIP** produces the room. The most git it may do is clean the desk for handover (commit + push the save-slot). It does not merge, push, or operate `dev_main`. It does not `git merge` station into itself unless you ask.
 - **Station** takes finished blocks (fast-forward merge the named `wip/<leaf>` when you say merge to station). Sweep. Make it live when you say so. It does not produce product interiors.
 
-Canon lives in this file and [`.cursor/rules/publish-yard.mdc`](../.cursor/rules/publish-yard.mdc). `this-desk.mdc` is identity only (git-excluded). Do not copy these paragraphs onto each desk.
+Canon lives in this file and [`.cursor/rules/publish-yard.mdc`](../.cursor/rules/publish-yard.mdc). `this-desk.mdc` is git-excluded: desk identity plus that desk’s sitting leftovers (last wrap, next pickup). Do not copy these paragraphs onto each desk.
 
 ## Locker (already exists)
 
@@ -77,7 +77,7 @@ If a zip lands but `/home/site/wwwroot/.next` stays old (Kanban still the previo
 
 Two clocks. Do not collapse to one website SemVer. Do not put Train as `X.Y.Z`.
 
-**Train** (the live website zip): `vX.Y`. Each **make it live** bumps to the next X.Y. **MAJOR** only if Bill asks. A hotfix still takes the next X.Y; chrome and Train Changelog show a **Hotfix** chip only on that zip (not on a regular Train). No Train PATCH third segment, no letter suffix a/b/c. Git tag `hub-X.Y`. Home: AppShell version → `/d/train-changelog`. Bump `TRAIN_VERSION` / `TRAIN_KIND` in `src/core/train/version.ts` on the station sitting that ships the zip.
+**Train** (the live website zip): `vX.Y`. Each **make it live** bumps to the next X.Y. **MAJOR** only if Bill asks. A hotfix still takes the next X.Y; chrome and Train Changelog show a **Hotfix** chip only on that zip (not on a regular Train). No Train PATCH third segment, no letter suffix a/b/c. Git tag `hub-X.Y`. Home: AppShell version → `/i/train-changelog`. Bump `TRAIN_VERSION` / `TRAIN_KIND` in `src/core/train/version.ts` on the station sitting that ships the zip.
 
 **Leaf** (hub suite included): always `X.Y.Z` (pad two-part to `.0` for display). Unchanged leaves do not bump. Y when that leaf ships in a Train. Z on the wip desk per slice; changelog row = version + datetime + title. Localhost slices may use PATCH (`1.4.1`, `0.2.9`) until that leaf ships in a Train. Homes: product-leaf Development → Changelog (that leaf only); wrapping suite → `/d/changelog` (SG Hub). Not the Train.
 
