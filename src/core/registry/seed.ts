@@ -2101,6 +2101,18 @@ Out of this version
 - Do not invent unnamed zips. Do not dump Train rows into SG Hub Changelog or a leaf changelog.`,
   },
   {
+    id: "cl-train-1.17",
+    nodeId: "d-train-changelog",
+    kind: "release",
+    version: "1.17",
+    createdAt: "2026-09-22T02:10:00.000Z",
+    title: "v1.17 — Sunwater MRT Effort Gantt pan restore and requirements catalogue",
+    body: `Train v1.17. Tag hub-1.17.
+
+- Sunwater MRT: restore Effort Gantt drag-pan (camera over a picture). Requirements catalogue so flush sittings cannot overwrite CORE.
+`,
+  },
+  {
     id: "cl-train-1.16",
     nodeId: "d-train-changelog",
     kind: "release",
