@@ -4,6 +4,27 @@ Home: Internal → **Roadmap** (`/i/roadmap`). Overall glass (hub + all leaves, 
 
 This file is the lock for agents. UI lives in `src/core/roadmap/`.
 
+## Leaf tabs
+
+Under the breadcrumb on `/i/roadmap`:
+
+| Tab | Contents |
+| --- | --- |
+| **Roadmap (v1)** | This canvas. |
+| **Roadmap (v2)** | Placeholder. Another view. Not this version. |
+| **Development** | Requirements (short brief on the tab — not this whole file), then Inbox, Kanban, Changelog (this leaf only), Notes. No Train, no SG Hub Changelog, no Design spec. |
+
+## Brief
+
+The Requirements tab shows this, and only this. Do not paste this file onto that tab.
+
+- Show current and future work as chunks: a function, a feature, or a big idea.
+- A chunk summarises captured ideas. It is not a second copy of each idea.
+- Priority lives on the roadmap, from where a chunk sits. The inbox does not decide what gets built.
+- This leaf is the source of truth. Each desk uses it, updates it, and checks it before starting work.
+
+Guardrails: v1 canvas stays in memory until Neon. v2 is a placeholder. Do not fake chunk links to a ticket, an idea, or a changelog row. Stream kind, regions, ties, dates, a feature manager, and auto-complete from Kanban stay Later. A per-leaf Roadmap uses the single-stream layout and is not this version.
+
 ## Why it exists
 
 Planning glass for streams (webapps) and chunks (features/modules). Kanban is doing. Ideas are capture. Tickets should point at a chunk (late-bind allowed). Ideas are optional both ways.

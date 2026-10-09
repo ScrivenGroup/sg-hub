@@ -278,7 +278,7 @@ export const seedNodes: RegistryNode[] = [
     status: "building",
     hasNetworkMap: false,
     description:
-      "Overall plan across hub and leaves. Dummy playground — not Neon yet.",
+      "Overall plan across hub and leaves. Roadmap v1 canvas, v2 placeholder, and this leaf’s Development rooms.",
     order: 3,
   },
   {
@@ -2279,6 +2279,33 @@ Out of this version
 - Development is KanbanOnlineHost on this leaf (Inbox, board, Changelog, Notes). Design spec stays on /d. Chrome Feedback is the capture door; no in-tab Raise.
 - Does not replace Internal → Development choices or the Development hub.
 - One locker: ScrivenGroup/sg-hub. Never zip from a wip desk.`,
+  },
+  {
+    id: "cl-roadmap-0.1.0",
+    nodeId: "i-roadmap",
+    kind: "release",
+    version: "0.1.0",
+    createdAt: "2026-10-09T00:20:46.000Z",
+    title: "0.1.0 — Overall canvas",
+    body: `Roadmap 0.1.0. Committed on wip/hub. Localhost. Not on dev_main.
+
+- 2026-09-22: overall canvas added at /i/roadmap (03de09f).
+- 2026-10-09: canvas locked (ada231c). Streams are free-placed. Chunks sit in WIP, Sequential, Future, and Completed.
+- Sequence (T1…, S1…) comes from position. Collapse, peek, fullscreen, clip, and the legend are in.
+- Dummy data, in memory. Neon, chunk links, and a per-leaf tab are Later tickets on this leaf.`,
+  },
+  {
+    id: "cl-roadmap-0.1.1",
+    nodeId: "i-roadmap",
+    kind: "release",
+    version: "0.1.1",
+    createdAt: "2026-10-09T00:57:00.000Z",
+    title: "0.1.1 — Leaf tabs, requirements, Development rooms",
+    body: `Roadmap 0.1.1. Localhost on wip/hub. Not on dev_main.
+
+- Tabs under the breadcrumb: Roadmap (v1), Roadmap (v2) placeholder, Development.
+- Development rooms: Requirements (one-page brief), Inbox, Kanban, Changelog (this leaf), Notes.
+- Changelog 0.1.0 records the committed canvas. Later tickets hold Neon, chunk links, stream details, a per-leaf tab, and the out-of-leaf list.`,
   },
 ];
 

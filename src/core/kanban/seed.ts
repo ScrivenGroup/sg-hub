@@ -1179,6 +1179,94 @@ const WAVE0_IDEAS: KanbanInboxNote[] = [
   },
 ];
 
+const ROADMAP_IDEA: KanbanInboxNote = {
+  id: "IN-20261009-01",
+  nodeId: "i-roadmap",
+  title: "Roadmap is the source of truth for what we build",
+  body: `Captured 2026-10-09. Turned into the Requirements brief and the Later tickets on this leaf.
+
+Roadmap shows current and future work as functions, chunks, and big ideas. A chunk summarises ideas people capture. Priority is set on the roadmap, not by sorting individual ideas. Each desk uses, updates, and references it so development does not duplicate or conflict.`,
+  status: "archived",
+  kind: "idea",
+  source: "raise",
+  pageHref: "/i/roadmap",
+  pageTitle: "Roadmap",
+  createdAt: "2026-10-09T00:20:46.000Z",
+  updatedAt: "2026-10-09T00:45:00.000Z",
+  copiedAt: "2026-10-09T00:45:00.000Z",
+};
+
+const ROADMAP_TICKETS: KanbanTicket[] = [
+  {
+    id: "kt-roadmap-canvas",
+    nodeId: "i-roadmap",
+    title: "Overall canvas (v1)",
+    body: `Done. Committed on wip/hub as ada231c (lock) after 03de09f (first canvas).
+
+Free-placed streams. Chunks in WIP, Sequential, Future, Completed. Sequence from position. Collapse, peek, fullscreen, clip, legend. Dummy, in memory. Changelog 0.1.0.`,
+    lane: "structure",
+    column: "done",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:20:46.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+  {
+    id: "kt-roadmap-neon",
+    nodeId: "i-roadmap",
+    title: "Save the canvas to Neon",
+    body: "Same types as the dummy canvas. Do not rewrite the canvas to get there. In memory until this ticket.",
+    lane: "data",
+    column: "later",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:45:00.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+  {
+    id: "kt-roadmap-links",
+    nodeId: "i-roadmap",
+    title: "Link a chunk to a ticket, an idea, or a changelog row",
+    body: "Ticket: strong, late-bind allowed. Idea: optional both ways. Completed chunk lines up with this leaf’s changelog. Do not fake any of those wires before this ticket.",
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:45:00.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+  {
+    id: "kt-roadmap-stream-details",
+    nodeId: "i-roadmap",
+    title: "Stream kind, regions, and ties",
+    body: "The stream editor saves the name only until this ticket. Do not invent kind, regions, or ties on the canvas.",
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:45:00.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+  {
+    id: "kt-roadmap-per-leaf",
+    nodeId: "i-roadmap",
+    title: "Per-leaf Roadmap tab",
+    body: "When a product leaf has a Roadmap tab, it uses the fullscreen / single-stream layout. Not this version.",
+    lane: "structure",
+    column: "later",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:45:00.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+  {
+    id: "kt-roadmap-out-of-leaf",
+    nodeId: "i-roadmap",
+    title: "Dates, feature manager, auto-complete from Kanban",
+    body: "Out of this leaf. Horizons and calendar dates are not required fields. Do not build a feature manager. Do not auto-complete a chunk from Kanban.",
+    lane: "behaviour",
+    column: "later",
+    sourceIdeaId: "IN-20261009-01",
+    createdAt: "2026-10-09T00:45:00.000Z",
+    updatedAt: "2026-10-09T00:45:00.000Z",
+  },
+];
+
 const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTicket[] }> = {
   "p-mtg-buylist": { ideas: MTG_BUYLIST_IDEAS, tickets: MTG_BUYLIST_TICKETS },
   global: {
@@ -1190,6 +1278,7 @@ const BOARD_SEEDS: Record<string, { ideas: KanbanInboxNote[]; tickets: KanbanTic
     ideas: [],
     tickets: HUB_DECISIONS_TICKETS.filter((t) => t.nodeId === "w-sunwater-mrt"),
   },
+  "i-roadmap": { ideas: [ROADMAP_IDEA], tickets: ROADMAP_TICKETS },
 };
 
 const HYGIENE_IDEA_IDS = new Set([
@@ -1226,6 +1315,7 @@ const HYGIENE_IDEA_IDS = new Set([
   "IN-20260918-04",
   "IN-20260917-06",
   "IN-20260921-01",
+  "IN-20261009-01",
 ]);
 
 const HYGIENE_TICKET_IDS = new Set([
@@ -1264,6 +1354,12 @@ const HYGIENE_TICKET_IDS = new Set([
   "kt-route-loading-veil",
   "kt-hub-page-loading",
   "kt-desk-sitting-memory",
+  "kt-roadmap-canvas",
+  "kt-roadmap-neon",
+  "kt-roadmap-links",
+  "kt-roadmap-stream-details",
+  "kt-roadmap-per-leaf",
+  "kt-roadmap-out-of-leaf",
 ]);
 
 function allSeedIdeas(): KanbanInboxNote[] {
