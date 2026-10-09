@@ -1814,7 +1814,7 @@ async function appendDevChoicesDoc(record: DevChoiceRecord) {
     } catch {
       await fs.writeFile(
         devChoicesPath,
-        `# Development choices\n\nCanon for agents and humans. Do not contradict **locked** rows. In-app: Internal → Development choices (\`/i/dev-choices\`). Store: \`data/dev-choices.json\`.\n\n---\n`,
+        `# Development choices\n\nCanon for agents and humans. Do not contradict **locked** rows. In-app: System → Development choices (\`/s/dev-choices\`). Store: \`data/dev-choices.json\`.\n\n---\n`,
         "utf8",
       );
     }

@@ -1,12 +1,12 @@
 # Roadmap — requirements
 
-Home: Internal → **Roadmap** (`/i/roadmap`). Overall glass (hub + all leaves, unfiltered). Survives hiding `/d`. Not nested under an `sg-hub-home`. Dummy first; Neon later.
+Home: System → **Roadmap** (`/s/roadmap`). Overall glass (hub + all leaves, unfiltered). Survives hiding `/d`. Not nested under an `sg-hub-home`. Dummy first; Neon later.
 
 This file is the lock for agents. UI lives in `src/core/roadmap/`.
 
 ## Leaf tabs
 
-Under the breadcrumb on `/i/roadmap`:
+Under the breadcrumb on `/s/roadmap`:
 
 | Tab | Contents |
 | --- | --- |

@@ -34,6 +34,7 @@ export type StandardsMode =
 
 const DEV_QUERY = new Set<string>([
   "development",
+  "requirements",
   "inbox",
   "kanban",
   "changelog",
@@ -58,7 +59,7 @@ export function standardsKanbanStart(raw?: string): KanbanOnlineStart {
   if (!raw || raw === "development") return "inbox";
   if (raw === "spec") return "changelog";
   if (raw === "kanban") return "kanban";
-  if (raw === "inbox" || raw === "changelog" || raw === "notes") return raw;
+  if (raw === "requirements" || raw === "inbox" || raw === "changelog" || raw === "notes") return raw;
   if (COLUMN_FILTERS.some((row) => row.id === raw)) return "kanban";
   return "inbox";
 }

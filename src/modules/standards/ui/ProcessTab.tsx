@@ -58,7 +58,7 @@ export function ProcessTab() {
         card on the hub. Work happens on a{" "}
         <strong className="font-medium text-[var(--ink)]">desk</strong> (folder +
         port). Git has three lanes. Locked words live in{" "}
-        <Link href="/i/dev-choices" className="underline underline-offset-2">
+        <Link href="/s/dev-choices" className="underline underline-offset-2">
           Development choices
         </Link>{" "}
         and the board at{" "}

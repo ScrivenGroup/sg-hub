@@ -28,8 +28,8 @@ Login → Home
   ├── Work         /w     client-context (org only, no client logins)
   ├── Projects     /p     personal / spin-out capable
   ├── Development  /d     hub of suite cards (Ideas/Feedback, Kanban, SG Hub Changelog, Notes, Design spec)
-  ├── Internal     /i     tools + Train Changelog + Roadmap (overall) + Testing / Dev-choices
-  └── System       /s     Definition + Appearance + Standards
+  ├── Internal     /i     hub tools: Testing and "Main" Changelog
+  └── System       /s     Site network map, External dependencies, Standards Library, Development choices, Roadmap. Appearance and Standards are marked to delete.
 ```
 
 Sub-hubs: `/w/{slug}`, `/p/{slug}`, etc. Registry drives Home cards, Site network, and Definition maps.
@@ -89,4 +89,4 @@ Open bugs/housekeeping: chrome Feedback writes Development Inbox (`/d/inbox`). I
 
 ## Development choices
 
-Locked standards: Internal → Development choices (`/i/dev-choices`), [`docs/DEV_CHOICES.md`](./DEV_CHOICES.md), `data/dev-choices.json`. Handbook: [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPMENT.md). Two agents: [`docs/TWO_AGENTS.md`](./TWO_AGENTS.md). DB plan: [`docs/NEON_CUTOVER.md`](./NEON_CUTOVER.md). Merge: [`docs/GREAT_MERGING.md`](./GREAT_MERGING.md). See `.cursor/rules/dev-choices.mdc`.
+Locked standards: System → Development choices (`/s/dev-choices`), [`docs/DEV_CHOICES.md`](./DEV_CHOICES.md), `data/dev-choices.json`. Handbook: [`docs/WEB_DEVELOPMENT.md`](./WEB_DEVELOPMENT.md). Two agents: [`docs/TWO_AGENTS.md`](./TWO_AGENTS.md). DB plan: [`docs/NEON_CUTOVER.md`](./NEON_CUTOVER.md). Merge: [`docs/GREAT_MERGING.md`](./GREAT_MERGING.md). See `.cursor/rules/dev-choices.mdc`.

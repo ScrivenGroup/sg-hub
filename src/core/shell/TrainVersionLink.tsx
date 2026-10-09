@@ -36,8 +36,8 @@ export function TrainVersionLink({ linked }: { linked: boolean }) {
     <Link
       href={TRAIN_CHANGELOG_HREF}
       className={`${className} sg-btn-ghost`}
-      title="Train Changelog"
-      aria-label={`Train Changelog ${title}`}
+      title={'"Main" Changelog'}
+      aria-label={`"Main" Changelog ${title}`}
     >
       {inner}
     </Link>

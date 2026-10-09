@@ -116,6 +116,8 @@ function MapLink({
       href={href}
       onClick={onNavigate}
       className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+        badge?.pendingDelete ? "opacity-60 grayscale" : ""
+      } ${
         current
           ? "bg-[var(--ink)] text-[var(--surface)]"
           : "text-[var(--ink)] hover:bg-[var(--surface-muted)]"
@@ -123,6 +125,9 @@ function MapLink({
     >
       {badge ? <ColorMark code={badge.code} /> : null}
       <span className="font-medium">{label}</span>
+      {badge?.pendingDelete ? (
+        <span className="text-xs opacity-80">To delete</span>
+      ) : null}
       {current ? (
         <span className="ml-auto text-xs opacity-80">You are here</span>
       ) : null}

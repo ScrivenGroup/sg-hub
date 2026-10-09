@@ -27,7 +27,7 @@ export function TrainChangelogPanel({ changelogs }: { changelogs: ChangelogEntry
     <section className="min-h-0 flex-1 overflow-y-auto">
       <div className="overflow-x-auto rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Train Changelog
+          {"\"Main\" Changelog"}
         </h2>
         <p className="mb-2 text-xs text-[var(--muted)]">
           Website zips. Clock is vX.Y. Hotfix chip only when that zip was a

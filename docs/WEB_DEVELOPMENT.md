@@ -1,6 +1,6 @@
 # Hub web development (locked handbook)
 
-Canon for **how** we build ScrivenGroup HTML and leaves. Locked one-liners live in [`DEV_CHOICES.md`](./DEV_CHOICES.md) and Internal → Development choices (`/i/dev-choices`). Do not contradict locked rows.
+Canon for **how** we build ScrivenGroup HTML and leaves. Locked one-liners live in [`DEV_CHOICES.md`](./DEV_CHOICES.md) and System → Development choices (`/s/dev-choices`). Do not contradict locked rows.
 
 **Decision (2026-09-01):** all new hub UI is Next.js App Router + React + TypeScript + Tailwind + SG tokens. my-site’s hand-written HTML/MD3 is a **legacy island** until the Great Merging. Do not start a third front-end kit.
 

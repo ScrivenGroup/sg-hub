@@ -47,11 +47,17 @@ export function HubLanding({
         <ul className="grid gap-3 sm:grid-cols-2">
           {children.map((child) => (
             <li key={child.id}>
-              <PendingNavLink href={child.href} className="sg-card block h-full">
+              <PendingNavLink
+                href={child.href}
+                className={`sg-card block h-full ${child.pendingDelete ? "opacity-60 grayscale" : ""}`}
+              >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">{child.title}</h2>
                   <CodeBadge node={child} />
                   <StatusPill status={child.status} />
+                  {child.pendingDelete ? (
+                    <span className="text-xs text-[var(--muted)]">To delete</span>
+                  ) : null}
                 </div>
                 <p className="text-sm text-[var(--muted)]">
                   {child.description}

@@ -17,6 +17,8 @@ export type RegistryNode = {
   status: NodeStatus;
   hasNetworkMap: boolean;
   description?: string;
+  /** Stays on the map, greyed, until a later sitting deletes it. */
+  pendingDelete?: boolean;
   order: number;
 };
 

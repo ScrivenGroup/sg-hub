@@ -29,6 +29,7 @@ import { DesignLibraryTab } from "@/modules/standards/ui/DesignLibraryTab";
 import { HomeTab } from "@/modules/standards/ui/HomeTab";
 import { ProcessTab } from "@/modules/standards/ui/ProcessTab";
 import { StandardsNav } from "@/modules/standards/ui/StandardsNav";
+import { PendingDeleteNote } from "@/core/shell/PendingDeleteNote";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function StandardsPage({
       <p className="max-w-2xl text-[var(--muted)]">
         Hub home for design and process. Design Library is the kit.
       </p>
+      <PendingDeleteNote />
     </>
   );
 

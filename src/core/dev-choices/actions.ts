@@ -34,6 +34,6 @@ export async function addDevChoiceAction(formData: FormData) {
     why: whyRaw || undefined,
   });
 
-  revalidatePath("/i/dev-choices");
+  revalidatePath("/s/dev-choices");
   return { ok: true as const };
 }

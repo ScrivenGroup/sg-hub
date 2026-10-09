@@ -25,10 +25,11 @@ import { KanbanColumnFilter, defaultVisibleColumns } from "./KanbanColumnFilter"
 import { KanbanDesignSpec } from "./KanbanDesignSpec";
 import { KanbanNotesPanel } from "./KanbanNotesPanel";
 import { RaiseIdeaButton } from "./RaiseIdeaButton";
+import { RequirementsPanel } from "./RequirementsPanel";
 
 export type KanbanOnlineScope = "all" | "leaf";
 export type KanbanOnlinePanel = "inbox" | "kanban";
-export type ChromeTab = "inbox" | "kanban" | "changelog" | "notes" | "spec";
+export type ChromeTab = "requirements" | "inbox" | "kanban" | "changelog" | "notes" | "spec";
 export type KanbanOnlineStart = ChromeTab | (typeof COLUMN_FILTERS)[number]["id"];
 
 const chromeSelect =
@@ -59,7 +60,8 @@ function initialChromeTab(
   initialTab?: KanbanOnlineStart,
   showDesignSpec = false,
 ): ChromeTab {
-  const start = panel ?? initialTab ?? "inbox";
+  const start = panel ?? initialTab ?? "requirements";
+  if (start === "requirements") return "requirements";
   if (start === "changelog") return "changelog";
   if (start === "notes") return "notes";
   if (start === "spec") return showDesignSpec ? "spec" : "changelog";
@@ -84,7 +86,7 @@ export function KanbanOnlineHost({
   leafOptions,
   defaultTagNodeId,
   panel,
-  initialTab = "inbox",
+  initialTab = "requirements",
   changelogs,
   showTabs = true,
   tabSet,
@@ -93,6 +95,7 @@ export function KanbanOnlineHost({
   notes = "",
   showDesignSpec = false,
   changelogClock = "leaf",
+  requirements,
   onSaveNotes,
 }: {
   board: KanbanBoardData;
@@ -116,6 +119,8 @@ export function KanbanOnlineHost({
   notes?: string;
   showDesignSpec?: boolean;
   changelogClock?: "leaf" | "sg-hub";
+  /** High-level requirements for this leaf. Empty shows the template prompt. */
+  requirements?: string;
   onSaveNotes?: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const resolvedTabSet =
@@ -136,6 +141,7 @@ export function KanbanOnlineHost({
   const [showArchived, setShowArchived] = useState(false);
   const [inboxMoreOpen, setInboxMoreOpen] = useState(false);
   const showChangelogTab = Array.isArray(changelogs);
+  const requirementsOn = chromeTab === "requirements";
   const inboxOn = chromeTab === "inbox";
   const changelogOn = chromeTab === "changelog";
   const notesOn = chromeTab === "notes";
@@ -201,6 +207,17 @@ export function KanbanOnlineHost({
             aria-label="Kanban Online"
             className="flex min-w-0 flex-1 flex-wrap gap-1"
           >
+            {resolvedTabSet === "suite" ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={requirementsOn}
+                className="sg-tab"
+                onClick={() => selectChrome("requirements")}
+              >
+                {KANBAN_CHROME.labels.requirements}
+              </button>
+            ) : null}
             {resolvedTabSet === "suite" ? (
               <button
                 type="button"
@@ -416,7 +433,9 @@ export function KanbanOnlineHost({
       </div>
       ) : null}
 
-      {inboxOn ? (
+      {requirementsOn ? (
+        <RequirementsPanel leafTitle={leafTitle} body={requirements} />
+      ) : inboxOn ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <InboxPanel
             board={inboxBoard}

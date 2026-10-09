@@ -107,7 +107,7 @@ export function KanbanDesignSpec() {
             <div className="rounded-[8px] border border-[var(--ink)] bg-[var(--surface)] p-2 text-[var(--ink)]">
               <div className="mb-1 flex items-center justify-between gap-2 border-b border-[var(--border)] pb-1">
                 <span>
-                  {c.labels.inbox} · {c.labels.kanban} · {c.labels.changelog} · {c.labels.notes}
+                  {c.labels.requirements} · {c.labels.inbox} · {c.labels.kanban} · {c.labels.changelog} · {c.labels.notes}
                 </span>
                 <span className="rounded-[8px] bg-[var(--ink)] px-2 py-0.5 text-[var(--surface)]">
                   {c.labels.raise}

@@ -1,6 +1,6 @@
 # Development choices
 
-Canon for agents and humans. Do not contradict **locked** rows. In-app: Internal → Development choices (`/i/dev-choices`). Store: `data/dev-choices.json`.
+Canon for agents and humans. Do not contradict **locked** rows. In-app: System → Development choices (`/s/dev-choices`). Store: `data/dev-choices.json`.
 
 ---
 

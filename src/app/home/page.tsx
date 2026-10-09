@@ -21,9 +21,9 @@ export default async function HomePage() {
       <header className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Home</h1>
         <p className="mt-2 max-w-xl text-[var(--muted)]">
-          Choose a Hub. Work and Projects hold spin-out capable products;
-          Development holds the suite cards; Internal holds leftover tools; System
-          defines and maintains the site.
+          Choose a Hub. Work and Projects hold the products. Development is
+          this hub’s own development tab. Internal holds tools for the hub.
+          System describes the site.
         </p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2">

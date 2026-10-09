@@ -3,6 +3,7 @@ import { COLUMN_FILTERS, COLUMN_LABELS } from "./schema";
 /** One place for Kanban chrome copy and layout. Relabel here; every host follows. */
 export const KANBAN_CHROME = {
   labels: {
+    requirements: "Requirements",
     inbox: COLUMN_LABELS.inbox,
     kanban: "Kanban",
     changelog: "Changelog",
@@ -28,7 +29,7 @@ export const KANBAN_CHROME = {
     host: "flex min-h-0 flex-1 flex-col (fills leftover viewport)",
     pageWidth: "full width of the leaf main; no max-w-5xl on the board",
     chromeRows:
-      "Layout 1 Kanban card: no suite tabs; checkbox row above buckets (default Later+Open). Layout 2 (leaves): L2 tabs Inbox | Kanban | Changelog | Notes. Kanban tab uses the same checkbox row. Design spec is a Development hub card only.",
+      "Layout 1 Kanban card: no suite tabs; checkbox row above buckets (default Later+Open). Layout 2 (leaves): L2 tabs Requirements | Inbox | Kanban | Changelog | Notes. A new leaf opens on Requirements. Kanban tab uses the same checkbox row. Design spec is a Development hub card only.",
     readingWidth: "Changelog / Notes / Design spec may use a readable card; the board must not.",
   },
   density: {
@@ -40,7 +41,7 @@ export const KANBAN_CHROME = {
   },
   colour: {
     badge:
-      "Leaf CodeBadge hex only (dc-design-defaults). Development hub badge is C45C26.",
+      "Leaf CodeBadge hex only (dc-design-defaults). Development hub badge is 8C8C8C.",
     inboxAccent:
       "Inbox hat/accent stays pink (#b45a78). Column colours: Later gold, Open blue, Done green.",
   },
