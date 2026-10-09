@@ -9,6 +9,7 @@ const cases: Array<[string, string]> = [
   ["/d/inbox", "hub-development"],
   ["/d/kanban", "hub-development"],
   ["/d/changelog", "hub-development"],
+  ["/i/train-changelog", "hub-internal"],
   ["/w", "hub-work"],
   ["/p", "hub-projects"],
   ["/i", "hub-internal"],

@@ -88,7 +88,7 @@ ${formatDeltaSummary(delta)}
 2. Split the raw note into tickets with a category badge. User-facing KanBan is informational — they do not action cards. Columns are Later → Open → Done. Raw notes live on the Inbox tab, not on the board.
 3. Emit a **session pack** JSON (schema below) the user can **Publish snapshot** on live (and on localhost while developing).
 4. As you work, move tickets: later → open → done. Archive when closed.
-5. **Actioning tickets drives the changelog** on the same Development page (WIP and/or release, clock X.Y.Z). Completing work is not column-only. Wrapping-hub suite rows go to SG Hub Changelog (\`/d/changelog\`). Website zip history is Train Changelog (\`/d/train-changelog\`), not a leaf row.
+5. **Actioning tickets drives the changelog** on the same Development page (WIP and/or release, clock X.Y.Z). Completing work is not column-only. Wrapping-hub suite rows go to SG Hub Changelog (\`/d/changelog\`). Website zip history is Train Changelog (\`/i/train-changelog\`), not a leaf row.
 6. Extra work the user asks for in this session that was never an inbox note still gets tickets + changelog; those tickets omit \`sourceIdeaId\` (ad-hoc).
 7. Prefer small publishes so the change-since-live meter stays out of red (10+).
 
