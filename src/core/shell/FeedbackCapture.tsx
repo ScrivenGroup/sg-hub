@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useId, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import { ShellModal } from "@/core/shell/ShellModal";
 import { addInboxNoteAction } from "@/core/kanban/actions";
 import { ATTACHMENT_MAX_PER_NOTE } from "@/core/kanban/attachments";
@@ -153,13 +152,18 @@ export function FeedbackCapture() {
             <button type="button" className="sg-btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <Link
-              href={inboxHref}
+            <button
+              type="button"
               className="sg-btn-action ml-auto"
-              onClick={onClose}
+              onClick={() => {
+                const hasData = Boolean(title.trim() || body.trim() || pendingFiles.length);
+                if (hasData && !window.confirm("Discard changes?")) return;
+                setOpen(false);
+                router.push(inboxHref);
+              }}
             >
               Open Inbox
-            </Link>
+            </button>
           </div>
         }
       >

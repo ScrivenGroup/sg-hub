@@ -541,14 +541,14 @@ export const LIBRARY_SEED: LibraryEntry[] = [
     kitDefault:
       "Never replace the page with a blank spinner. Veil the current view; chrome stays.",
     exists:
-      "src/app/loading.tsx uses UiLoadingScreen (blank replace). UiLoadingOverlay is closer. Buylist has its own loading.tsx.",
-    suggest: "Ticket kt-route-loading-veil. Another session implements the veil.",
+      "Hub and Home cards veil the clicked card. Other same-origin links veil the page (semi-transparent, spinner centred). Buylist and MRT still have their own loading.tsx.",
+    suggest: "Ticket kt-route-loading-veil. Card and page veil are in. Tables and charts can add their own kind later.",
     status: "conflict",
     conflicts: [
       {
         leaf: "Hub",
-        where: "src/app/loading.tsx → UiLoadingScreen",
-        instead: "Opaque blank page plus centred spinner",
+        where: "UiLoading overlay on ordinary links; Buylist and MRT loading.tsx",
+        instead: "Full-screen veil or a blank leaf spinner",
       },
     ],
   },
@@ -559,15 +559,16 @@ export const LIBRARY_SEED: LibraryEntry[] = [
     use: "translucent overlay",
     kitDefault:
       "Never replace the page with a blank spinner. Veil the current view (translucent overlay, chrome stays).",
-    exists: "src/app/loading.tsx blanks the route. Open Inbox showed that delay.",
+    exists:
+      "Hub and Home cards veil the clicked card. Map, Home, Site network, and other links veil the whole page with a semi-transparent overlay and spinner.",
     suggest: "Ticket kt-route-loading-veil. Written on /s/standards?tab=behaviours.",
     status: "conflict",
-    notes: "Rule is locked. Code still blanks. Do not implement in a hub-chrome sitting.",
+    notes: "Card veil and page veil are both in. Buylist and MRT still blank their own routes.",
     conflicts: [
       {
         leaf: "Hub",
-        where: "src/app/loading.tsx",
-        instead: "Blank paint until the next route is ready",
+        where: "UiLoading overlay; leaf loading.tsx on Buylist and MRT",
+        instead: "Full-screen wait instead of the clicked control",
       },
     ],
   },

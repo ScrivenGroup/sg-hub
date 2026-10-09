@@ -1,7 +1,7 @@
 import { auth, isMrtGuest } from "@/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { AppShell } from "@/core/shell/AppShell";
+import { PendingNavLink } from "@/core/ui/PendingNavLink";
 import { getHubs, getChildren } from "@/core/registry";
 import { getDependencies } from "@/core/store/json-store";
 import { systemHubRag } from "@/core/access/rag";
@@ -31,7 +31,7 @@ export default async function HomePage() {
           const childCount = getChildren(hub.id).length;
           const showRag = hub.id === "hub-system" ? systemRag : "none";
           return (
-            <Link key={hub.id} href={hub.href} className="sg-card relative">
+            <PendingNavLink key={hub.id} href={hub.href} className="sg-card h-full">
               <div className="mb-3 flex items-start justify-between gap-2">
                 <h2 className="text-xl font-semibold">{hub.title}</h2>
                 <div className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export default async function HomePage() {
                   {childCount} area{childCount === 1 ? "" : "s"}
                 </p>
               ) : null}
-            </Link>
+            </PendingNavLink>
           );
         })}
       </div>

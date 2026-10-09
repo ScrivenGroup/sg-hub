@@ -5,6 +5,7 @@ import { siteNetworkTree } from "@/core/registry";
 import { BackButton } from "@/core/shell/BackButton";
 import { SiteNetwork } from "@/core/shell/SiteNetwork";
 import { FeedbackCapture } from "@/core/shell/FeedbackCapture";
+import { RoadmapMapLink } from "@/core/shell/RoadmapMapLink";
 import { TrainVersionLink } from "@/core/shell/TrainVersionLink";
 import { WipDeskBadge } from "@/core/shell/WipDeskBadge";
 
@@ -64,6 +65,7 @@ export async function AppShell({
           </Link>
           <WipDeskBadge />
           <TrainVersionLink linked={!guest} />
+          {guest ? null : <RoadmapMapLink />}
           {title ? (
             <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
               {typeof title === "string" ? (

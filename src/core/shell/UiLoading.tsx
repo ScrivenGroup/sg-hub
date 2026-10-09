@@ -16,8 +16,8 @@ import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
 
 /**
- * Hub “loading” veil — opaque screen + spinner.
- * Use for tab/filter/navigation waits. Harvest and uploads keep the processing card.
+ * Two loading kinds so far: the clicked card veils itself (PendingNavLink),
+ * and every other same-origin link veils the page. Tables and charts can add kinds later.
  */
 type LoadingKind = "ui" | "nav";
 
@@ -50,8 +50,8 @@ export function useUiLoadingGate() {
   };
 }
 
-export function UiLoadingSpinner() {
-  return <span className="sg-loading-spin" aria-hidden />;
+export function UiLoadingSpinner({ className }: { className?: string }) {
+  return <span className={`sg-loading-spin ${className ?? ""}`} aria-hidden />;
 }
 
 export function UiLoadingScreen() {
@@ -76,7 +76,7 @@ function UiLoadingOverlay({ open }: { open: boolean }) {
   if (!open || !mounted) return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[2147482900] flex cursor-wait items-center justify-center bg-[color-mix(in_srgb,var(--page)_86%,var(--ink))]"
+      className="fixed inset-0 z-[2147482900] flex cursor-wait items-center justify-center bg-[color-mix(in_srgb,var(--page)_62%,transparent)]"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -101,16 +101,22 @@ function NavigationLoading() {
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
-      if (event.defaultPrevented) return;
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
       const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-local-pending]")) return;
       const a = target?.closest("a[href]");
       if (!a) return;
       if (a.getAttribute("download") != null) return;
       const href = a.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        href.startsWith("javascript:")
+      ) {
         return;
       }
       const targetAttr = a.getAttribute("target");
@@ -127,8 +133,8 @@ function NavigationLoading() {
       }
       begin?.("nav");
     }
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, [begin]);
 
   return null;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { UiLoadingSpinner } from "@/core/shell/UiLoading";
 
 export function PendingNavLink({
   href,
@@ -19,6 +20,7 @@ export function PendingNavLink({
   return (
     <Link
       href={href}
+      data-local-pending=""
       className={`relative ${className ?? ""}`}
       aria-busy={pending}
       onClick={(event) => {
@@ -40,8 +42,9 @@ export function PendingNavLink({
     >
       {children}
       {pending ? (
-        <span className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-[var(--surface)]/85 text-sm font-medium text-[var(--ink)]">
-          Loading…
+        <span className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-[color-mix(in_srgb,var(--surface)_62%,transparent)]">
+          <UiLoadingSpinner className="!h-7 !w-7" />
+          <span className="sr-only">Loading</span>
         </span>
       ) : null}
     </Link>
